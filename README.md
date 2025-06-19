@@ -121,7 +121,7 @@ See our [Issues](https://github.com/increasinglyHuman/JazzyPop/issues) page, par
 ## 👥 Development Team
 
 - **p0qp0q** - Project Lead & Frontend Development
-- **Claude (Anthropic)** - Architecture & Implementation
+- **DJ Claud3** - Architecture & Implementation
 
 ## 📝 License
 
