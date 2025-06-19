@@ -1,5 +1,7 @@
 # JazzyPop 🎵 (Kawaii Quiz App)
 
+![JazzyPop Hero Image](./assets/hero-image.jpg)
+
 A mobile-friendly quiz creator for Adobe Learning Manager (ALM) with a delightful kawaii aesthetic. Create engaging quizzes with AI assistance and beautiful animations!
 
 ![Version](https://img.shields.io/badge/version-4.8-pink.svg)
