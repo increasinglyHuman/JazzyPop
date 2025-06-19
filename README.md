@@ -2,7 +2,7 @@
 
 A mobile-friendly quiz creator for Adobe Learning Manager (ALM) with a delightful kawaii aesthetic. Create engaging quizzes with AI assistance and beautiful animations!
 
-![Version](https://img.shields.io/badge/version-4.4-pink.svg)
+![Version](https://img.shields.io/badge/version-4.8-pink.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## 🌸 Features
@@ -11,11 +11,13 @@ A mobile-friendly quiz creator for Adobe Learning Manager (ALM) with a delightfu
 - **AI-Powered**: Generate quiz questions automatically using Claude AI
 - **ALM Integration**: Works as a native extension within Adobe Learning Manager
 - **Mobile-First**: Responsive design optimized for phones and tablets
+- **Quiz Hub**: Innovative sidebar mode with daily challenges and universal quizzes
 - **Dual Mode**: 
   - Instructor mode for creating quizzes
   - Learner mode for taking quizzes
 - **Single Answer Questions**: Clean, modern button-based answers
 - **Real-time Saving**: Quizzes are automatically saved to the backend
+- **OAuth Authentication**: Secure API integration with role-based access
 
 ## 🚀 Quick Start
 
@@ -68,6 +70,16 @@ python3 -m http.server 8080
 
 3. Access the app at `http://localhost:8080`
 
+## 🔐 ALM Authentication Update
+
+**Important Discovery**: Native extensions receive `natext_` tokens which cannot be used with ALM's public API. For API access:
+
+1. Register your app in ALM Integration Admin
+2. Generate OAuth tokens using [Adobe's Token Tool](https://learningmanager.adobe.com/apidocs)
+3. Follow our [OAuth Setup Guide](docs/OAUTH_SETUP_GUIDE.md)
+
+See [ALM Integration Guide](docs/ALM_INTEGRATION.md) for the full solution.
+
 ## 🏗️ Architecture
 
 ```
@@ -90,10 +102,15 @@ JazzyPop/
 - **Simplicity**: Clean UI without clutter, single-answer questions only
 - **Modern**: No radio buttons or checkboxes - just beautiful buttons
 
+## 📊 Current Status
+
+See our [Status Update](STATUS_UPDATE.md) for the latest development progress and current investigations.
+
 ## 🐛 Known Issues
 
-See our [Issues](https://github.com/yourusername/JazzyPop/issues) page, particularly:
-- [#1: ALM Native Extension API Authentication](https://github.com/yourusername/JazzyPop/issues/1)
+See our [Issues](https://github.com/increasinglyHuman/JazzyPop/issues) page, particularly:
+- [#1: ALM Native Extension API Authentication](https://github.com/increasinglyHuman/JazzyPop/issues/1) - ✅ Resolved with OAuth
+- [#2: Learner Sidebar Extension Loading](https://github.com/increasinglyHuman/JazzyPop/issues/2) - 🔍 Under investigation
 
 ## 👥 Development Team
 
