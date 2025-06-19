@@ -59,6 +59,15 @@ The Quiz Hub approach transforms a limitation (no course context in sidebar) int
 - Progress tracking with streaks
 - Universal knowledge quizzes
 
+## 💰 Cost Efficiency
+
+We've conducted a thorough cost analysis of the AI-powered features:
+- **Cost per quiz**: Less than a quarter penny ($0.0024)
+- **At scale**: Approximately $1.18 per 1,000 quiz generations
+- **Enterprise usage**: Even at 5,000 daily quizzes, annual cost is under $4,300
+
+See our detailed [Cost Analysis](./docs/COST_ANALYSIS.md) for complete projections and optimization strategies.
+
 ## 📚 Documentation
 
 All technical findings and integration guides are available in our [docs](./docs) directory:

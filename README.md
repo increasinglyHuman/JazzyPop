@@ -106,6 +106,10 @@ JazzyPop/
 
 See our [Status Update](STATUS_UPDATE.md) for the latest development progress and current investigations.
 
+## 💰 Cost Analysis
+
+We've thoroughly analyzed the operational costs for AI-powered quiz generation. See our [Cost Analysis](docs/COST_ANALYSIS.md) for detailed projections showing approximately $1.18 per 1,000 quiz generations.
+
 ## 🐛 Known Issues
 
 See our [Issues](https://github.com/increasinglyHuman/JazzyPop/issues) page, particularly:
