@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>JazzyPop - Learning Path</title>
+    <link rel="stylesheet" href="duolingo-inspired-ui.css">
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <div class="flag-icon">🎭</div>
+            <select id="mode-select" style="background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px; border-radius: 8px;">
+                <option value="normal">📚 Normal Mode</option>
+                <option value="playful">🎮 Playful Mode</option>
+                <option value="chaos">🌪️ Chaos Mode</option>
+            </select>
+        </div>
+        <div class="nav-stats">
+            <div class="stat-item">
+                <span class="streak-flame">🔥</span>
+                <span id="streak-count">7</span>
+            </div>
+            <div class="stat-item">
+                <span class="gems-icon">💎</span>
+                <span id="gem-count">1200</span>
+            </div>
+            <div class="hearts-container">
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Path View -->
+    <div class="path-container">
+        <!-- Unit Header -->
+        <div class="unit-header">
+            <div>
+                <div class="unit-title">SECTION 1, UNIT 1</div>
+                <div class="unit-name">Introduction to Chaos</div>
+            </div>
+            <button class="guidebook-btn">📖</button>
+        </div>
+        
+        <!-- Skill Path -->
+        <div class="skill-path">
+            <div class="path-line"></div>
+            
+            <!-- Skill Node 1 - Completed -->
+            <div class="skill-node">
+                <button class="skill-button completed" onclick="openSkill('basics')">
+                    <span class="skill-icon">✨</span>
+                    <div class="skill-progress">
+                        <span class="progress-dot filled"></span>
+                        <span class="progress-dot filled"></span>
+                        <span class="progress-dot filled"></span>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- Skill Node 2 - In Progress -->
+            <div class="skill-node">
+                <button class="skill-button" onclick="openSkill('intermediate')">
+                    <span class="skill-icon">🎯</span>
+                    <div class="skill-progress">
+                        <span class="progress-dot filled"></span>
+                        <span class="progress-dot filled"></span>
+                        <span class="progress-dot"></span>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- Skill Node 3 - Available -->
+            <div class="skill-node">
+                <button class="skill-button" onclick="openSkill('advanced')">
+                    <span class="skill-icon">⭐</span>
+                    <div class="skill-progress">
+                        <span class="progress-dot"></span>
+                        <span class="progress-dot"></span>
+                        <span class="progress-dot"></span>
+                    </div>
+                </button>
+            </div>
+            
+            <!-- Skill Node 4 - Locked -->
+            <div class="skill-node">
+                <button class="skill-button locked">
+                    <span class="skill-icon">🔒</span>
+                </button>
+            </div>
+            
+            <!-- Jump Section -->
+            <div class="jump-section">
+                <div class="jump-label">JUMP HERE?</div>
+                <button class="jump-button" onclick="jumpToLevel()">▶️</button>
+            </div>
+            
+            <!-- More Locked Nodes -->
+            <div class="skill-node">
+                <button class="skill-button locked">
+                    <span class="skill-icon">🏆</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Start Modal -->
+    <div class="start-modal" id="start-modal">
+        <div class="modal-content">
+            <div class="lesson-info">
+                <h2 class="lesson-title" id="lesson-title">Form basic concepts</h2>
+                <p class="lesson-subtitle" id="lesson-subtitle">Lesson 1 of 3</p>
+            </div>
+            <button class="start-button" onclick="startLesson()">
+                START <span class="xp-badge">+10 XP</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Question Screen -->
+    <div class="question-screen" id="question-screen">
+        <header class="question-header">
+            <button class="close-btn" onclick="closeQuestion()">✕</button>
+            <div class="progress-bar-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="lesson-progress" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="hearts-container">
+                <span class="heart" id="heart1">❤️</span>
+                <span class="heart" id="heart2">❤️</span>
+                <span class="heart" id="heart3">❤️</span>
+                <span class="heart" id="heart4">❤️</span>
+                <span class="heart" id="heart5">❤️</span>
+            </div>
+        </header>
+        
+        <div class="question-content">
+            <h2 class="question-type" id="question-type">Type the missing word</h2>
+            
+            <div class="character-container">
+                <span class="character" id="character">🤖</span>
+                <div class="speech-buttons">
+                    <button class="speech-btn" onclick="playSound()">🔊</button>
+                    <button class="speech-btn" onclick="slowSound()">🐌</button>
+                </div>
+            </div>
+            
+            <div id="question-text" style="font-size: 20px; margin-bottom: 24px;">
+                I am a <input type="text" class="input-area" id="answer-input" placeholder="..." style="width: 150px; display: inline-block; margin: 0 8px;">
+            </div>
+            
+            <div id="answer-options" style="display: none;">
+                <!-- Will be populated based on question type -->
+            </div>
+        </div>
+        
+        <div class="question-actions">
+            <button class="skip-btn" onclick="skipQuestion()">CAN'T ANSWER NOW</button>
+            <button class="check-btn" id="check-btn" onclick="checkAnswer()">CHECK</button>
+        </div>
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-items">
+            <a class="nav-item active">
+                <span class="nav-item-icon">🏠</span>
+                <span>Learn</span>
+            </a>
+            <a class="nav-item">
+                <span class="nav-item-icon">👥</span>
+                <span>Characters</span>
+            </a>
+            <a class="nav-item">
+                <span class="nav-item-icon">🛡️</span>
+                <span>Quests</span>
+            </a>
+            <a class="nav-item">
+                <span class="nav-item-icon">🏪</span>
+                <span>Shop</span>
+            </a>
+            <a class="nav-item">
+                <span class="nav-item-icon">👤</span>
+                <span>Profile</span>
+            </a>
+        </div>
+    </nav>
+    
+    <script>
+        // Current mode
+        let currentMode = 'normal';
+        let currentQuestion = 0;
+        let hearts = 5;
+        let lessonProgress = 0;
+        
+        // Question banks for different modes
+        const questions = {
+            normal: [
+                {
+                    type: 'fill',
+                    character: '🤖',
+                    text: 'I am a ___ robot.',
+                    answer: 'happy',
+                    options: ['happy', 'sad', 'angry', 'tired']
+                },
+                {
+                    type: 'fill',
+                    character: '🦄',
+                    text: 'The unicorn loves to ___.',
+                    answer: 'dance',
+                    options: ['dance', 'sleep', 'eat', 'fly']
+                }
+            ],
+            playful: [
+                {
+                    type: 'fill',
+                    character: '🎮',
+                    text: 'Press ___ to unleash the rainbow power!',
+                    answer: 'START',
+                    options: ['START', 'STOP', 'PAUSE', 'RESET']
+                },
+                {
+                    type: 'fill',
+                    character: '🌈',
+                    text: 'The magical ___ creates endless possibilities.',
+                    answer: 'portal',
+                    options: ['portal', 'door', 'window', 'bridge']
+                }
+            ],
+            chaos: [
+                {
+                    type: 'fill',
+                    character: '🌪️',
+                    text: 'The interdimensional ___ just ate my homework!',
+                    answer: 'hamster',
+                    options: ['hamster', 'void', 'taco', 'algorithm']
+                },
+                {
+                    type: 'fill',
+                    character: '🚀',
+                    text: 'In the quantum realm, ___ means everything and nothing.',
+                    answer: 'undefined',
+                    options: ['undefined', 'null', 'infinity', 'potato']
+                }
+            ]
+        };
+        
+        // Lesson titles for different modes
+        const lessonTitles = {
+            normal: {
+                basics: 'Form basic concepts',
+                intermediate: 'Understand patterns',
+                advanced: 'Apply knowledge'
+            },
+            playful: {
+                basics: 'Start your adventure',
+                intermediate: 'Level up your skills',
+                advanced: 'Master the game'
+            },
+            chaos: {
+                basics: 'Enter the chaos dimension',
+                intermediate: 'Embrace the madness',
+                advanced: 'Transcend reality'
+            }
+        };
+        
+        // Mode change handler
+        document.getElementById('mode-select').addEventListener('change', (e) => {
+            currentMode = e.target.value;
+            updateUIForMode();
+        });
+        
+        function updateUIForMode() {
+            // Update colors based on mode
+            const root = document.documentElement;
+            if (currentMode === 'chaos') {
+                root.style.setProperty('--primary-green', '#ff006e');
+                root.style.setProperty('--dark-green', '#cc0056');
+                root.style.setProperty('--light-green', '#ff4d94');
+            } else if (currentMode === 'playful') {
+                root.style.setProperty('--primary-green', '#ffc800');
+                root.style.setProperty('--dark-green', '#e6b400');
+                root.style.setProperty('--light-green', '#ffdb4d');
+            } else {
+                root.style.setProperty('--primary-green', '#58cc02');
+                root.style.setProperty('--dark-green', '#4aa002');
+                root.style.setProperty('--light-green', '#89e219');
+            }
+        }
+        
+        function openSkill(level) {
+            const modal = document.getElementById('start-modal');
+            const title = document.getElementById('lesson-title');
+            const subtitle = document.getElementById('lesson-subtitle');
+            
+            title.textContent = lessonTitles[currentMode][level];
+            subtitle.textContent = currentMode === 'chaos' ? 'Chaos Level 3' : 'Lesson 1 of 3';
+            
+            modal.classList.add('active');
+        }
+        
+        function startLesson() {
+            document.getElementById('start-modal').classList.remove('active');
+            document.getElementById('question-screen').classList.add('active');
+            
+            currentQuestion = 0;
+            hearts = 5;
+            lessonProgress = 0;
+            
+            loadQuestion();
+        }
+        
+        function loadQuestion() {
+            const questionBank = questions[currentMode];
+            const question = questionBank[currentQuestion % questionBank.length];
+            
+            document.getElementById('character').textContent = question.character;
+            
+            // Create question with input field
+            const questionContainer = document.getElementById('question-text');
+            const parts = question.text.split('___');
+            questionContainer.innerHTML = `
+                ${parts[0]}<input type="text" class="input-area" id="answer-input" 
+                placeholder="..." style="width: 150px; display: inline-block; margin: 0 8px;">${parts[1] || ''}
+            `;
+            
+            // Update progress
+            lessonProgress = ((currentQuestion + 1) / 5) * 100;
+            document.getElementById('lesson-progress').style.width = lessonProgress + '%';
+            
+            // Focus input
+            setTimeout(() => {
+                document.getElementById('answer-input').focus();
+            }, 100);
+        }
+        
+        function checkAnswer() {
+            const input = document.getElementById('answer-input');
+            const questionBank = questions[currentMode];
+            const question = questionBank[currentQuestion % questionBank.length];
+            
+            if (input.value.toLowerCase() === question.answer.toLowerCase()) {
+                // Correct answer
+                showFeedback(true);
+                currentQuestion++;
+                
+                if (currentQuestion >= 5) {
+                    completeLesson();
+                } else {
+                    setTimeout(() => loadQuestion(), 1000);
+                }
+            } else {
+                // Wrong answer
+                showFeedback(false);
+                hearts--;
+                updateHearts();
+                
+                if (hearts <= 0) {
+                    alert('Out of hearts! Try again later.');
+                    closeQuestion();
+                }
+            }
+        }
+        
+        function showFeedback(correct) {
+            const btn = document.getElementById('check-btn');
+            if (correct) {
+                btn.style.background = '#58cc02';
+                btn.textContent = 'CORRECT!';
+                
+                // Add celebration based on mode
+                if (currentMode === 'chaos') {
+                    document.body.style.animation = 'chaosShake 0.5s';
+                    setTimeout(() => {
+                        document.body.style.animation = '';
+                    }, 500);
+                }
+            } else {
+                btn.style.background = '#ff4b4b';
+                btn.textContent = 'TRY AGAIN';
+                setTimeout(() => {
+                    btn.style.background = '';
+                    btn.textContent = 'CHECK';
+                }, 1000);
+            }
+        }
+        
+        function updateHearts() {
+            for (let i = 1; i <= 5; i++) {
+                const heart = document.getElementById(`heart${i}`);
+                if (i > hearts) {
+                    heart.style.opacity = '0.3';
+                }
+            }
+        }
+        
+        function completeLesson() {
+            alert(`Lesson complete! +${currentMode === 'chaos' ? '30' : '10'} XP earned!`);
+            closeQuestion();
+            
+            // Update skill node to show progress
+            const nodes = document.querySelectorAll('.skill-button');
+            if (nodes[1]) {
+                const dots = nodes[1].querySelectorAll('.progress-dot');
+                dots.forEach(dot => dot.classList.add('filled'));
+            }
+        }
+        
+        function closeQuestion() {
+            document.getElementById('question-screen').classList.remove('active');
+        }
+        
+        function skipQuestion() {
+            currentQuestion++;
+            if (currentQuestion >= 5) {
+                completeLesson();
+            } else {
+                loadQuestion();
+            }
+        }
+        
+        function playSound() {
+            // Play sound effect
+            console.log('Playing sound...');
+        }
+        
+        function slowSound() {
+            // Play slow sound
+            console.log('Playing slow sound...');
+        }
+        
+        function jumpToLevel() {
+            alert('Take a placement test to jump ahead!');
+        }
+        
+        // Add chaos animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes chaosShake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-10px) rotate(-1deg); }
+                75% { transform: translateX(10px) rotate(1deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

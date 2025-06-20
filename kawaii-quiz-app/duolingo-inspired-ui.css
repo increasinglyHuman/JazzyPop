@@ -1,0 +1,621 @@
+/* JazzyPop - Duolingo-Inspired Modern UI */
+:root {
+    /* Core Colors */
+    --primary-green: #58cc02;
+    --dark-green: #4aa002;
+    --light-green: #89e219;
+    --background-dark: #131f24;
+    --surface-dark: #1f2c34;
+    --card-dark: #2b3d48;
+    --text-primary: #ffffff;
+    --text-secondary: #afafaf;
+    --accent-blue: #1cb0f6;
+    --accent-red: #ff4b4b;
+    --accent-gold: #ffc800;
+    --accent-purple: #ce82ff;
+    
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    
+    /* Border Radius */
+    --radius-sm: 8px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-full: 9999px;
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-glow: 0 0 20px rgba(88, 204, 2, 0.3);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'DIN Next Rounded', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--background-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Top Navigation Bar */
+.top-nav {
+    position: sticky;
+    top: 0;
+    background: var(--surface-dark);
+    padding: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.flag-icon {
+    width: 32px;
+    height: 24px;
+    background: var(--accent-gold);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.nav-stats {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.streak-flame {
+    color: var(--accent-gold);
+    font-size: 24px;
+}
+
+.gems-icon {
+    color: var(--accent-blue);
+    font-size: 24px;
+}
+
+.hearts-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.heart {
+    color: var(--accent-red);
+    font-size: 24px;
+    transition: transform 0.2s;
+}
+
+.heart:hover {
+    transform: scale(1.1);
+}
+
+.heart.empty {
+    opacity: 0.3;
+}
+
+/* Path View Container */
+.path-container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: var(--space-lg);
+    padding-bottom: 100px;
+    position: relative;
+}
+
+/* Unit Header */
+.unit-header {
+    background: var(--primary-green);
+    color: white;
+    padding: var(--space-md) var(--space-lg);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--space-xl);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 700;
+    box-shadow: var(--shadow-md);
+}
+
+.unit-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.unit-name {
+    font-size: 20px;
+    margin-top: 4px;
+}
+
+.guidebook-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.guidebook-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* Skill Path */
+.skill-path {
+    position: relative;
+    padding: 0 60px;
+}
+
+/* Path Line */
+.path-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(-50%);
+    z-index: 0;
+}
+
+/* Skill Node */
+.skill-node {
+    position: relative;
+    margin-bottom: var(--space-xl);
+    z-index: 1;
+}
+
+.skill-button {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-dark);
+    border: 4px solid var(--primary-green);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+}
+
+.skill-button.completed {
+    background: var(--primary-green);
+    animation: completePulse 0.5s ease;
+}
+
+.skill-button.locked {
+    background: var(--surface-dark);
+    border-color: rgba(255, 255, 255, 0.2);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.skill-button:not(.locked):hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-glow);
+}
+
+.skill-icon {
+    font-size: 48px;
+    margin-bottom: var(--space-sm);
+}
+
+.skill-button.completed .skill-icon {
+    color: white;
+}
+
+.skill-progress {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+}
+
+.progress-dot {
+    width: 8px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+}
+
+.progress-dot.filled {
+    background: var(--primary-green);
+}
+
+/* Start Button Modal */
+.start-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.start-modal.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.modal-content {
+    background: var(--card-dark);
+    width: 100%;
+    max-width: 500px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: var(--space-xl);
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.start-modal.active .modal-content {
+    transform: translateY(0);
+}
+
+.lesson-info {
+    text-align: center;
+    margin-bottom: var(--space-xl);
+}
+
+.lesson-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: var(--space-sm);
+}
+
+.lesson-subtitle {
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+.start-button {
+    width: 100%;
+    background: var(--primary-green);
+    color: white;
+    border: none;
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    font-size: 18px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 0 var(--dark-green);
+    position: relative;
+    top: 0;
+}
+
+.start-button:hover {
+    background: var(--light-green);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 var(--dark-green);
+}
+
+.start-button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--dark-green);
+}
+
+.xp-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    margin-left: var(--space-sm);
+    font-size: 14px;
+}
+
+/* Jump Here Button */
+.jump-section {
+    text-align: center;
+    margin: var(--space-xl) 0;
+    padding: var(--space-xl) 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.jump-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--space-md);
+}
+
+.jump-button {
+    width: 80px;
+    height: 80px;
+    background: var(--accent-purple);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 36px;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: var(--shadow-md);
+}
+
+.jump-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 30px rgba(206, 130, 255, 0.5);
+}
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface-dark);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: var(--space-sm) 0;
+}
+
+.nav-items {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.nav-item:hover {
+    color: var(--text-primary);
+}
+
+.nav-item.active {
+    color: var(--primary-green);
+}
+
+.nav-item-icon {
+    font-size: 24px;
+}
+
+/* Animations */
+@keyframes completePulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Question Screen Styles */
+.question-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--background-dark);
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.question-screen.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.question-header {
+    padding: var(--space-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 24px;
+    cursor: pointer;
+    padding: var(--space-sm);
+}
+
+.progress-bar-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    margin: 0 var(--space-md);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-green);
+    border-radius: var(--radius-full);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.question-content {
+    flex: 1;
+    padding: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 600px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.question-type {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: var(--space-xl);
+}
+
+.character-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    margin-bottom: var(--space-xl);
+}
+
+.character {
+    font-size: 80px;
+    animation: characterBounce 2s infinite;
+}
+
+@keyframes characterBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.speech-buttons {
+    display: flex;
+    gap: var(--space-md);
+}
+
+.speech-btn {
+    background: var(--card-dark);
+    border: 2px solid transparent;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    color: var(--accent-blue);
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.speech-btn:hover {
+    border-color: var(--accent-blue);
+    transform: scale(1.05);
+}
+
+.input-area {
+    background: var(--surface-dark);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--space-lg);
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xl);
+    transition: all 0.2s;
+}
+
+.input-area:focus {
+    outline: none;
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 3px rgba(88, 204, 2, 0.2);
+}
+
+.question-actions {
+    padding: var(--space-xl);
+    background: var(--surface-dark);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.skip-btn {
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: var(--space-md);
+    transition: color 0.2s;
+}
+
+.skip-btn:hover {
+    color: var(--text-primary);
+}
+
+.check-btn {
+    background: var(--primary-green);
+    color: white;
+    border: none;
+    padding: var(--space-md) var(--space-xl);
+    border-radius: var(--radius-lg);
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 0 var(--dark-green);
+    float: right;
+}
+
+.check-btn:hover {
+    background: var(--light-green);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 var(--dark-green);
+}
+
+.check-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 var(--dark-green);
+}
+
+.check-btn:disabled {
+    background: var(--card-dark);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    box-shadow: none;
+}

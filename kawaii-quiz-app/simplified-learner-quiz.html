@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>JazzyPop Quiz</title>
+    <style>
+        /* Core Design System */
+        :root {
+            /* Default (Normal) Mode */
+            --primary: #58cc02;
+            --primary-hover: #4aa002;
+            --secondary: #1cb0f6;
+            --accent: #ff4b4b;
+            --warning: #ffc800;
+            
+            --bg-dark: #131f24;
+            --bg-card: #1f2c34;
+            --bg-elevated: #2b3d48;
+            --text-primary: #ffffff;
+            --text-secondary: #afafaf;
+            --border: rgba(255, 255, 255, 0.1);
+            
+            --radius: 16px;
+            --transition: all 0.2s ease;
+        }
+        
+        /* Chaos Mode Override */
+        [data-mode="chaos"] {
+            --primary: #ff006e;
+            --primary-hover: #cc0056;
+            --secondary: #8338ec;
+            --accent: #ffbe0b;
+            --bg-card: #1a1a1a;
+            --bg-elevated: #2a2a2a;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        /* Chaos Mode Background Effect */
+        [data-mode="chaos"] body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 0, 110, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 50%, rgba(131, 56, 236, 0.1) 0%, transparent 50%);
+            animation: chaosFlow 20s ease-in-out infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes chaosFlow {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(5deg); }
+        }
+        
+        /* App Container */
+        .app {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Top Stats Bar */
+        .stats-bar {
+            background: var(--bg-card);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .stats-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        
+        .stat-icon {
+            font-size: 24px;
+        }
+        
+        /* Hearts display simplified */
+        .hearts-display {
+            font-size: 24px;
+        }
+        
+        /* Mode Toggle */
+        .mode-toggle {
+            background: var(--bg-elevated);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .mode-toggle:hover {
+            border-color: var(--primary);
+        }
+        
+        [data-mode="chaos"] .mode-toggle {
+            background: var(--primary);
+            border-color: var(--primary);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        /* Progress Section */
+        .progress-section {
+            padding: 16px 20px;
+            background: var(--bg-card);
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-elevated);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        [data-mode="chaos"] .progress-fill {
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+            animation: shimmer 2s linear infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 24px 20px;
+            padding-bottom: 120px;
+            overflow-y: auto;
+        }
+        
+        /* Question Container */
+        .question-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 32px 24px;
+            margin-bottom: 24px;
+            transition: var(--transition);
+        }
+        
+        [data-mode="chaos"] .question-container {
+            animation: floatWobble 5s ease-in-out infinite;
+        }
+        
+        @keyframes floatWobble {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-5px) rotate(0.5deg); }
+            75% { transform: translateY(5px) rotate(-0.5deg); }
+        }
+        
+        .question-type {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+        
+        .question-text {
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: 32px;
+        }
+        
+        [data-mode="chaos"] .question-text {
+            animation: glitchText 10s infinite;
+        }
+        
+        @keyframes glitchText {
+            0%, 100% { text-shadow: none; }
+            95% { 
+                text-shadow: 
+                    2px 2px 0 var(--primary),
+                    -2px -2px 0 var(--secondary);
+            }
+        }
+        
+        /* Fill in Blank */
+        .fib-sentence {
+            font-size: 20px;
+            line-height: 1.8;
+        }
+        
+        .fib-input {
+            display: inline-block;
+            min-width: 150px;
+            padding: 8px 16px;
+            margin: 0 8px;
+            background: var(--bg-elevated);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+            transition: var(--transition);
+        }
+        
+        .fib-input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            background: var(--bg-dark);
+        }
+        
+        [data-mode="chaos"] .fib-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(255, 0, 110, 0.3);
+        }
+        
+        /* Multiple Choice */
+        .mcq-options {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .mcq-option {
+            background: var(--bg-elevated);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 18px;
+            font-weight: 500;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .mcq-option:hover {
+            border-color: var(--secondary);
+            transform: translateX(4px);
+        }
+        
+        [data-mode="chaos"] .mcq-option:hover {
+            transform: translateX(8px) rotate(1deg);
+            border-color: var(--primary);
+        }
+        
+        .mcq-option.selected {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+        
+        [data-mode="chaos"] .mcq-option.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+            animation: selectedPulse 0.5s;
+        }
+        
+        @keyframes selectedPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .mcq-indicator {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--text-secondary);
+            border-radius: 50%;
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        .mcq-option.selected .mcq-indicator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* Character Display */
+        .character-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        
+        .character {
+            font-size: 80px;
+            margin-bottom: 16px;
+            display: inline-block;
+            animation: characterBob 3s ease-in-out infinite;
+        }
+        
+        [data-mode="chaos"] .character {
+            animation: characterChaos 2s ease-in-out infinite;
+        }
+        
+        @keyframes characterBob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes characterChaos {
+            0% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-10px) rotate(-5deg); }
+            50% { transform: translateY(0) rotate(5deg); }
+            75% { transform: translateY(10px) rotate(-5deg); }
+            100% { transform: translateY(0) rotate(0deg); }
+        }
+        
+        .character-message {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        [data-mode="chaos"] .character-message {
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-primary);
+        }
+        
+        /* Bottom Action Area */
+        .bottom-action {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 20px;
+            z-index: 100;
+        }
+        
+        .action-buttons {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn-skip {
+            flex: 1;
+            padding: 18px;
+            background: transparent;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .btn-skip:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+        
+        .btn-submit {
+            flex: 2;
+            padding: 18px;
+            background: var(--primary);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        
+        .btn-submit:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+        
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+        
+        .btn-submit:disabled {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+        
+        [data-mode="chaos"] .btn-submit {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            background-size: 200% 200%;
+            animation: gradientShift 3s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Chaos Particles */
+        .chaos-particle {
+            position: fixed;
+            font-size: 24px;
+            opacity: 0.5;
+            pointer-events: none;
+            animation: floatParticle 10s linear infinite;
+        }
+        
+        @keyframes floatParticle {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body data-mode="normal">
+    <div class="app">
+        <!-- Top Stats Bar -->
+        <div class="stats-bar">
+            <div class="stats-left">
+                <div class="stat">
+                    <span class="stat-icon">🔥</span>
+                    <span id="streak-count">7</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon">💎</span>
+                    <span id="gem-count">1,250</span>
+                </div>
+                <div class="stat">
+                    <span class="hearts-display">❤️(<span id="hearts-count">5</span>)</span>
+                </div>
+            </div>
+            <button class="mode-toggle" onclick="toggleMode()">
+                <span id="mode-icon">📚</span>
+                <span id="mode-text">Normal</span>
+            </button>
+        </div>
+        
+        <!-- Progress Section -->
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Question <span id="current-q">3</span> of <span id="total-q">10</span></span>
+                <span id="progress-label">Keep going!</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress" style="width: 30%"></div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Character -->
+            <div class="character-card">
+                <div class="character" id="character">🤖</div>
+                <p class="character-message" id="message">Let's do this!</p>
+            </div>
+            
+            <!-- Question Container -->
+            <div class="question-container">
+                <div class="question-type" id="q-type">MULTIPLE CHOICE</div>
+                <div class="question-text" id="q-text">Which array method creates a new array with all elements that pass a test?</div>
+                
+                <!-- MCQ Example -->
+                <div class="mcq-options" id="mcq-options">
+                    <button class="mcq-option" onclick="selectMCQ(this, 0)">
+                        <span class="mcq-indicator"></span>
+                        <span>map()</span>
+                    </button>
+                    <button class="mcq-option" onclick="selectMCQ(this, 1)">
+                        <span class="mcq-indicator"></span>
+                        <span>filter()</span>
+                    </button>
+                    <button class="mcq-option" onclick="selectMCQ(this, 2)">
+                        <span class="mcq-indicator"></span>
+                        <span>reduce()</span>
+                    </button>
+                    <button class="mcq-option" onclick="selectMCQ(this, 3)">
+                        <span class="mcq-indicator"></span>
+                        <span>forEach()</span>
+                    </button>
+                </div>
+                
+                <!-- FIB Example (hidden by default) -->
+                <div class="fib-sentence" id="fib-sentence" style="display: none;">
+                    The <input type="text" class="fib-input" id="fib-answer" oninput="enableSubmit()"> method creates a new array with transformed elements.
+                </div>
+            </div>
+        </main>
+        
+        <!-- Bottom Actions -->
+        <div class="bottom-action">
+            <div class="action-buttons">
+                <button class="btn-skip" onclick="skipQuestion()">SKIP</button>
+                <button class="btn-submit" id="submit-btn" onclick="checkAnswer()">CHECK</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Game State
+        let gameState = {
+            mode: 'normal',
+            currentQuestion: 3,
+            totalQuestions: 10,
+            streak: 7,
+            gems: 1250,
+            hearts: 5,
+            selectedAnswer: null,
+            currentType: 'mcq'
+        };
+        
+        // Characters for different modes
+        const characters = {
+            normal: {
+                idle: '🤖',
+                happy: '🤩',
+                sad: '😔'
+            },
+            chaos: {
+                idle: '🌪️',
+                happy: '🌈',
+                sad: '💥'
+            }
+        };
+        
+        // Messages for different modes
+        const messages = {
+            normal: {
+                idle: "Let's do this!",
+                correct: "Great job!",
+                wrong: "Try again!",
+                skip: "No worries, next one!"
+            },
+            chaos: {
+                idle: "CHAOS MODE ACTIVATED!",
+                correct: "REALITY BENT SUCCESSFULLY!",
+                wrong: "TIMELINE DISRUPTED!",
+                skip: "COWARD! BUT ONWARDS!"
+            }
+        };
+        
+        // Toggle between modes
+        function toggleMode() {
+            if (gameState.mode === 'normal') {
+                gameState.mode = 'chaos';
+                document.body.setAttribute('data-mode', 'chaos');
+                document.getElementById('mode-icon').textContent = '🌪️';
+                document.getElementById('mode-text').textContent = 'CHAOS';
+                updateCharacter('idle');
+                addChaosEffects();
+            } else {
+                gameState.mode = 'normal';
+                document.body.setAttribute('data-mode', 'normal');
+                document.getElementById('mode-icon').textContent = '📚';
+                document.getElementById('mode-text').textContent = 'Normal';
+                updateCharacter('idle');
+                removeChaosEffects();
+            }
+        }
+        
+        // Update character based on state
+        function updateCharacter(state) {
+            const char = characters[gameState.mode][state];
+            const msg = messages[gameState.mode][state];
+            
+            document.getElementById('character').textContent = char;
+            document.getElementById('message').textContent = msg;
+            
+            if (gameState.mode === 'chaos' && state === 'correct') {
+                // Extra chaos celebration
+                createExplosion();
+            }
+        }
+        
+        // Select MCQ option
+        function selectMCQ(element, index) {
+            document.querySelectorAll('.mcq-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            gameState.selectedAnswer = index;
+            document.getElementById('submit-btn').disabled = false;
+        }
+        
+        // Enable submit for FIB
+        function enableSubmit() {
+            const input = document.getElementById('fib-answer');
+            document.getElementById('submit-btn').disabled = input.value.trim() === '';
+        }
+        
+        // Check answer
+        function checkAnswer() {
+            const submitBtn = document.getElementById('submit-btn');
+            
+            // Simulate correct answer (index 1 for filter)
+            const isCorrect = gameState.selectedAnswer === 1;
+            
+            if (isCorrect) {
+                submitBtn.style.background = '#58cc02';
+                submitBtn.textContent = 'CORRECT!';
+                gameState.streak++;
+                gameState.gems += gameState.mode === 'chaos' ? 20 : 10;
+                updateCharacter('happy');
+            } else {
+                submitBtn.style.background = '#ff4b4b';
+                submitBtn.textContent = 'WRONG!';
+                gameState.hearts--;
+                gameState.streak = 0;
+                updateCharacter('sad');
+            }
+            
+            updateStats();
+            
+            setTimeout(() => {
+                nextQuestion();
+            }, 1500);
+        }
+        
+        // Skip question
+        function skipQuestion() {
+            gameState.streak = 0;
+            updateCharacter('skip');
+            updateStats();
+            setTimeout(nextQuestion, 1000);
+        }
+        
+        // Next question
+        function nextQuestion() {
+            gameState.currentQuestion++;
+            if (gameState.currentQuestion > gameState.totalQuestions) {
+                alert('Quiz Complete!');
+                gameState.currentQuestion = 1;
+            }
+            
+            // Reset UI
+            document.getElementById('submit-btn').style.background = '';
+            document.getElementById('submit-btn').textContent = 'CHECK';
+            document.getElementById('submit-btn').disabled = true;
+            document.querySelectorAll('.mcq-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            updateProgress();
+            updateCharacter('idle');
+        }
+        
+        // Update stats display
+        function updateStats() {
+            document.getElementById('streak-count').textContent = gameState.streak;
+            document.getElementById('gem-count').textContent = gameState.gems;
+            document.getElementById('hearts-count').textContent = gameState.hearts;
+            
+            // Add streak fire effect
+            if (gameState.streak >= 5) {
+                document.querySelector('.stat:first-child').style.color = '#ffc800';
+            } else {
+                document.querySelector('.stat:first-child').style.color = '';
+            }
+        }
+        
+        // Update progress
+        function updateProgress() {
+            document.getElementById('current-q').textContent = gameState.currentQuestion;
+            const progress = (gameState.currentQuestion / gameState.totalQuestions) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+            
+            if (gameState.mode === 'chaos') {
+                document.getElementById('progress-label').textContent = 'CHAOS PROGRESS!';
+            } else {
+                document.getElementById('progress-label').textContent = 'Keep going!';
+            }
+        }
+        
+        // Chaos mode effects
+        function addChaosEffects() {
+            // Add floating particles
+            const particles = ['✨', '⚡', '🌟', '💫', '🔮'];
+            for (let i = 0; i < 5; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'chaos-particle';
+                particle.textContent = particles[i % particles.length];
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 10 + 's';
+                document.body.appendChild(particle);
+            }
+        }
+        
+        function removeChaosEffects() {
+            document.querySelectorAll('.chaos-particle').forEach(p => p.remove());
+        }
+        
+        function createExplosion() {
+            const explosion = document.createElement('div');
+            explosion.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 100px;
+                z-index: 1000;
+                animation: explode 0.5s ease-out forwards;
+            `;
+            explosion.textContent = '💥';
+            document.body.appendChild(explosion);
+            
+            setTimeout(() => explosion.remove(), 500);
+        }
+        
+        // Add explosion animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes explode {
+                0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Initialize
+        updateStats();
+        updateProgress();
+    </script>
+</body>
+</html>

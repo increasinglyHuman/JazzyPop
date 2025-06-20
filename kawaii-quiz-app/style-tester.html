@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>JazzyPop Style Tester</title>
+    <link rel="stylesheet" href="styles.css" id="style-sheet">
+    <style>
+        .style-switcher {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-width: 300px;
+        }
+        
+        .style-switcher h3 {
+            margin-bottom: 15px;
+            font-size: 1.25rem;
+        }
+        
+        .style-option {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        
+        .style-option:hover {
+            background: #e0e0e0;
+            transform: translateX(4px);
+        }
+        
+        .style-option.active {
+            background: #333;
+            color: white;
+        }
+        
+        .viewport-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+            .style-switcher {
+                top: 10px;
+                right: 10px;
+                padding: 15px;
+                max-width: 200px;
+            }
+            
+            .style-option {
+                padding: 8px 12px;
+                font-size: 0.875rem;
+            }
+            
+            .viewport-info {
+                bottom: 10px;
+                left: 10px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Style Switcher -->
+    <div class="style-switcher">
+        <h3>🎨 Style Themes</h3>
+        <button class="style-option active" onclick="switchStyle('styles.css', this)">Original Kawaii</button>
+        <button class="style-option" onclick="switchStyle('styles-modern-1.css', this)">Glassmorphism Neon</button>
+        <button class="style-option" onclick="switchStyle('styles-modern-2.css', this)">Minimalist Gradients</button>
+        <button class="style-option" onclick="switchStyle('styles-modern-3.css', this)">Neo-Brutalist Chaos</button>
+    </div>
+    
+    <!-- Viewport Info -->
+    <div class="viewport-info" id="viewport-info">
+        Width: <span id="width">0</span>px | Height: <span id="height">0</span>px
+    </div>
+    
+    <!-- Main App Container -->
+    <div id="app">
+        <!-- Quiz Builder Demo -->
+        <div class="quiz-builder">
+            <div class="glass-card modern-card brutal-card">
+                <div class="builder-header">
+                    <h1 data-text="JazzyPop Quiz">JazzyPop Quiz</h1>
+                    <p>Create funky, chaotic quizzes that surprise and delight!</p>
+                </div>
+                
+                <div class="quiz-form">
+                    <input type="text" class="glass-input modern-input brutal-input" placeholder="Enter your quiz topic...">
+                    <button class="neon-button gradient-button chaos-button">Generate Quiz</button>
+                </div>
+            </div>
+            
+            <!-- Sample Questions -->
+            <div class="questions-list">
+                <div class="question-container glass-card modern-card question-block">
+                    <h2>Question 1</h2>
+                    <p>If a unicorn and a robot had a dance battle, who would win?</p>
+                    
+                    <div class="answers">
+                        <div class="answer-option answer-choice answer-block">
+                            <span class="answer-radio"></span>
+                            <span>The unicorn with its magical moves</span>
+                        </div>
+                        <div class="answer-option answer-choice answer-block selected">
+                            <span class="answer-radio"></span>
+                            <span>The robot with its precise calculations</span>
+                        </div>
+                        <div class="answer-option answer-choice answer-block">
+                            <span class="answer-radio"></span>
+                            <span>They'd team up and create a new dance style</span>
+                        </div>
+                        <div class="answer-option answer-choice answer-block">
+                            <span class="answer-radio"></span>
+                            <span>The audience would win from pure entertainment</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="question-container glass-card modern-card question-block">
+                    <h2>Question 2</h2>
+                    <p>What color is Thursday?</p>
+                    
+                    <div class="answers">
+                        <div class="answer-option answer-choice answer-block">
+                            <span class="answer-radio"></span>
+                            <span>Orange, obviously</span>
+                        </div>
+                        <div class="answer-option answer-choice answer-block">
+                            <span class="answer-radio"></span>
+                            <span>Purple with hints of nostalgia</span>
+                        </div>
+                        <div class="answer-option answer-choice answer-block">
+                            <span class="answer-radio"></span>
+                            <span>The color of anticipation</span>
+                        </div>
+                        <div class="answer-option answer-choice answer-block">
+                            <span class="answer-radio"></span>
+                            <span>Transparent with sparkles</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar progress-track">
+                    <div class="progress-fill" style="width: 40%"></div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 16px; margin-top: 32px;">
+                <button class="neon-button gradient-button chaos-button">Previous</button>
+                <button class="neon-button gradient-button chaos-button">Next</button>
+            </div>
+        </div>
+        
+        <!-- Floating Elements for Style 3 -->
+        <div class="chaos-element"></div>
+        <div class="chaos-element"></div>
+        
+        <!-- Stickers for Style 3 -->
+        <span class="sticker">✨</span>
+        <span class="sticker">🌈</span>
+        <span class="sticker">⚡</span>
+    </div>
+    
+    <script>
+        // Style Switcher
+        function switchStyle(stylesheet, button) {
+            document.getElementById('style-sheet').setAttribute('href', stylesheet);
+            
+            // Update active state
+            document.querySelectorAll('.style-option').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            button.classList.add('active');
+            
+            // Store preference
+            localStorage.setItem('preferredStyle', stylesheet);
+        }
+        
+        // Load saved preference
+        const savedStyle = localStorage.getItem('preferredStyle');
+        if (savedStyle) {
+            document.getElementById('style-sheet').setAttribute('href', savedStyle);
+            document.querySelectorAll('.style-option').forEach(btn => {
+                if (btn.textContent.includes(savedStyle)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        
+        // Viewport Info Update
+        function updateViewport() {
+            document.getElementById('width').textContent = window.innerWidth;
+            document.getElementById('height').textContent = window.innerHeight;
+        }
+        
+        updateViewport();
+        window.addEventListener('resize', updateViewport);
+        
+        // Add touch feedback for mobile
+        document.querySelectorAll('.answer-option, .answer-choice, .answer-block').forEach(element => {
+            element.addEventListener('click', function() {
+                // Remove selected from siblings
+                const parent = this.parentElement;
+                parent.querySelectorAll('.answer-option, .answer-choice, .answer-block').forEach(sibling => {
+                    sibling.classList.remove('selected');
+                });
+                // Add selected to clicked
+                this.classList.add('selected');
+            });
+        });
+        
+        // Simulate loading for different styles
+        document.querySelectorAll('.neon-button, .gradient-button, .chaos-button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                if (this.textContent.includes('Generate')) {
+                    e.preventDefault();
+                    this.textContent = 'Generating...';
+                    setTimeout(() => {
+                        this.textContent = 'Generate Quiz';
+                        alert('Quiz generated with maximum chaos! 🎉');
+                    }, 2000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

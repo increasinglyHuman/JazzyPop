@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>JazzyPop - Universal Simple</title>
+    <style>
+        /* Universal Design System */
+        :root {
+            /* Core Colors */
+            --primary: #58cc02;
+            --primary-hover: #4aa002;
+            --secondary: #1cb0f6;
+            --accent: #ff4b4b;
+            --warning: #ffc800;
+            --success: #58cc02;
+            
+            /* Neutrals */
+            --bg-dark: #131f24;
+            --bg-card: #1f2c34;
+            --bg-light: #2b3d48;
+            --text-primary: #ffffff;
+            --text-secondary: #afafaf;
+            --border: rgba(255, 255, 255, 0.1);
+            
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            
+            /* Misc */
+            --radius: 16px;
+            --transition: all 0.2s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* App Container */
+        .app {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Top Stats Bar */
+        .stats-bar {
+            background: var(--bg-card);
+            padding: var(--space-md);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .stats-group {
+            display: flex;
+            align-items: center;
+            gap: var(--space-lg);
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-weight: 700;
+            font-size: 18px;
+        }
+        
+        .stat-icon {
+            font-size: 24px;
+        }
+        
+        /* Streak indicator with color coding */
+        .streak-stat {
+            position: relative;
+        }
+        
+        .streak-stat.hot {
+            color: var(--warning);
+        }
+        
+        .streak-stat.hot .stat-icon {
+            animation: flamePulse 1s ease-in-out infinite;
+        }
+        
+        @keyframes flamePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        /* Hearts/Lives Display */
+        .hearts {
+            display: flex;
+            gap: var(--space-xs);
+        }
+        
+        .heart {
+            font-size: 24px;
+            transition: var(--transition);
+        }
+        
+        .heart.lost {
+            opacity: 0.3;
+            transform: scale(0.8);
+        }
+        
+        /* Progress Bar */
+        .progress-section {
+            padding: var(--space-md);
+            background: var(--bg-card);
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--space-sm);
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: var(--bg-light);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: var(--space-lg);
+            padding-bottom: 120px; /* Space for bottom button */
+            overflow-y: auto;
+        }
+        
+        /* Question Container */
+        .question-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: var(--space-xl);
+            margin-bottom: var(--space-lg);
+        }
+        
+        .question-type {
+            color: var(--text-secondary);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: var(--space-md);
+        }
+        
+        .question-text {
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: var(--space-xl);
+        }
+        
+        /* Fill in the Blank Styles */
+        .fib-sentence {
+            font-size: 20px;
+            line-height: 1.6;
+        }
+        
+        .fib-input {
+            display: inline-block;
+            min-width: 150px;
+            padding: var(--space-sm) var(--space-md);
+            margin: 0 var(--space-sm);
+            background: var(--bg-light);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 20px;
+            font-weight: 600;
+            text-align: center;
+            transition: var(--transition);
+        }
+        
+        .fib-input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            background: var(--bg-dark);
+        }
+        
+        /* Multiple Choice Styles */
+        .mcq-options {
+            display: grid;
+            gap: var(--space-md);
+        }
+        
+        .mcq-option {
+            background: var(--bg-light);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: var(--space-lg);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 18px;
+            font-weight: 500;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+        
+        .mcq-option:hover {
+            border-color: var(--secondary);
+            transform: translateX(4px);
+        }
+        
+        .mcq-option.selected {
+            background: var(--secondary);
+            border-color: var(--secondary);
+        }
+        
+        .mcq-indicator {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--text-secondary);
+            border-radius: 50%;
+            transition: var(--transition);
+            position: relative;
+            flex-shrink: 0;
+        }
+        
+        .mcq-option.selected .mcq-indicator {
+            border-color: var(--text-primary);
+        }
+        
+        .mcq-option.selected .mcq-indicator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            background: var(--text-primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* Character Display */
+        .character-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: var(--space-lg);
+            text-align: center;
+            margin-bottom: var(--space-lg);
+        }
+        
+        .character {
+            font-size: 80px;
+            margin-bottom: var(--space-md);
+            display: inline-block;
+            animation: characterBob 3s ease-in-out infinite;
+        }
+        
+        @keyframes characterBob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .character-message {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        /* Bottom Action Area */
+        .bottom-action {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: var(--space-lg);
+            z-index: 100;
+        }
+        
+        .action-buttons {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            gap: var(--space-md);
+        }
+        
+        .btn-skip {
+            flex: 1;
+            padding: var(--space-lg);
+            background: transparent;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .btn-skip:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+        
+        .btn-submit {
+            flex: 2;
+            padding: var(--space-lg);
+            background: var(--primary);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 0 var(--primary-hover);
+            position: relative;
+            top: 0;
+        }
+        
+        .btn-submit:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 var(--primary-hover);
+        }
+        
+        .btn-submit:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 var(--primary-hover);
+        }
+        
+        .btn-submit:disabled {
+            background: var(--bg-light);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        /* Correct/Wrong States */
+        .btn-submit.correct {
+            background: var(--success);
+            animation: correctPulse 0.6s;
+        }
+        
+        .btn-submit.wrong {
+            background: var(--accent);
+            animation: wrongShake 0.5s;
+        }
+        
+        @keyframes correctPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @keyframes wrongShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        /* Gem Collection Animation */
+        .gem-collect {
+            position: fixed;
+            font-size: 30px;
+            pointer-events: none;
+            animation: gemFloat 1s ease-out forwards;
+            z-index: 200;
+        }
+        
+        @keyframes gemFloat {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) scale(0.5);
+                opacity: 0;
+            }
+        }
+        
+        /* Streak Fire Effect */
+        .streak-fire {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            pointer-events: none;
+            opacity: 0;
+            animation: streakBurst 1s ease-out;
+            z-index: 200;
+        }
+        
+        @keyframes streakBurst {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.5);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(2);
+            }
+        }
+        
+        /* Mobile Optimizations */
+        @media (max-width: 480px) {
+            .question-text {
+                font-size: 20px;
+            }
+            
+            .fib-sentence {
+                font-size: 18px;
+            }
+            
+            .mcq-option {
+                font-size: 16px;
+                padding: var(--space-md);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Top Stats Bar -->
+        <div class="stats-bar">
+            <div class="stats-group">
+                <div class="stat streak-stat" id="streak-stat">
+                    <span class="stat-icon">🔥</span>
+                    <span id="streak-count">3</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-icon">💎</span>
+                    <span id="gem-count">450</span>
+                </div>
+            </div>
+            <div class="hearts" id="hearts">
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+                <span class="heart">❤️</span>
+            </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <div class="progress-header">
+                <span>Question <span id="current-q">2</span> of <span id="total-q">10</span></span>
+                <span>Level Progress</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress" style="width: 20%"></div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Character -->
+            <div class="character-card">
+                <div class="character" id="character">🤖</div>
+                <p class="character-message" id="message">Let's learn something new!</p>
+            </div>
+            
+            <!-- Question Container -->
+            <div class="question-container" id="question-container">
+                <!-- Questions will be inserted here -->
+            </div>
+        </main>
+        
+        <!-- Bottom Action Buttons -->
+        <div class="bottom-action">
+            <div class="action-buttons">
+                <button class="btn-skip" onclick="skipQuestion()">SKIP</button>
+                <button class="btn-submit" id="submit-btn" onclick="checkAnswer()">CHECK</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Game State
+        let gameState = {
+            currentQuestion: 1,
+            totalQuestions: 10,
+            streak: 3,
+            gems: 450,
+            hearts: 5,
+            currentType: 'mcq',
+            selectedAnswer: null
+        };
+        
+        // Question Bank
+        const questions = {
+            mcq: [
+                {
+                    question: "Which array method returns a new transformed array?",
+                    options: ["forEach()", "map()", "filter()", "reduce()"],
+                    correct: 1
+                },
+                {
+                    question: "What does 'DOM' stand for?",
+                    options: ["Document Object Model", "Data Object Management", "Dynamic Object Model", "Document Oriented Model"],
+                    correct: 0
+                }
+            ],
+            fib: [
+                {
+                    question: "Complete the sentence:",
+                    sentence: "To select an element by ID, we use document.___('#myId')",
+                    answer: "querySelector"
+                },
+                {
+                    question: "Fill in the blank:",
+                    sentence: "The ___ method adds elements to the end of an array.",
+                    answer: "push"
+                }
+            ]
+        };
+        
+        // Initialize
+        function init() {
+            loadQuestion();
+            updateStats();
+        }
+        
+        // Load Question
+        function loadQuestion() {
+            const container = document.getElementById('question-container');
+            const types = ['mcq', 'fib'];
+            gameState.currentType = types[Math.floor(Math.random() * types.length)];
+            
+            if (gameState.currentType === 'mcq') {
+                loadMCQ(container);
+            } else {
+                loadFIB(container);
+            }
+            
+            // Update progress
+            updateProgress();
+            
+            // Reset submit button
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.textContent = 'CHECK';
+            submitBtn.disabled = true;
+            submitBtn.className = 'btn-submit';
+        }
+        
+        // Load MCQ
+        function loadMCQ(container) {
+            const q = questions.mcq[Math.floor(Math.random() * questions.mcq.length)];
+            
+            container.innerHTML = `
+                <div class="question-type">MULTIPLE CHOICE</div>
+                <div class="question-text">${q.question}</div>
+                <div class="mcq-options">
+                    ${q.options.map((opt, idx) => `
+                        <button class="mcq-option" onclick="selectMCQ(this, ${idx})">
+                            <span class="mcq-indicator"></span>
+                            <span>${opt}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+            
+            gameState.correctAnswer = q.correct;
+        }
+        
+        // Load Fill in Blank
+        function loadFIB(container) {
+            const q = questions.fib[Math.floor(Math.random() * questions.fib.length)];
+            
+            container.innerHTML = `
+                <div class="question-type">FILL IN THE BLANK</div>
+                <div class="question-text">${q.question}</div>
+                <div class="fib-sentence">
+                    ${q.sentence.replace('___', '<input type="text" class="fib-input" id="fib-answer" oninput="enableSubmit()">')}
+                </div>
+            `;
+            
+            gameState.correctAnswer = q.answer.toLowerCase();
+            
+            // Focus input
+            setTimeout(() => {
+                document.getElementById('fib-answer').focus();
+            }, 100);
+        }
+        
+        // Select MCQ Option
+        function selectMCQ(element, index) {
+            // Clear previous selection
+            document.querySelectorAll('.mcq-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            
+            // Select new option
+            element.classList.add('selected');
+            gameState.selectedAnswer = index;
+            
+            // Enable submit button
+            document.getElementById('submit-btn').disabled = false;
+        }
+        
+        // Enable submit for FIB
+        function enableSubmit() {
+            const input = document.getElementById('fib-answer');
+            document.getElementById('submit-btn').disabled = input.value.trim() === '';
+        }
+        
+        // Check Answer
+        function checkAnswer() {
+            const submitBtn = document.getElementById('submit-btn');
+            let isCorrect = false;
+            
+            if (gameState.currentType === 'mcq') {
+                isCorrect = gameState.selectedAnswer === gameState.correctAnswer;
+            } else {
+                const answer = document.getElementById('fib-answer').value.toLowerCase().trim();
+                isCorrect = answer === gameState.correctAnswer;
+            }
+            
+            if (isCorrect) {
+                // Correct answer
+                submitBtn.classList.add('correct');
+                submitBtn.textContent = 'CORRECT!';
+                
+                // Update stats
+                gameState.streak++;
+                gameState.gems += 10;
+                updateStats();
+                
+                // Animations
+                animateGemCollection();
+                if (gameState.streak % 5 === 0) {
+                    animateStreakFire();
+                }
+                
+                // Character reaction
+                updateCharacter('happy', 'Great job! Keep it up!');
+                
+                // Next question after delay
+                setTimeout(() => {
+                    nextQuestion();
+                }, 1500);
+                
+            } else {
+                // Wrong answer
+                submitBtn.classList.add('wrong');
+                submitBtn.textContent = 'TRY AGAIN';
+                
+                // Lose heart
+                gameState.hearts--;
+                gameState.streak = 0;
+                updateStats();
+                
+                // Character reaction
+                updateCharacter('sad', 'Not quite. Give it another try!');
+                
+                // Reset button
+                setTimeout(() => {
+                    submitBtn.classList.remove('wrong');
+                    submitBtn.textContent = 'CHECK';
+                }, 1000);
+            }
+        }
+        
+        // Skip Question
+        function skipQuestion() {
+            gameState.streak = 0;
+            updateStats();
+            nextQuestion();
+        }
+        
+        // Next Question
+        function nextQuestion() {
+            gameState.currentQuestion++;
+            
+            if (gameState.currentQuestion > gameState.totalQuestions) {
+                // Level complete
+                alert('Level Complete! You earned ' + gameState.gems + ' gems!');
+                gameState.currentQuestion = 1;
+            }
+            
+            loadQuestion();
+            updateCharacter('normal', 'Let\'s learn something new!');
+        }
+        
+        // Update Stats Display
+        function updateStats() {
+            document.getElementById('streak-count').textContent = gameState.streak;
+            document.getElementById('gem-count').textContent = gameState.gems;
+            
+            // Update streak appearance
+            const streakStat = document.getElementById('streak-stat');
+            if (gameState.streak >= 5) {
+                streakStat.classList.add('hot');
+            } else {
+                streakStat.classList.remove('hot');
+            }
+            
+            // Update hearts
+            const hearts = document.querySelectorAll('.heart');
+            hearts.forEach((heart, idx) => {
+                if (idx >= gameState.hearts) {
+                    heart.classList.add('lost');
+                } else {
+                    heart.classList.remove('lost');
+                }
+            });
+        }
+        
+        // Update Progress
+        function updateProgress() {
+            document.getElementById('current-q').textContent = gameState.currentQuestion;
+            document.getElementById('total-q').textContent = gameState.totalQuestions;
+            
+            const progress = (gameState.currentQuestion / gameState.totalQuestions) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+        }
+        
+        // Update Character
+        function updateCharacter(mood, message) {
+            const characters = {
+                normal: '🤖',
+                happy: '🤩',
+                sad: '😔'
+            };
+            
+            document.getElementById('character').textContent = characters[mood];
+            document.getElementById('message').textContent = message;
+        }
+        
+        // Animate Gem Collection
+        function animateGemCollection() {
+            const gem = document.createElement('div');
+            gem.className = 'gem-collect';
+            gem.textContent = '💎';
+            gem.style.left = '50%';
+            gem.style.top = '50%';
+            document.body.appendChild(gem);
+            
+            setTimeout(() => gem.remove(), 1000);
+        }
+        
+        // Animate Streak Fire
+        function animateStreakFire() {
+            const fire = document.createElement('div');
+            fire.className = 'streak-fire';
+            fire.textContent = '🔥';
+            document.body.appendChild(fire);
+            
+            setTimeout(() => fire.remove(), 1000);
+        }
+        
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>JazzyPop Mobile Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            overflow-x: hidden;
+        }
+        
+        /* Device Frame Simulator */
+        .device-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background: #2c3e50;
+        }
+        
+        .device-frame {
+            position: relative;
+            background: #1a1a1a;
+            border-radius: 40px;
+            padding: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .device-screen {
+            background: white;
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .device-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 30px;
+            background: #1a1a1a;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            z-index: 10;
+        }
+        
+        /* Device Presets */
+        .device-selector {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+        
+        .device-button {
+            display: block;
+            width: 200px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .device-button:hover {
+            background: #e0e0e0;
+        }
+        
+        .device-button.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        /* Test Controls */
+        .test-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .control-group input[type="range"] {
+            width: 200px;
+        }
+        
+        .control-group span {
+            display: inline-block;
+            width: 60px;
+            text-align: right;
+            font-family: monospace;
+        }
+        
+        /* Orientation Toggle */
+        .orientation-toggle {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .orientation-btn {
+            flex: 1;
+            padding: 8px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .orientation-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        /* Touch Indicator */
+        .touch-indicator {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #ff006e;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .touch-indicator.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        
+        /* Info Panel */
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 100;
+        }
+        
+        .info-row {
+            margin-bottom: 5px;
+        }
+        
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .device-container {
+                padding: 0;
+                background: white;
+            }
+            
+            .device-frame {
+                display: none;
+            }
+            
+            .device-screen {
+                width: 100vw !important;
+                height: 100vh !important;
+                border-radius: 0;
+            }
+            
+            .device-selector,
+            .test-controls {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto;
+                border-radius: 20px 20px 0 0;
+                transform: translateY(calc(100% - 50px));
+                transition: transform 0.3s;
+            }
+            
+            .device-selector.open,
+            .test-controls.open {
+                transform: translateY(0);
+            }
+            
+            .info-panel {
+                top: 10px;
+                right: 10px;
+                padding: 10px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Device Selector -->
+    <div class="device-selector" id="device-selector">
+        <h3 style="margin-bottom: 15px; font-size: 16px;">📱 Device Presets</h3>
+        <button class="device-button active" onclick="setDevice('iphone14')">iPhone 14 Pro</button>
+        <button class="device-button" onclick="setDevice('iphone12')">iPhone 12</button>
+        <button class="device-button" onclick="setDevice('iphoneSE')">iPhone SE</button>
+        <button class="device-button" onclick="setDevice('pixel7')">Pixel 7</button>
+        <button class="device-button" onclick="setDevice('galaxyS23')">Galaxy S23</button>
+        <button class="device-button" onclick="setDevice('ipadPro')">iPad Pro 11"</button>
+        <button class="device-button" onclick="setDevice('ipadMini')">iPad Mini</button>
+        <button class="device-button" onclick="setDevice('desktop')">Desktop</button>
+    </div>
+    
+    <!-- Test Controls -->
+    <div class="test-controls" id="test-controls">
+        <h3 style="margin-bottom: 15px; font-size: 16px;">🎮 Test Controls</h3>
+        
+        <div class="control-group">
+            <label>Font Scale</label>
+            <input type="range" id="font-scale" min="0.8" max="1.5" step="0.1" value="1">
+            <span id="font-scale-value">1.0x</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Content Density</label>
+            <input type="range" id="content-density" min="0.8" max="1.2" step="0.1" value="1">
+            <span id="density-value">1.0x</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Orientation</label>
+            <div class="orientation-toggle">
+                <button class="orientation-btn active" onclick="setOrientation('portrait')">Portrait</button>
+                <button class="orientation-btn" onclick="setOrientation('landscape')">Landscape</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="show-touches" onchange="toggleTouches()">
+                Show Touch Points
+            </label>
+        </div>
+        
+        <div class="control-group">
+            <label>
+                <input type="checkbox" id="show-safe-areas" onchange="toggleSafeAreas()">
+                Show Safe Areas
+            </label>
+        </div>
+    </div>
+    
+    <!-- Info Panel -->
+    <div class="info-panel">
+        <div class="info-row">Device: <span id="device-name">iPhone 14 Pro</span></div>
+        <div class="info-row">Screen: <span id="screen-size">390x844</span></div>
+        <div class="info-row">Viewport: <span id="viewport-size">390x844</span></div>
+        <div class="info-row">DPR: <span id="dpr">3.0</span></div>
+        <div class="info-row">Orientation: <span id="orientation">Portrait</span></div>
+    </div>
+    
+    <!-- Device Container -->
+    <div class="device-container">
+        <div class="device-frame" id="device-frame">
+            <div class="device-screen" id="device-screen">
+                <div class="device-notch" id="device-notch"></div>
+                <iframe 
+                    id="app-frame" 
+                    src="style-tester.html" 
+                    style="width: 100%; height: 100%; border: none;"
+                    sandbox="allow-same-origin allow-scripts allow-forms"
+                ></iframe>
+                <!-- Touch Indicator -->
+                <div class="touch-indicator" id="touch-indicator"></div>
+                <!-- Safe Area Overlay -->
+                <div id="safe-area-overlay" style="display: none; position: absolute; inset: 0; pointer-events: none;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; height: 44px; background: rgba(255, 0, 0, 0.2); border-bottom: 2px dashed red;"></div>
+                    <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 34px; background: rgba(255, 0, 0, 0.2); border-top: 2px dashed red;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Device configurations
+        const devices = {
+            iphone14: { width: 393, height: 852, scale: 3, hasNotch: true, name: 'iPhone 14 Pro' },
+            iphone12: { width: 390, height: 844, scale: 3, hasNotch: true, name: 'iPhone 12' },
+            iphoneSE: { width: 375, height: 667, scale: 2, hasNotch: false, name: 'iPhone SE' },
+            pixel7: { width: 412, height: 915, scale: 2.625, hasNotch: false, name: 'Pixel 7' },
+            galaxyS23: { width: 360, height: 780, scale: 3, hasNotch: false, name: 'Galaxy S23' },
+            ipadPro: { width: 834, height: 1194, scale: 2, hasNotch: false, name: 'iPad Pro 11"' },
+            ipadMini: { width: 744, height: 1133, scale: 2, hasNotch: false, name: 'iPad Mini' },
+            desktop: { width: 1920, height: 1080, scale: 1, hasNotch: false, name: 'Desktop' }
+        };
+        
+        let currentDevice = 'iphone14';
+        let currentOrientation = 'portrait';
+        let showTouches = false;
+        
+        function setDevice(deviceKey) {
+            currentDevice = deviceKey;
+            const device = devices[deviceKey];
+            const screen = document.getElementById('device-screen');
+            const frame = document.getElementById('device-frame');
+            const notch = document.getElementById('device-notch');
+            
+            if (currentOrientation === 'landscape') {
+                screen.style.width = device.height + 'px';
+                screen.style.height = device.width + 'px';
+            } else {
+                screen.style.width = device.width + 'px';
+                screen.style.height = device.height + 'px';
+            }
+            
+            // Update frame
+            if (deviceKey === 'desktop') {
+                frame.style.transform = 'scale(0.5)';
+            } else if (deviceKey.includes('ipad')) {
+                frame.style.transform = 'scale(0.7)';
+            } else {
+                frame.style.transform = 'scale(1)';
+            }
+            
+            // Show/hide notch
+            notch.style.display = device.hasNotch ? 'block' : 'none';
+            
+            // Update active button
+            document.querySelectorAll('.device-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update info
+            updateInfo();
+        }
+        
+        function setOrientation(orientation) {
+            currentOrientation = orientation;
+            const device = devices[currentDevice];
+            const screen = document.getElementById('device-screen');
+            
+            if (orientation === 'landscape') {
+                screen.style.width = device.height + 'px';
+                screen.style.height = device.width + 'px';
+            } else {
+                screen.style.width = device.width + 'px';
+                screen.style.height = device.height + 'px';
+            }
+            
+            // Update active button
+            document.querySelectorAll('.orientation-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            updateInfo();
+        }
+        
+        function updateInfo() {
+            const device = devices[currentDevice];
+            document.getElementById('device-name').textContent = device.name;
+            document.getElementById('screen-size').textContent = 
+                currentOrientation === 'landscape' 
+                    ? `${device.height}x${device.width}` 
+                    : `${device.width}x${device.height}`;
+            document.getElementById('viewport-size').textContent = 
+                `${window.innerWidth}x${window.innerHeight}`;
+            document.getElementById('dpr').textContent = device.scale.toFixed(1);
+            document.getElementById('orientation').textContent = 
+                currentOrientation.charAt(0).toUpperCase() + currentOrientation.slice(1);
+        }
+        
+        // Font scale
+        document.getElementById('font-scale').addEventListener('input', function(e) {
+            const scale = e.target.value;
+            document.getElementById('font-scale-value').textContent = scale + 'x';
+            const iframe = document.getElementById('app-frame');
+            iframe.contentDocument.documentElement.style.fontSize = (16 * scale) + 'px';
+        });
+        
+        // Content density
+        document.getElementById('content-density').addEventListener('input', function(e) {
+            const density = e.target.value;
+            document.getElementById('density-value').textContent = density + 'x';
+            const iframe = document.getElementById('app-frame');
+            iframe.contentDocument.documentElement.style.transform = `scale(${density})`;
+            iframe.contentDocument.documentElement.style.transformOrigin = 'top left';
+        });
+        
+        // Touch visualization
+        function toggleTouches() {
+            showTouches = document.getElementById('show-touches').checked;
+        }
+        
+        // Safe areas
+        function toggleSafeAreas() {
+            const overlay = document.getElementById('safe-area-overlay');
+            overlay.style.display = document.getElementById('show-safe-areas').checked ? 'block' : 'none';
+        }
+        
+        // Touch tracking
+        const screen = document.getElementById('device-screen');
+        const touchIndicator = document.getElementById('touch-indicator');
+        
+        screen.addEventListener('mousedown', function(e) {
+            if (showTouches) {
+                const rect = screen.getBoundingClientRect();
+                touchIndicator.style.left = (e.clientX - rect.left) + 'px';
+                touchIndicator.style.top = (e.clientY - rect.top) + 'px';
+                touchIndicator.classList.add('active');
+            }
+        });
+        
+        screen.addEventListener('mouseup', function() {
+            touchIndicator.classList.remove('active');
+        });
+        
+        // Mobile controls toggle
+        if (window.innerWidth <= 768) {
+            document.querySelector('.device-selector').addEventListener('click', function(e) {
+                if (e.target === this || e.target.tagName === 'H3') {
+                    this.classList.toggle('open');
+                }
+            });
+            
+            document.querySelector('.test-controls').addEventListener('click', function(e) {
+                if (e.target === this || e.target.tagName === 'H3') {
+                    this.classList.toggle('open');
+                }
+            });
+        }
+        
+        // Initialize
+        updateInfo();
+        window.addEventListener('resize', updateInfo);
+    </script>
+</body>
+</html>

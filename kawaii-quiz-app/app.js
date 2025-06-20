@@ -14,15 +14,21 @@ class KawaiiQuiz {
         console.log('All parameters object:', allParams);
         
         // Store in sessionStorage for debugging
-        sessionStorage.setItem('almParameters', JSON.stringify(allParams));
+        // COMMENTED OUT FOR ALM TESTING - sessionStorage triggers iframe issues
+        // sessionStorage.setItem('almParameters', JSON.stringify(allParams));
         
         // Support both test parameters and ALM parameters
+        // Handle duplicate authToken issue - use the LAST one if multiple exist
+        const authTokens = this.params.getAll('authToken');
+        const authToken = authTokens.length > 1 ? authTokens[authTokens.length - 1] : authTokens[0];
+        console.log(`Found ${authTokens.length} authTokens, using: ${authToken}`);
+        
         this.context = {
             userId: this.params.get('userId') || this.params.get('user_id') || this.params.get('learner_id') || this.params.get('CSUSER'),
             courseId: this.params.get('courseId') || this.params.get('loId') || this.params.get('course_id') || this.params.get('lo_id') || this.params.get('COURSE_ID'),
             moduleId: this.params.get('moduleId') || this.params.get('module_id') || this.params.get('MODULE_ID'),
             accountId: this.params.get('accountId') || this.params.get('account_id') || this.params.get('ACCOUNT_ID'),
-            accessToken: this.params.get('authToken') || this.params.get('access_token') || this.params.get('accessToken') || this.params.get('auth_token') || this.params.get('token') || this.params.get('ACCESS_TOKEN'),
+            accessToken: authToken || this.params.get('access_token') || this.params.get('accessToken') || this.params.get('auth_token') || this.params.get('token') || this.params.get('ACCESS_TOKEN'),
             userRole: this.params.get('userRole') || this.params.get('user_role') || this.params.get('role') || this.params.get('ROLE') || 'learner',
             userName: this.params.get('userName') || this.params.get('user_name') || this.params.get('name') || this.params.get('USER_NAME'),
             courseName: this.params.get('courseName') || this.params.get('course_name') || this.params.get('lo_name') || this.params.get('COURSE_NAME'),
@@ -41,12 +47,15 @@ class KawaiiQuiz {
         this.currentQuestion = 0;
         this.answers = [];
         
-        // Listen for messages from ALM
-        window.addEventListener('message', (event) => {
-            console.log('=== MESSAGE RECEIVED ===');
-            console.log('Origin:', event.origin);
-            console.log('Data:', event.data);
-            console.log('Type:', typeof event.data);
+        console.log('About to add message event listener...');
+        
+        try {
+            // Listen for messages from ALM
+            window.addEventListener('message', (event) => {
+                console.log('=== MESSAGE RECEIVED ===');
+                console.log('Origin:', event.origin);
+                console.log('Data:', event.data);
+                console.log('Type:', typeof event.data);
             
             // Log stringified version if it's an object
             if (event.data && typeof event.data === 'object') {
@@ -99,19 +108,31 @@ class KawaiiQuiz {
                 }
             }
         });
+            console.log('Event listener added successfully!');
+        } catch (error) {
+            console.error('Failed to add event listener:', error);
+        }
         
+        console.log('Constructor complete, calling init()...');
         this.init();
     }
     
     async init() {
+        console.log('Init method started!');
         // Notify parent that we're ready
+        console.log('Sending ready message...');
         this.postMessage('ready', {});
+        console.log('Ready message sent');
         
         // Request context from ALM
+        console.log('Requesting context...');
         this.postMessage('request-context', {});
+        console.log('Context request sent');
         
         // Try multiple postMessage formats to request course data
+        console.log('Requesting course data...');
         this.postMessage('request-course-data', { courseId: this.context.courseId });
+        console.log('Course data request sent');
         
         // Try various ALM native extension message formats
         if (window.parent !== window) {
@@ -233,7 +254,7 @@ class KawaiiQuiz {
                             <p><strong>All URL Params:</strong></p>
                             <pre style="font-size: 10px; overflow-x: auto;">${Array.from(this.params).map(([k,v]) => `${k}=${v}`).join('\n') || 'No parameters'}</pre>
                             <p><strong>Session Storage:</strong></p>
-                            <pre style="font-size: 10px; overflow-x: auto;">${sessionStorage.getItem('almParameters') || 'No stored params'}</pre>
+                            <pre style="font-size: 10px; overflow-x: auto;">${'sessionStorage disabled for ALM testing'}</pre>
                             <button class="btn btn-secondary" onclick="quiz.clearQuiz()">🗑️ Clear All Questions</button>
                             <button class="btn btn-secondary" onclick="quiz.testAPI()">🧪 Test API</button>
                             <button class="btn btn-secondary" onclick="quiz.testDirectAPI()">🔍 Test Direct ALM API</button>

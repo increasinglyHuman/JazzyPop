@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <title>JazzyPop - Learn & Play</title>
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Base styles -->
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #131f24;
+            color: #ffffff;
+            position: relative;
+        }
+        
+        /* App container */
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Loading screen */
+        .app-loading {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #131f24;
+            z-index: 10000;
+            transition: opacity 0.3s ease-out;
+        }
+        
+        .app-loading.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-logo {
+            font-size: 72px;
+            margin-bottom: 32px;
+            animation: bounce 1s ease-in-out infinite;
+        }
+        
+        .loading-text {
+            font-size: 24px;
+            font-weight: 600;
+            color: #58cc02;
+            margin-bottom: 16px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #58cc02;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* No JavaScript warning */
+        .no-js-warning {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #131f24;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            z-index: 10001;
+        }
+        
+        .no-js .no-js-warning {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .no-js #app,
+        .no-js .app-loading {
+            display: none;
+        }
+    </style>
+    
+    <!-- Main CSS (will be loaded dynamically) -->
+    <link rel="stylesheet" href="/src/styles/main.css" id="main-styles">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#131f24">
+</head>
+<body class="no-js">
+    <!-- No JavaScript warning -->
+    <div class="no-js-warning">
+        <h1>⚠️ JavaScript Required</h1>
+        <p>JazzyPop requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+    </div>
+    
+    <!-- Loading screen -->
+    <div class="app-loading" id="loading">
+        <div class="loading-logo">🎮</div>
+        <div class="loading-text">JazzyPop</div>
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <!-- Main app container -->
+    <div id="app"></div>
+    
+    <!-- Remove no-js class if JavaScript is enabled -->
+    <script>
+        document.body.classList.remove('no-js');
+    </script>
+    
+    <!-- Core app -->
+    <script type="module">
+        import { JazzyPopApp } from './src/core/App.js';
+        
+        // Initialize app
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Create app instance
+                const app = new JazzyPopApp({
+                    debug: true,
+                    mountPoint: '#app'
+                });
+                
+                // Initialize
+                await app.init();
+                
+                // Hide loading screen
+                const loading = document.getElementById('loading');
+                loading.classList.add('fade-out');
+                setTimeout(() => loading.remove(), 300);
+                
+            } catch (error) {
+                console.error('Failed to start JazzyPop:', error);
+                
+                // Show error in loading screen
+                const loading = document.getElementById('loading');
+                loading.innerHTML = `
+                    <div class="loading-logo">😵</div>
+                    <div class="loading-text">Failed to load</div>
+                    <p style="margin-top: 16px; opacity: 0.7;">Please refresh the page</p>
+                    <button onclick="location.reload()" style="
+                        margin-top: 24px;
+                        padding: 12px 24px;
+                        background: #58cc02;
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        font-size: 16px;
+                        font-weight: 600;
+                        cursor: pointer;
+                    ">Reload</button>
+                `;
+            }
+        });
+        
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => {
+                    console.log('Service worker registration failed:', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

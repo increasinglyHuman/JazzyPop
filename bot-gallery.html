@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JazzyPop Bot Universe</title>
+    <link rel="stylesheet" href="src/styles/main.css">
+    <style>
+        body {
+            background: #0f1b20;
+            color: white;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #58cc02, #00ff88, #00d4ff, #8338ec);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            text-align: center;
+            font-size: 20px;
+            color: #888;
+            margin-bottom: 40px;
+        }
+        
+        .bot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .bot-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .bot-card:hover {
+            transform: translateY(-5px) scale(1.05);
+            border-color: #58cc02;
+            box-shadow: 0 10px 30px rgba(88, 204, 2, 0.3);
+        }
+        
+        .bot-image {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            position: relative;
+        }
+        
+        .bot-image img {
+            max-width: 100px;
+            max-height: 100px;
+            object-fit: contain;
+        }
+        
+        .bot-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .bot-role {
+            font-size: 14px;
+            color: #888;
+        }
+        
+        /* Special styling for mode bots */
+        .mode-bot .bot-card {
+            background: linear-gradient(135deg, rgba(88, 204, 2, 0.1), rgba(88, 204, 2, 0.05));
+            border-color: #58cc02;
+        }
+        
+        .chaos-bot .bot-card {
+            background: linear-gradient(135deg, rgba(255, 0, 110, 0.1), rgba(131, 56, 236, 0.1));
+            border-color: #ff006e;
+        }
+        
+        .zen-bot .bot-card {
+            background: linear-gradient(135deg, rgba(127, 176, 105, 0.1), rgba(107, 163, 197, 0.1));
+            border-color: #7fb069;
+        }
+        
+        .speed-bot .bot-card {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 212, 255, 0.1));
+            border-color: #00ff88;
+        }
+        
+        /* Loading animation */
+        .loading {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+        
+        /* Bot parade button */
+        .parade-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #58cc02, #00ff88);
+            border: none;
+            border-radius: 30px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(88, 204, 2, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .parade-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 30px rgba(88, 204, 2, 0.6);
+        }
+        
+        /* Bot parade animation */
+        @keyframes bot-parade {
+            0% {
+                transform: translateX(-100px) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            50% {
+                transform: translateX(calc(50vw - 50px)) rotate(360deg);
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateX(100vw) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        .parading {
+            position: fixed;
+            top: 50%;
+            animation: bot-parade 3s ease-in-out;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <h1>The JazzyPop Bot Universe</h1>
+    <p class="subtitle">24 Bots, Infinite Personality</p>
+    
+    <div class="bot-grid" id="botGrid">
+        <!-- Bots will be loaded here -->
+    </div>
+    
+    <button class="parade-button" onclick="startParade()">🎉 Bot Parade!</button>
+    
+    <script>
+        const bots = [
+            // Mode Bots
+            { file: 'p0qp0q-clean.svg', name: 'p0qp0q', role: 'The Original', category: 'mode-bot' },
+            { file: 'chaos-bot.svg', name: 'Chaos Bot', role: 'Mode Switcher', category: 'chaos-bot' },
+            { file: 'chaos-bot-alt.svg', name: 'Chaos Alt', role: 'Tornado Terror', category: 'chaos-bot' },
+            { file: 'chaos-bot-v3.svg', name: 'Chaos v3', role: 'Maximum Mayhem', category: 'chaos-bot' },
+            { file: 'chaos-bot-v4.svg', name: 'Chaos v4', role: 'Whirlwind Wonder', category: 'chaos-bot' },
+            { file: 'zen-bot.svg', name: 'Zen Bot', role: 'Mode Switcher', category: 'zen-bot' },
+            { file: 'speed-bot.svg', name: 'Speed Bot', role: 'Mode Switcher', category: 'speed-bot' },
+            { file: 'speed-bot-2.svg', name: 'Speed Alt', role: 'Velocity Master', category: 'speed-bot' },
+            { file: 'electric-bot.svg', name: 'Electric Bot', role: 'Plasma Power', category: 'speed-bot' },
+            
+            // Feedback Bots
+            { file: 'checkmark-bot.svg', name: 'Check Bot', role: 'Correct Answer', category: 'feedback' },
+            { file: 'checkmark-bot-2.svg', name: 'Check v2', role: 'Success Celebrator', category: 'feedback' },
+            { file: 'checkmark-bot-3.svg', name: 'Check v3', role: 'Victory Validator', category: 'feedback' },
+            { file: 'checkmark-bot-4.svg', name: 'Check v4', role: 'Win Confirmer', category: 'feedback' },
+            { file: 'yes-bot-1.svg', name: 'Yes Bot', role: 'Thumbs Up', category: 'feedback' },
+            { file: 'yes-bot-2.svg', name: 'Yes v2', role: 'Encourager', category: 'feedback' },
+            { file: 'yes-bot-3.svg', name: 'Yes v3', role: 'Cheerleader', category: 'feedback' },
+            { file: 'yes-bot-4.svg', name: 'Yes v4', role: 'Applause Master', category: 'feedback' },
+            { file: 'not-bot.svg', name: 'Not Bot', role: 'Wrong Answer', category: 'feedback' },
+            { file: 'not-bot-2.svg', name: 'Not v2', role: 'Try Again', category: 'feedback' },
+            { file: 'stop-bot.svg', name: 'Stop Bot', role: 'Halt Commander', category: 'feedback' },
+            { file: 'stop-bot-2.svg', name: 'Stop v2', role: 'Access Denied', category: 'feedback' },
+            { file: 'sign-bot-blank.svg', name: 'Sign Bot', role: 'Message Bearer', category: 'utility' },
+            { file: 'sign-bot-blank-2.svg', name: 'Sign v2', role: 'Announcement Holder', category: 'utility' },
+        ];
+        
+        // Load bot gallery
+        function loadBots() {
+            const grid = document.getElementById('botGrid');
+            
+            bots.forEach((bot, index) => {
+                const card = document.createElement('div');
+                card.className = `bot-card-wrapper ${bot.category}`;
+                card.innerHTML = `
+                    <div class="bot-card" onclick="animateBot(this)">
+                        <div class="bot-image loading">
+                            <img src="src/images/${bot.file}" alt="${bot.name}" 
+                                 onload="this.parentElement.classList.remove('loading')"
+                                 onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text x=\"50\" y=\"50\" text-anchor=\"middle\" dy=\".3em\" font-size=\"40\">🤖</text></svg>'">
+                        </div>
+                        <div class="bot-name">${bot.name}</div>
+                        <div class="bot-role">${bot.role}</div>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    grid.appendChild(card);
+                    setTimeout(() => card.querySelector('.bot-card').style.opacity = '1', 50);
+                }, index * 50);
+            });
+        }
+        
+        // Animate individual bot
+        function animateBot(element) {
+            element.style.transform = 'scale(1.2) rotate(360deg)';
+            setTimeout(() => {
+                element.style.transform = '';
+            }, 500);
+        }
+        
+        // Bot parade
+        function startParade() {
+            bots.forEach((bot, index) => {
+                setTimeout(() => {
+                    const img = document.createElement('img');
+                    img.src = `src/images/${bot.file}`;
+                    img.className = 'parading';
+                    img.style.width = '80px';
+                    img.style.height = '80px';
+                    img.style.top = (30 + (index % 3) * 20) + '%';
+                    document.body.appendChild(img);
+                    
+                    setTimeout(() => img.remove(), 3000);
+                }, index * 200);
+            });
+        }
+        
+        // Initialize
+        loadBots();
+    </script>
+</body>
+</html>
