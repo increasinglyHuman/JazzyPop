@@ -869,7 +869,7 @@ class QuizModal {
         overlay.style.cssText = `
             position: absolute;
             inset: 0;
-            background: rgba(255, 75, 75, 0.9);
+            background: transparent;
             display: flex;
             flex-direction: column;
             align-items: center;

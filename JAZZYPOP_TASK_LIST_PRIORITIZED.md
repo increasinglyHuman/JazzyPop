@@ -4,15 +4,15 @@
 ## 🍎 Low-Hanging Fruit (Quick Wins - Do Today!)
 *High Impact, Low Effort - Perfect for a green tea Sunday*
 
-### 3. Fix Missing Bot Images on Settings Page [30 min]
-- **Why First**: Visible bug, easy fix
-- **Impact**: Immediate visual improvement
-- **Effort**: Just change paths from `/src/` to `./src/`
+### ✅ 3. Fix Missing Bot Images on Settings Page [COMPLETED]
+- **Completed**: 2025-06-30
+- **Solution**: Changed paths from `/src/` to `./src/` in SettingsPanel.js
+- **Impact**: All theme bot images now display correctly
 
-### 6. Fix Answer Feedback Timing [1 hour]
-- **Why First**: Critical for learning experience
-- **Impact**: Major UX improvement
-- **Effort**: Add setTimeout delay before overlay
+### ✅ 6. Fix Answer Feedback Timing [COMPLETED]
+- **Completed**: 2025-06-30
+- **Solution**: Added 1.2 second delay in QuizModal.js before showing feedback
+- **Impact**: Players can now see which answer was correct before bot appears
 
 ### 4. Replace System Alerts with Proper UI [2 hours]
 - **Why First**: Only 4 alerts to replace
@@ -110,9 +110,9 @@
 ## Recommended Action Plan:
 
 ### Today (Sunday):
-1. ✅ Fix bot images (30 min)
-2. ✅ Fix answer timing (1 hour)
-3. ✅ Start modal component (remaining time)
+1. ✅ Fix bot images (30 min) - COMPLETED
+2. ✅ Fix answer timing (1 hour) - COMPLETED
+3. ⏳ Start modal component (remaining time) - IN PROGRESS
 
 ### This Week:
 1. Complete modal replacements
