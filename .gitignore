@@ -13,6 +13,11 @@ yarn-error.log*
 dist/
 build/
 
+# Other
+.alm-quiz-deploy
+.claude
+jazzyPopArchives
+
 # Data files
 data/*.json
 !data/.gitkeep

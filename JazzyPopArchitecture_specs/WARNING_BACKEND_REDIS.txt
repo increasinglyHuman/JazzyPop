@@ -1,0 +1,20 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║                    ⚠️  BACKEND WARNING ⚠️                        ║
+║                                                                  ║
+║  The JazzyPop backend is protected by Redis file locking.       ║
+║                                                                  ║
+║  DO NOT EDIT backend files without reading:                     ║
+║                                                                  ║
+║  → REDIS_BACKEND_GUIDE.md                                        ║
+║                                                                  ║
+║  Direct editing will cause:                                      ║
+║  • Lost changes                                                  ║
+║  • Service failures                                              ║
+║  • Cache corruption                                              ║
+║                                                                  ║
+║  Use the safe edit tools:                                        ║
+║  • backend/edit-backend.sh                                       ║
+║  • backend/safe_edit.py                                          ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝

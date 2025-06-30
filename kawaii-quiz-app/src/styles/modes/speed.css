@@ -1,0 +1,329 @@
+/**
+ * Speed Mode Styles
+ * Fast-paced, competitive, adrenaline rush
+ */
+
+/* Speed mode base */
+[data-mode="speed"] {
+    background: 
+        linear-gradient(180deg, transparent 0%, rgba(0, 255, 136, 0.05) 100%),
+        var(--bg-app);
+    font-family: var(--font-mono);
+}
+
+/* Speed lines effect - rotating container */
+[data-mode="speed"]::before {
+    content: '';
+    position: fixed;
+    inset: -50%;
+    width: 200%;
+    height: 200%;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 10px,
+        rgba(0, 255, 136, 0.03) 10px,
+        rgba(0, 255, 136, 0.03) 20px
+    );
+    animation: speed-rotate 10s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+    transform-origin: center center;
+}
+
+/* Moving lines overlay */
+[data-mode="speed"]::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 15px,
+        rgba(0, 255, 136, 0.02) 15px,
+        rgba(0, 255, 136, 0.02) 30px
+    );
+    animation: speed-lines 1s linear infinite;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes speed-lines {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(30px); }
+}
+
+@keyframes speed-rotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Cards in speed mode */
+[data-mode="speed"] .card {
+    border: 1px solid var(--color-primary);
+    background: var(--bg-card);
+    box-shadow: 
+        var(--shadow-neon),
+        inset 0 0 20px rgba(0, 255, 136, 0.1);
+    animation: pulse-neon 2s ease-in-out infinite;
+    transition: all var(--duration-fast) var(--easing-default);
+}
+
+[data-mode="speed"] .card:hover {
+    transform: translateX(5px);
+    box-shadow: 
+        0 0 40px var(--color-primary),
+        inset 0 0 30px rgba(0, 255, 136, 0.2);
+}
+
+@keyframes pulse-neon {
+    0%, 100% { 
+        box-shadow: 
+            0 0 20px var(--color-primary),
+            inset 0 0 20px rgba(0, 255, 136, 0.1);
+    }
+    50% { 
+        box-shadow: 
+            0 0 30px var(--color-primary),
+            inset 0 0 30px rgba(0, 255, 136, 0.2);
+    }
+}
+
+/* Text in speed mode */
+[data-mode="speed"] h1,
+[data-mode="speed"] h2,
+[data-mode="speed"] h3 {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: var(--font-bold);
+}
+
+[data-mode="speed"] .question-text {
+    font-size: var(--text-xl);
+    text-transform: uppercase;
+    animation: text-glow 2s ease-in-out infinite;
+}
+
+@keyframes text-glow {
+    0%, 100% { 
+        text-shadow: 0 0 10px var(--color-primary);
+    }
+    50% { 
+        text-shadow: 0 0 20px var(--color-primary), 0 0 30px var(--color-secondary);
+    }
+}
+
+/* Answer options in speed mode */
+[data-mode="speed"] .answer-option {
+    border-left: 4px solid transparent;
+    background: var(--bg-elevated);
+    transition: all var(--duration-fast) var(--easing-default);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-mode="speed"] .answer-option::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(0, 255, 136, 0.2), 
+        transparent);
+    transition: left var(--duration-fast);
+}
+
+[data-mode="speed"] .answer-option:hover {
+    border-left-color: var(--color-primary);
+    transform: translateX(10px);
+    box-shadow: var(--shadow-neon);
+}
+
+[data-mode="speed"] .answer-option:hover::before {
+    left: 100%;
+}
+
+[data-mode="speed"] .answer-option.selected {
+    background: var(--color-primary);
+    color: var(--bg-app);
+    border-left-color: var(--color-accent);
+    box-shadow: var(--shadow-neon);
+}
+
+/* Speed timer - PROMINENT */
+[data-mode="speed"] .timer {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    font-size: var(--text-3xl);
+    font-weight: var(--font-bold);
+    color: var(--color-accent);
+    text-shadow: 0 0 20px var(--color-accent);
+    animation: timer-pulse 1s ease-in-out infinite;
+    z-index: var(--z-sticky);
+}
+
+[data-mode="speed"] .timer.warning {
+    color: var(--color-warning);
+    animation: timer-flash 0.5s ease-in-out infinite;
+}
+
+[data-mode="speed"] .timer.critical {
+    color: var(--color-error);
+    animation: timer-flash 0.2s ease-in-out infinite;
+}
+
+@keyframes timer-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+@keyframes timer-flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Progress bar in speed mode */
+[data-mode="speed"] .progress-bar {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: visible;
+}
+
+[data-mode="speed"] .progress-fill {
+    height: 100%;
+    background: var(--color-primary);
+    box-shadow: 0 0 10px var(--color-primary);
+    transition: width var(--duration-fast) linear;
+    position: relative;
+}
+
+[data-mode="speed"] .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: -8px;
+    width: 4px;
+    height: 20px;
+    background: var(--color-primary);
+    box-shadow: 0 0 20px var(--color-primary);
+    animation: progress-pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes progress-pulse {
+    0%, 100% { 
+        opacity: 1;
+        transform: scaleY(1);
+    }
+    50% { 
+        opacity: 0.8;
+        transform: scaleY(1.5);
+    }
+}
+
+/* Buttons in speed mode */
+[data-mode="speed"] .btn {
+    background: transparent;
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: var(--font-bold);
+    position: relative;
+    overflow: hidden;
+    transition: all var(--duration-fast);
+}
+
+[data-mode="speed"] .btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: var(--color-primary);
+    transform: translate(-50%, -50%);
+    transition: all var(--duration-fast);
+}
+
+[data-mode="speed"] .btn:hover {
+    color: var(--bg-app);
+    box-shadow: var(--shadow-neon);
+}
+
+[data-mode="speed"] .btn:hover::before {
+    width: 100%;
+    height: 100%;
+}
+
+/* Speed multiplier display */
+[data-mode="speed"] .speed-multiplier {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    font-size: var(--text-2xl);
+    font-weight: var(--font-bold);
+    color: var(--color-accent);
+    text-shadow: 0 0 20px var(--color-accent);
+    animation: slide-in-bounce 0.3s ease-out;
+}
+
+@keyframes slide-in-bounce {
+    0% { 
+        transform: translateX(100px) scale(0);
+        opacity: 0;
+    }
+    60% { 
+        transform: translateX(-10px) scale(1.1);
+    }
+    100% { 
+        transform: translateX(0) scale(1);
+        opacity: 1;
+    }
+}
+
+/* Stats in speed mode */
+[data-mode="speed"] .stat-icon {
+    color: var(--color-primary);
+    text-shadow: 0 0 10px currentColor;
+}
+
+[data-mode="speed"] .stat-value {
+    font-family: var(--font-mono);
+    font-weight: var(--font-bold);
+    text-shadow: 0 0 5px currentColor;
+}
+
+/* Success/Error states */
+[data-mode="speed"] .correct {
+    animation: speed-success var(--duration-fast) ease-out;
+}
+
+[data-mode="speed"] .incorrect {
+    animation: speed-error var(--duration-fast) ease-out;
+}
+
+@keyframes speed-success {
+    0% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 var(--color-success);
+    }
+    50% { 
+        transform: scale(1.1);
+        box-shadow: 0 0 30px 10px var(--color-success);
+    }
+    100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 var(--color-success);
+    }
+}
+
+@keyframes speed-error {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}

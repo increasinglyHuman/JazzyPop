@@ -1,0 +1,34 @@
+{
+  "name": "JazzyPop Quiz",
+  "short_name": "JazzyPop",
+  "description": "Learn and play with JazzyPop quizzes!",
+  "start_url": "/jazzypop/",
+  "display": "standalone",
+  "theme_color": "#131f24",
+  "background_color": "#131f24",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/src/images/p0qp0q-clean.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/src/images/p0qp0q-clean.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["education", "games", "kids"],
+  "shortcuts": [
+    {
+      "name": "Daily Quiz",
+      "short_name": "Quiz",
+      "description": "Jump into today's quiz",
+      "url": "/jazzypop/?action=daily",
+      "icons": [{ "src": "/src/images/p0qp0q-clean.svg", "sizes": "96x96" }]
+    }
+  ]
+}
