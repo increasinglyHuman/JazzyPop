@@ -4,7 +4,7 @@
  * Supports both simple alerts and confirm/deny dialogs
  */
 
-export class AlertModal {
+class AlertModal {
     constructor() {
         this.isOpen = false;
         this.modal = null;
@@ -21,6 +21,9 @@ export class AlertModal {
         this.modal.innerHTML = `
             <div class="alert-modal-overlay"></div>
             <div class="alert-modal-content">
+                <div class="alert-modal-icon">
+                    <img src="./src/images/signbots/signbot-thinking.svg" alt="Alert" />
+                </div>
                 <div class="alert-modal-body">
                     <p class="alert-modal-message" id="alertMessage"></p>
                 </div>
@@ -47,14 +50,26 @@ export class AlertModal {
      * Show a simple alert with OK button
      * @param {string} message - The message to display
      * @param {string} confirmText - Text for the OK button (default: "OK")
+     * @param {string} iconType - Type of icon to show (default: "thinking")
      * @returns {Promise} - Resolves when user clicks OK
      */
-    async alert(message, confirmText = 'OK') {
+    async alert(message, confirmText = 'OK', iconType = 'thinking') {
         return new Promise((resolve) => {
             this.resolvePromise = resolve;
             this.message.textContent = message;
             this.confirmBtn.textContent = confirmText;
             this.cancelBtn.style.display = 'none';
+            
+            // Update icon based on type
+            const iconElement = this.modal.querySelector('.alert-modal-icon img');
+            const iconMap = {
+                'thinking': './src/images/signbots/signbot-thinking.svg',
+                'standard': './src/images/signbots/signbot-standard.svg',
+                'excited': './src/images/signbots/signbot-excited.svg',
+                'stop': './src/images/stop-bot.svg'
+            };
+            iconElement.src = iconMap[iconType] || iconMap['thinking'];
+            
             this.open();
         });
     }
@@ -78,9 +93,30 @@ export class AlertModal {
     }
 
     open() {
+        console.log('AlertModal.open() called');
+        console.log('Modal element:', this.modal);
+        console.log('Modal parent:', this.modal.parentElement);
+        console.log('Modal position:', {
+            offsetTop: this.modal.offsetTop,
+            offsetLeft: this.modal.offsetLeft,
+            offsetWidth: this.modal.offsetWidth,
+            offsetHeight: this.modal.offsetHeight
+        });
+        
         this.isOpen = true;
         this.modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        
+        // Log computed styles
+        setTimeout(() => {
+            const computedStyle = window.getComputedStyle(this.modal);
+            console.log('Modal computed style:', {
+                display: computedStyle.display,
+                opacity: computedStyle.opacity,
+                zIndex: computedStyle.zIndex,
+                position: computedStyle.position
+            });
+        }, 50);
         
         // Focus on confirm button for accessibility
         setTimeout(() => this.confirmBtn.focus(), 100);
@@ -117,8 +153,12 @@ export class AlertModal {
 }
 
 // Create singleton instance
-export const alertModal = new AlertModal();
+const alertModal = new AlertModal();
+console.log('AlertModal instance created:', alertModal);
 
 // Global convenience functions to replace alert() and confirm()
-window.showAlert = (message, confirmText) => alertModal.alert(message, confirmText);
+window.showAlert = (message, confirmText, iconType) => alertModal.alert(message, confirmText, iconType);
 window.showConfirm = (message, confirmText, cancelText) => alertModal.confirm(message, confirmText, cancelText);
+
+console.log('window.showAlert defined:', typeof window.showAlert);
+console.log('window.showConfirm defined:', typeof window.showConfirm);

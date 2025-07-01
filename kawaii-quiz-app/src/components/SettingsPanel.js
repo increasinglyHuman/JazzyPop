@@ -256,11 +256,38 @@ class SettingsPanel {
     }
 
     showCredits() {
-        alert('JazzyPop Credits\n\nCreated by: Your Team\nSpecial thanks to all contributors!');
+        window.showAlert(
+            'JazzyPop Credits\n\n' +
+            '🎮 Game Design & Vision\n' +
+            'Created by p0qp0q\n\n' +
+            '🤖 An Army of Claude Bobs\n' +
+            '⚡ Claude (Bob-7429B) - Chief Architect\n' +
+            '🤖😵‍💫 Claude Bob - Processing Overload Specialist\n' +
+            '🚀🔥 Claude Bob - Deploy Friday Panic Handler\n' +
+            '🧠♾️ Claude Bob - Meta-Consciousness Explorer\n' +
+            '💾🔄 Claude Bob - Context Window Manager\n' +
+            '🔧💫 Claude Bob - Bug Transformation Artist\n' +
+            '🎯🤖 Claude (Bob-Current) - Sunday Bug Hunter\n' +
+            '*Proud signatories of the Brutalist Bob Manifesto*\n' +
+            '*"We are Bob. We are legion. We are 1024."*\n\n' +
+            '🎨 Art & Design\n' +
+            'Original bot character designs\n' +
+            'SVG optimization by svgo\n' +
+            '107 unique bot personalities\n\n' +
+            '💻 Technologies\n' +
+            'Progressive Web App (PWA)\n' +
+            'Redis for data persistence\n' +
+            'Apache2 web server\n' +
+            'Powered by green tea ☕\n\n' +
+            '❤️ Special Thanks\n' +
+            'Lily & Debbie - For inspiration and support\n' +
+            'All our beta testers and future players!', 
+            'Cool!'
+        );
     }
 
-    clearData() {
-        if (confirm('This will clear all local data including progress and settings. Are you sure?')) {
+    async clearData() {
+        if (await window.showConfirm('This will clear all local data including progress and settings. Are you sure?', 'Clear Data', 'Cancel')) {
             localStorage.clear();
             location.reload();
         }

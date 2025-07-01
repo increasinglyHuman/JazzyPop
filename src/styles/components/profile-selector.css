@@ -174,7 +174,7 @@
     scrollbar-width: none;
     padding: 16px 0 20px;
     width: 100%;
-    touch-action: pan-x;
+    touch-action: manipulation; /* Allow both pan and tap */
     flex-shrink: 0;
 }
 
@@ -241,6 +241,8 @@
     transition: var(--transition);
     position: relative;
     z-index: 1;
+    touch-action: manipulation; /* Ensure taps work */
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
 .avatar-option:active {

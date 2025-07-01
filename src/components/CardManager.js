@@ -33,7 +33,7 @@ class CardManager {
     connectWebSocket() {
         // Connect to backend for live card updates
         // Use the API URL to determine WebSocket endpoint
-        const apiBase = window.API_URL || 'http://52.88.234.65:8000';
+        const apiBase = window.API_URL || 'https://p0qp0q.com';
         const wsHost = apiBase.replace(/^https?:\/\//, '').replace(/:\d+$/, '');
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${wsProtocol}//${wsHost}:3001/cards`;
@@ -94,7 +94,7 @@ class CardManager {
     async fetchCards() {
         try {
             // Use API URL from environment or default
-            const apiBase = window.API_URL || 'http://52.88.234.65:8000';
+            const apiBase = window.API_URL || 'https://p0qp0q.com';
             console.log('Fetching cards from:', `${apiBase}/api/cards/active`);
             const response = await fetch(`${apiBase}/api/cards/active`);
             console.log('Response status:', response.status);
@@ -152,6 +152,8 @@ class CardManager {
             }
             
             // Try to add a special card
+            // TEMPORARILY DISABLED: Herding game deferred for higher priority items
+            /*
             console.log('Attempting to generate special card...');
             const specialCard = this.generateSpecialCard();
             if (specialCard) {
@@ -161,6 +163,7 @@ class CardManager {
             } else {
                 console.log('Special card not generated (check daily limit or random chance)');
             }
+            */
             
             this.practiceCardsAdded = true;
         }
@@ -260,29 +263,29 @@ class CardManager {
     getQuizStats(data) {
         const stats = [];
         
-        // XP based on difficulty
+        // XP based on difficulty (balanced for level progression)
         const xpMap = {
-            'easy': 30,
-            'medium': 50,
-            'hard': 100,
-            'expert': 150,
-            'varied': 75
+            'easy': 10,
+            'medium': 15,
+            'hard': 25,
+            'expert': 40,
+            'varied': 20
         };
-        const xp = xpMap[data.difficulty] || 50;
+        const xp = xpMap[data.difficulty] || 15;
         stats.push({ 
             label: 'XP: ', 
             value: xp.toString()
         });
         
-        // Gems based on difficulty
+        // Gems based on difficulty (more precious)
         const gemsMap = {
-            'easy': 3,
-            'medium': 5,
-            'hard': 10,
-            'expert': 15,
-            'varied': 8
+            'easy': 1,
+            'medium': 2,
+            'hard': 3,
+            'expert': 5,
+            'varied': 2
         };
-        const gems = gemsMap[data.difficulty] || 5;
+        const gems = gemsMap[data.difficulty] || 2;
         stats.push({ 
             label: 'Gems: ', 
             value: gems.toString()
@@ -306,23 +309,23 @@ class CardManager {
     getCategoryIcon(category) {
         // Map category to icon file path
         const categoryIcons = {
-            'science': '../src/images/categories/science.svg',
-            'history': '../src/images/categories/history.svg',
-            'technology': '../src/images/categories/technology.svg',
-            'space': '../src/images/categories/space.svg',
-            'gaming': '../src/images/categories/gaming.svg',
-            'art': '../src/images/categories/art.svg',
-            'mythology': '../src/images/categories/mythology.svg',
-            'animals': '../src/images/categories/animals.svg',
-            'inventions': '../src/images/categories/inventions.svg',
-            'geography': '../src/images/categories/geography.svg',
-            'nature': '../src/images/categories/nature.svg',
-            'pop_culture': '../src/images/categories/pop_culture.svg',
-            'sports': '../src/images/categories/sports.svg',
-            'food_cuisine': '../src/images/categories/food_cuisine.svg',
-            'film': '../src/images/categories/film.svg',
-            'literature': '../src/images/categories/literature.svg',
-            'music': '../src/images/categories/music.svg'
+            'science': './src/images/categories/science.svg',
+            'history': './src/images/categories/history.svg',
+            'technology': './src/images/categories/technology.svg',
+            'space': './src/images/categories/space.svg',
+            'gaming': './src/images/categories/gaming.svg',
+            'art': './src/images/categories/art.svg',
+            'mythology': './src/images/categories/mythology.svg',
+            'animals': './src/images/categories/animals.svg',
+            'inventions': './src/images/categories/inventions.svg',
+            'geography': './src/images/categories/geography.svg',
+            'nature': './src/images/categories/nature.svg',
+            'pop_culture': './src/images/categories/pop_culture.svg',
+            'sports': './src/images/categories/sports.svg',
+            'food_cuisine': './src/images/categories/food_cuisine.svg',
+            'film': './src/images/categories/film.svg',
+            'literature': './src/images/categories/literature.svg',
+            'music': './src/images/categories/music.svg'
         };
         
         // Return icon path if available, otherwise return emoji fallback
@@ -487,15 +490,15 @@ class CardManager {
                         icon: this.getPracticeIcon(cardData.data?.category),
                         title: cardData.data?.title || 'Practice Mode',
                         badges: [
-                            { text: 'Earn Hearts', type: 'reward' },
-                            { text: '+' + (cardData.data?.cardCount || '10') + ' cards', type: 'info' }
+                            { text: 'Practice', type: 'info' },
+                            { text: (cardData.data?.cardCount || '10') + ' cards', type: 'info' }
                         ]
                     },
                     body: {
-                        description: cardData.data?.description || 'Test your knowledge and earn hearts!',
+                        description: cardData.data?.description || 'Test your knowledge and build XP!',
                         highlights: [
-                            { text: '+1 ❤️ per answer', type: 'reward' },
-                            { text: 'Bonus for streaks!', type: 'info' }
+                            { text: '1 ⚡ per card', type: 'cost' },
+                            { text: '+1 XP per correct', type: 'reward' }
                         ]
                     },
                     actions: {
@@ -797,10 +800,10 @@ class CardManager {
     getPracticeIcon(category) {
         // Map practice categories to signbot images
         const signbotMap = {
-            'bad_puns': '<img src="../src/images/signbots/signbot-happy.svg" alt="Puns" style="width: 100%; height: 100%; object-fit: contain;">',
-            'famous_quotes': '<img src="../src/images/signbots/signbot-thinking.svg" alt="Quotes" style="width: 100%; height: 100%; object-fit: contain;">',
-            'knock_knock': '<img src="../src/images/signbots/signbot-excited.svg" alt="Knock Knock" style="width: 100%; height: 100%; object-fit: contain;">',
-            'trivia_mix': '<img src="../src/images/signbots/signbot-standard.svg" alt="Trivia" style="width: 100%; height: 100%; object-fit: contain;">'
+            'bad_puns': '<img src="./src/images/signbots/signbot-happy.svg" alt="Puns" style="width: 100%; height: 100%; object-fit: contain;">',
+            'famous_quotes': '<img src="./src/images/signbots/signbot-thinking.svg" alt="Quotes" style="width: 100%; height: 100%; object-fit: contain;">',
+            'knock_knock': '<img src="./src/images/signbots/signbot-excited.svg" alt="Knock Knock" style="width: 100%; height: 100%; object-fit: contain;">',
+            'trivia_mix': '<img src="./src/images/signbots/signbot-standard.svg" alt="Trivia" style="width: 100%; height: 100%; object-fit: contain;">'
         };
         
         return signbotMap[category] || '🎯';
@@ -888,9 +891,9 @@ class CardManager {
                 category: 'mindfulness',
                 title: 'Mindful Moment',
                 description: 'Take a break with a meditative herding puzzle',
-                icon: '🧘',
+                icon: '<img src="./src/images/zen-bot.svg" alt="Mindful Moment" style="width: 100%; height: 100%; object-fit: contain;">',
                 duration: '2-3 min',
-                reward: '+2 💎 +50 XP'
+                reward: '+1 💎 +10 XP'
             }
         };
     }

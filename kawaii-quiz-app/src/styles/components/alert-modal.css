@@ -47,6 +47,21 @@
     transform: scale(1);
 }
 
+.alert-modal-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.alert-modal-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
 .alert-modal-body {
     margin-bottom: 24px;
 }

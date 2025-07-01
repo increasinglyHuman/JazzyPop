@@ -841,7 +841,8 @@ class QuizModal {
             localStorage.setItem('userLives', newHearts);
             
             // Show heart loss animation
-            this.showHeartLoss();
+            // TODO: Later implement varied penalties (hearts, lightning, gems)
+            // this.showHeartLoss();
             
             // Check if game over (0 hearts)
             if (newHearts === 0) {
@@ -914,7 +915,7 @@ class QuizModal {
     showGameOver() {
         // Close quiz and show game over
         this.close();
-        alert('Out of hearts! Take a break and come back later.');
+        window.showAlert('Out of hearts! Take a break and come back later.', 'OK', 'stop');
         // In a real app, this would trigger a cooldown period
     }
     

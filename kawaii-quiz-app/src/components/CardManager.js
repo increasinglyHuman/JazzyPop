@@ -152,6 +152,8 @@ class CardManager {
             }
             
             // Try to add a special card
+            // TEMPORARILY DISABLED: Herding game deferred for higher priority items
+            /*
             console.log('Attempting to generate special card...');
             const specialCard = this.generateSpecialCard();
             if (specialCard) {
@@ -161,6 +163,7 @@ class CardManager {
             } else {
                 console.log('Special card not generated (check daily limit or random chance)');
             }
+            */
             
             this.practiceCardsAdded = true;
         }
@@ -260,29 +263,29 @@ class CardManager {
     getQuizStats(data) {
         const stats = [];
         
-        // XP based on difficulty
+        // XP based on difficulty (balanced for level progression)
         const xpMap = {
-            'easy': 30,
-            'medium': 50,
-            'hard': 100,
-            'expert': 150,
-            'varied': 75
+            'easy': 10,
+            'medium': 15,
+            'hard': 25,
+            'expert': 40,
+            'varied': 20
         };
-        const xp = xpMap[data.difficulty] || 50;
+        const xp = xpMap[data.difficulty] || 15;
         stats.push({ 
             label: 'XP: ', 
             value: xp.toString()
         });
         
-        // Gems based on difficulty
+        // Gems based on difficulty (more precious)
         const gemsMap = {
-            'easy': 3,
-            'medium': 5,
-            'hard': 10,
-            'expert': 15,
-            'varied': 8
+            'easy': 1,
+            'medium': 2,
+            'hard': 3,
+            'expert': 5,
+            'varied': 2
         };
-        const gems = gemsMap[data.difficulty] || 5;
+        const gems = gemsMap[data.difficulty] || 2;
         stats.push({ 
             label: 'Gems: ', 
             value: gems.toString()
@@ -487,15 +490,15 @@ class CardManager {
                         icon: this.getPracticeIcon(cardData.data?.category),
                         title: cardData.data?.title || 'Practice Mode',
                         badges: [
-                            { text: 'Earn Hearts', type: 'reward' },
-                            { text: '+' + (cardData.data?.cardCount || '10') + ' cards', type: 'info' }
+                            { text: 'Practice', type: 'info' },
+                            { text: (cardData.data?.cardCount || '10') + ' cards', type: 'info' }
                         ]
                     },
                     body: {
-                        description: cardData.data?.description || 'Test your knowledge and earn hearts!',
+                        description: cardData.data?.description || 'Test your knowledge and build XP!',
                         highlights: [
-                            { text: '+1 ❤️ per answer', type: 'reward' },
-                            { text: 'Bonus for streaks!', type: 'info' }
+                            { text: '1 ⚡ per card', type: 'cost' },
+                            { text: '+1 XP per correct', type: 'reward' }
                         ]
                     },
                     actions: {
@@ -890,7 +893,7 @@ class CardManager {
                 description: 'Take a break with a meditative herding puzzle',
                 icon: '<img src="./src/images/zen-bot.svg" alt="Mindful Moment" style="width: 100%; height: 100%; object-fit: contain;">',
                 duration: '2-3 min',
-                reward: '+2 💎 +50 XP'
+                reward: '+1 💎 +10 XP'
             }
         };
     }

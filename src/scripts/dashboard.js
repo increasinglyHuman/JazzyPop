@@ -71,7 +71,7 @@ let userEmail = localStorage.getItem('userEmail') || '';
 // Initialize dashboard
 function init() {
     // Set API URL
-    window.API_URL = 'http://52.88.234.65:8000';
+    window.API_URL = 'https://p0qp0q.com';
     
     // Prevent mobile zoom
     preventMobileZoom();
@@ -82,6 +82,18 @@ function init() {
     initializeCardManager();
     initializeBottomNav();
     initGoogleSignIn();  // Initialize Google Sign-In
+    
+    // Add proper click handler for overlay
+    const overlay = document.getElementById('avatarSelectorOverlay');
+    if (overlay) {
+        overlay.addEventListener('click', function(e) {
+            // Only close if clicking the overlay itself, not its children
+            if (e.target === overlay) {
+                closeAvatarSelector();
+            }
+        });
+    }
+    
     console.log(`Dashboard initialized with ${allBotFiles.length} avatars`);
 }
 
@@ -105,22 +117,47 @@ function preventMobileZoom() {
 
 // Update user info display
 function updateUserInfo() {
+    // Check if we have Google user data
+    const isGoogleUser = localStorage.getItem('isGoogleUser') === 'true';
+    if (isGoogleUser) {
+        userName = localStorage.getItem('userName') || 'Anonymous Player';
+        userEmail = localStorage.getItem('userEmail') || '';
+    }
     document.getElementById('userName').textContent = userName;
 }
 
 // Update avatar display
 function updateAvatarDisplay() {
     const avatarElement = document.getElementById('userAvatar');
-    const avatar = allBotFiles.find(a => a.id === currentAvatar);
+    console.log('updateAvatarDisplay called, avatarElement:', avatarElement);
+    if (!avatarElement) return;
+    
+    // Always prefer the selected bot avatar if one is chosen
+    const selectedAvatar = localStorage.getItem('selectedAvatar');
+    console.log('Selected avatar from localStorage:', selectedAvatar);
+    const avatar = allBotFiles.find(a => a.id === selectedAvatar);
+    console.log('Found avatar object:', avatar);
     
     if (avatar && avatar.file) {
-        // Special case for p0qp0q which is in main images folder
+        // User has selected a bot avatar - use it
         const imagePath = avatar.id === 'default' 
             ? '../src/images/p0qp0q-clean.svg'
             : `../src/images/profile-bots/${avatar.file}`;
         
-        // Just set the image, let CSS handle styling
+        console.log('Setting avatar image to:', imagePath);
         avatarElement.innerHTML = `<img src="${imagePath}" alt="${avatar.name}">`;
+    } else {
+        // No bot selected, check for Google profile picture
+        const isGoogleUser = localStorage.getItem('isGoogleUser') === 'true';
+        const userPicture = localStorage.getItem('userPicture');
+        
+        if (isGoogleUser && userPicture) {
+            // Use Google profile picture as fallback
+            avatarElement.innerHTML = `<img src="${userPicture}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        } else {
+            // Default to p0qp0q
+            avatarElement.innerHTML = `<img src="../src/images/p0qp0q-clean.svg" alt="P0qP0q">`;
+        }
     }
 }
 
@@ -134,29 +171,39 @@ function populateAvatarRow() {
     row.innerHTML = '';
     
     console.log('Populating avatars, total:', allBotFiles.length);
+    console.log('Avatar row element:', row);
+    console.log('Avatar row parent:', row.parentElement);
+    console.log('Avatar row computed style:', window.getComputedStyle(row).display);
     
-    allBotFiles.forEach(avatar => {
+    // TEST: Give avatar row super high z-index
+    row.style.position = 'relative';
+    row.style.zIndex = '9999';
+    
+    allBotFiles.forEach((avatar, index) => {
         const option = document.createElement('div');
         option.className = 'avatar-option' + (avatar.id === currentAvatar ? ' selected' : '');
         option.dataset.avatarId = avatar.id;
         
-        // Try different event binding approach
-        option.addEventListener('click', function(e) {
-            e.preventDefault();
+        // Simple click handler
+        option.style.cursor = 'pointer';
+        option.addEventListener('click', (e) => {
             e.stopPropagation();
             console.log('Avatar clicked:', avatar.id);
+            console.log('Event target:', e.target);
+            console.log('Current target:', e.currentTarget);
             selectAvatar(avatar.id);
-        });
+        }, false);
         
         const preview = document.createElement('div');
         preview.className = 'avatar-preview';
+        preview.style.pointerEvents = 'none'; // Make sure preview doesn't block clicks
         
         if (avatar.file) {
             // Special case for p0qp0q which is in main images folder
             const imagePath = avatar.id === 'default' 
                 ? '../src/images/p0qp0q-clean.svg'
                 : `../src/images/profile-bots/${avatar.file}`;
-            preview.innerHTML = `<img src="${imagePath}" alt="${avatar.name}" onerror="this.style.display='none'">`;
+            preview.innerHTML = `<img src="${imagePath}" alt="${avatar.name}" onerror="this.style.display='none'" style="pointer-events: none;">`;
         }
         
         const name = document.createElement('div');
@@ -168,6 +215,21 @@ function populateAvatarRow() {
         row.appendChild(option);
     });
     
+    // Log total avatars added
+    console.log('Total avatar options in row:', row.querySelectorAll('.avatar-option').length);
+    
+    // Test click handler on first avatar
+    const firstAvatar = row.querySelector('.avatar-option');
+    if (firstAvatar) {
+        console.log('First avatar element:', firstAvatar);
+        console.log('First avatar has click listeners:', firstAvatar._listeners || 'No _listeners property');
+        
+        // Try clicking programmatically
+        setTimeout(() => {
+            console.log('Attempting programmatic click on first avatar...');
+            firstAvatar.click();
+        }, 1000);
+    }
     
     // Scroll to selected avatar
     setTimeout(() => {
@@ -190,8 +252,13 @@ function openAvatarSelector() {
     // Update input fields with current values
     document.getElementById('userNameInput').value = userName;
     document.getElementById('userEmailInput').value = userEmail;
-    console.log('About to populate avatars...');
-    populateAvatarRow();
+    
+    // Only populate if not already populated
+    const row = document.getElementById('avatarRow');
+    if (row && row.children.length === 0) {
+        console.log('About to populate avatars...');
+        populateAvatarRow();
+    }
     
     // Show scroll hint animation after a short delay
     setTimeout(() => {
@@ -247,6 +314,16 @@ function updateUserEmail(newEmail) {
     syncUserProfile();
 }
 
+// Toast notification function
+function showToast(message, type = 'info') {
+    // For now, use the alert modal
+    if (window.showAlert) {
+        window.showAlert(message);
+    } else {
+        console.log(`Toast [${type}]: ${message}`);
+    }
+}
+
 // Sign in with Google (placeholder)
 // Initialize Google Sign-In
 function initGoogleSignIn() {
@@ -257,6 +334,7 @@ function initGoogleSignIn() {
     }
     
     try {
+        console.log('Current origin:', window.location.origin);
         // Initialize with your client ID
         google.accounts.id.initialize({
             client_id: '482342615637-jfht0gsdc4lm58fe8b3v6t60pg7lubhe.apps.googleusercontent.com',
@@ -274,6 +352,40 @@ function initGoogleSignIn() {
     }
 }
 
+// Update user display with current data
+function updateUserDisplay() {
+    const userName = localStorage.getItem('userName') || 'Anonymous Player';
+    const userEmail = localStorage.getItem('userEmail') || '';
+    const userPicture = localStorage.getItem('userPicture') || '';
+    const isGoogleUser = localStorage.getItem('isGoogleUser') === 'true';
+    
+    // Update name
+    const nameElement = document.getElementById('userName');
+    if (nameElement) {
+        nameElement.textContent = userName;
+    }
+    
+    // Update input fields
+    const nameInput = document.getElementById('userNameInput');
+    if (nameInput) {
+        nameInput.value = userName;
+    }
+    
+    const emailInput = document.getElementById('userEmailInput');
+    if (emailInput) {
+        emailInput.value = userEmail;
+    }
+    
+    // Update avatar if Google user BUT only if no bot avatar is selected
+    const selectedAvatar = localStorage.getItem('selectedAvatar');
+    if (isGoogleUser && userPicture && !selectedAvatar) {
+        const avatarElement = document.getElementById('userAvatar');
+        if (avatarElement) {
+            avatarElement.innerHTML = `<img src="${userPicture}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+        }
+    }
+}
+
 // Handle Google sign-in response
 async function handleGoogleSignIn(response) {
     console.log('Google sign-in response:', response);
@@ -288,6 +400,7 @@ async function handleGoogleSignIn(response) {
         
         const userInfo = JSON.parse(jsonPayload);
         console.log('User info:', userInfo);
+        console.log('Profile picture URL:', userInfo.picture);
         
         // Update local storage with Google user info
         localStorage.setItem('userName', userInfo.name || 'Google User');
@@ -338,18 +451,45 @@ async function syncGoogleUser(credential) {
 
 // Updated sign-in function for button click
 function signInWithGoogle() {
-    // Check if already initialized
-    if (typeof google !== 'undefined' && google.accounts) {
-        // Programmatically trigger sign-in
-        google.accounts.id.prompt();
+    console.log('signInWithGoogle clicked, origin:', window.location.origin);
+    
+    // Try rendering the button instead
+    const buttonDiv = document.getElementById('googleSignInDiv');
+    if (buttonDiv && typeof google !== 'undefined' && google.accounts) {
+        // Clear any existing content
+        buttonDiv.innerHTML = '';
+        
+        // Render the Google button
+        google.accounts.id.renderButton(
+            buttonDiv,
+            { 
+                theme: 'filled_blue',
+                size: 'large',
+                width: 250,
+                text: 'signin_with',
+                shape: 'rectangular'
+            }
+        );
+        
+        // Auto-click the rendered button
+        setTimeout(() => {
+            const googleButton = buttonDiv.querySelector('div[role="button"]');
+            if (googleButton) {
+                googleButton.click();
+            }
+        }, 100);
     } else {
-        console.warn('Google Sign-In not initialized');
+        console.warn('Google Sign-In not initialized or button div not found');
         showToast('Google Sign-In is not available', 'error');
     }
 }
 
 // Close avatar selector
 function closeAvatarSelector(event) {
+    // Don't close if clicking inside the selector
+    if (event && event.target.closest('.avatar-selector')) {
+        return;
+    }
     if (!event || event.target === event.currentTarget) {
         document.getElementById('avatarSelectorOverlay').classList.remove('active');
     }
@@ -357,20 +497,26 @@ function closeAvatarSelector(event) {
 
 // Select avatar
 function selectAvatar(avatarId) {
-    console.log('Selecting avatar:', avatarId);
-    currentAvatar = avatarId;
-    localStorage.setItem('selectedAvatar', currentAvatar);
-    updateAvatarDisplay();
+    console.log('selectAvatar called with:', avatarId);
     
-    // Sync with backend
-    syncUserProfile();
+    // Update the current avatar
+    currentAvatar = avatarId;
+    localStorage.setItem('selectedAvatar', avatarId);
+    console.log('Saved to localStorage:', avatarId);
+    
+    // Immediately update the display
+    updateAvatarDisplay();
+    console.log('Called updateAvatarDisplay');
     
     // Update all avatar options to show selection
     document.querySelectorAll('.avatar-option').forEach(opt => {
         opt.classList.toggle('selected', opt.dataset.avatarId === avatarId);
     });
     
-    closeAvatarSelector();
+    // Don't close immediately - let user see their selection
+    setTimeout(() => {
+        closeAvatarSelector();
+    }, 500);
 }
 
 // Sync user profile with backend
@@ -602,7 +748,7 @@ async function handleNotifyMe(detail) {
             updateUserEmail(email);
             subscribeToNotification(detail, email);
         } else if (email) {
-            alert('Please enter a valid email address');
+            window.showAlert('Please enter a valid email address', 'OK', 'standard');
         }
     } else {
         subscribeToNotification(detail, userEmail);
@@ -833,7 +979,7 @@ async function launchQuiz(config) {
         
         try {
             // Fetch the quiz data
-            const apiBase = window.API_URL || 'http://52.88.234.65:8000';
+            const apiBase = window.API_URL || 'https://p0qp0q.com';
             const mode = localStorage.getItem('appSettings') ? JSON.parse(localStorage.getItem('appSettings')).theme : 'poqpoq';
             
             console.log('Fetching quiz from:', `${apiBase}/api/content/quiz/current?mode=${mode}`);

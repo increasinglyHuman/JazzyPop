@@ -841,7 +841,8 @@ class QuizModal {
             localStorage.setItem('userLives', newHearts);
             
             // Show heart loss animation
-            this.showHeartLoss();
+            // TODO: Later implement varied penalties (hearts, lightning, gems)
+            // this.showHeartLoss();
             
             // Check if game over (0 hearts)
             if (newHearts === 0) {
@@ -869,7 +870,7 @@ class QuizModal {
         overlay.style.cssText = `
             position: absolute;
             inset: 0;
-            background: rgba(255, 75, 75, 0.9);
+            background: transparent;
             display: flex;
             flex-direction: column;
             align-items: center;

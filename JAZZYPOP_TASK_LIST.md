@@ -97,7 +97,7 @@
 - **Impact**: Critical for mobile usability and visual consistency
 - **Human-Bob Pairing**: Human defines ideal height, Bob implements across all card types
 
-### 8. Fix Google Sign-In Implementation
+### 8. Fix Google Sign-In Implementation -- complete
 - **Current State**: Google Sign-In partially set up but not working
 - **Need**: Complete the implementation and get it functional
 - **Subtasks**:
@@ -140,7 +140,7 @@
 
 ### 10. Fix Profile System & Diversify Avatars
 - **Current State**: 
-  - Profile selector doesn't retain active user avatar
+  - Profile selector doesn't retain active user avatar - fixed (not deployed)
   - ~80% of avatars appear male-presenting
   - Limited diversity in avatar options
 - **Need**: Persistent profiles with diverse, inclusive avatar options
@@ -162,7 +162,7 @@
 - **Impact**: Inclusivity and personalization are key for user engagement
 - **Human-Bob Pairing**: Human curates/creates diverse avatars, Bob implements system
 
-### 11. Overhaul Mindful Moments & Herding Game [MAJOR]
+### 11. Overhaul Mindful Moments & Herding Game [MAJOR] - defer...
 - **Current State**: 
   - Mindful moments exist but need polish
   - Herding game particularly needs significant work
@@ -211,7 +211,7 @@
   - Could become a suite of mini-games
 - **Human-Bob Pairing**: Human provides game logic/rules, Bob adapts for JazzyPop
 
-### 13. Polish Practice Game Layouts
+### 13. Polish Practice Game Layouts - higher priority
 - **Current State**: 
   - Practice games (Famous Quotes, etc.) have amusing content
   - Layouts are rough/early stage
@@ -236,7 +236,7 @@
   - Quick play sessions
 - **Human-Bob Pairing**: Human reviews layouts, Bob implements polish
 
-### 14. Balance Heart/Lives Economy
+### 14. Balance Heart/Lives Economy - partially implemented - see economy.js
 - **Current State**: 
   - Players lose hearts too quickly
   - Ratio of hearts available to hearts lost is off
@@ -262,7 +262,7 @@
   - Engagement drop-off data
 - **Human-Bob Pairing**: Human defines ideal difficulty curve, Bob implements balance changes
 
-### 15. Implement Varied Failure Penalties (Gems vs Hearts)
+### 15. Implement Varied Failure Penalties (Gems vs Hearts) - partially implemented - economy.js
 - **Current State**: Every wrong answer costs hearts
 - **Need**: Mixed penalty system - sometimes lose hearts, sometimes gems
 - **Implementation Ideas**:
@@ -283,7 +283,7 @@
   - Extends play sessions
 - **Human-Bob Pairing**: Human designs economy balance, Bob implements penalty system
 
-### 16. Implement Complete XP & Leveling System
+### 16. Implement Complete XP & Leveling System - mostly implemented - see economy.js
 - **Current State**: XP exists but no real progression system
 - **Need**: Full leveling system with meaningful progression
 - **Core Components**:
@@ -352,7 +352,7 @@
   - Natural, value-added advertising
 - **Human-Bob Pairing**: Human curates initial lists, Bob builds recommendation engine
 
-### 18. Create Collectible Trading Card System
+### 18. Create Collectible Trading Card System - higher priority
 - **Current State**: No collectible system
 - **Need**: Engaging collection mechanic for long-term retention
 - **Card Types**:
@@ -382,7 +382,7 @@
   - Card trading marketplace?
 - **Human-Bob Pairing**: Human designs card system/art direction, Bob implements collection mechanics
 
-### 19. Implement Question Validation & Quality Control System
+### 19. Implement Question Validation & Quality Control System - priority fix
 - **Current State**: 
   - Rare incorrect questions in database
   - AI knowledge cutoff causes outdated info

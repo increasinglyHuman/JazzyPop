@@ -159,6 +159,34 @@ body {
 .user-details p {
     font-size: 12px;
     color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* XP Progress Bar */
+.xp-progress {
+    margin-top: 4px;
+    width: 150px;
+}
+
+.xp-bar {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 1.5px;
+    overflow: hidden;
+}
+
+.xp-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.5s ease;
+}
+
+.xp-text {
+    font-size: 9px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    margin-top: 0px;
+    letter-spacing: 0.4px;
 }
 
 /* Fullscreen Toggle */
