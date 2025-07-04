@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JazzyPop Card Language Sandbox - Clean Version</title>
+    
+    <!-- Include actual JazzyPop CSS -->
+    <link rel="stylesheet" href="card-sandbox-styles.css" />
+    
+    <style>
+        /* CSS Variables from JazzyPop Dashboard */
+        :root {
+            --primary: #58cc02;
+            --secondary: #1cb0f6;
+            --accent: #ff4b4b;
+            --gold: #ffc800;
+            --purple: #ce82ff;
+            --blue: #1890ff;
+            
+            --bg-dark: #131f24;
+            --bg-card: #1f2c34;
+            --bg-elevated: #2b3d48;
+            --bg-surface: rgba(255, 255, 255, 0.05);
+            --text-primary: #ffffff;
+            --text-secondary: #afafaf;
+            --border: rgba(255, 255, 255, 0.1);
+            
+            --radius: 16px;
+            --transition: all 0.2s ease;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* Header */
+        .sandbox-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .sandbox-header h1 {
+            color: var(--primary);
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .sandbox-header p {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            border: 1px solid var(--border);
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-group label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .control-group select,
+        .control-group button {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .control-group button {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .control-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(88, 204, 2, 0.3);
+        }
+        
+        /* Card Grid */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 24px;
+            padding: 0;
+        }
+        
+        /* Card Economics Override */
+        .card-economics {
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 48px;
+        }
+        
+        .card-cost {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .cost-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .cost-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .cost-original {
+            text-decoration: line-through;
+            opacity: 0.5;
+            font-size: 13px;
+        }
+        
+        .cost-new {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .cost-free {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Event Badges */
+        .event-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 10;
+            animation: badge-entrance 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes badge-entrance {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+        
+        .event-badge.power-hour {
+            background: linear-gradient(45deg, var(--accent), #ff8c00);
+            color: white;
+        }
+        
+        .event-badge.learning-party {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: #000;
+        }
+        
+        .event-badge.perfect-streak {
+            background: linear-gradient(45deg, var(--gold), #ffed4e);
+            color: #000;
+        }
+        
+        /* Card CTA Variations */
+        .card-cta {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 0;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            background: var(--primary);
+            color: #000;
+        }
+        
+        .card-cta.cta-power {
+            background: linear-gradient(45deg, var(--accent), #ff8c00);
+            color: white;
+        }
+        
+        .card-cta.cta-party {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: #000;
+        }
+        
+        .card-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        /* Encouragement Popup */
+        .encouragement-popup {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: var(--primary);
+            color: #000;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        .encouragement-popup.show {
+            transform: translateX(-50%) translateY(-10px);
+            opacity: 1;
+        }
+        
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-secondary);
+            font-size: 18px;
+        }
+        
+        .error {
+            background: rgba(255, 75, 75, 0.1);
+            border: 2px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        /* Stats Display */
+        .stats {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            border: 1px solid var(--border);
+        }
+        
+        .stat-item-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-label-info {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .stat-value-info {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="sandbox-header">
+            <h1>🎮 JazzyPop Card Language Sandbox</h1>
+            <p>Testing refined language patterns with actual card structure</p>
+        </div>
+        
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-group">
+                <label>Language Style</label>
+                <select id="languageStyle">
+                    <option value="traditional">Traditional</option>
+                    <option value="gaming">Gaming Language</option>
+                    <option value="enthusiastic">Enthusiastic</option>
+                    <option value="refined" selected>Refined JazzyPop</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Event Mode</label>
+                <select id="eventMode">
+                    <option value="none">No Event</option>
+                    <option value="power-hour">Power Hour</option>
+                    <option value="learning-party">Learning Party</option>
+                    <option value="perfect-streak">Perfect Streak</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Category</label>
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                    <option value="gaming">Gaming</option>
+                    <option value="science">Science</option>
+                    <option value="technology">Technology</option>
+                    <option value="pop_culture">Pop Culture</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button onclick="fetchQuizzes()">Load Quizzes</button>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-item-info">
+                <span class="stat-label-info">Quizzes Loaded:</span>
+                <span class="stat-value-info" id="quizCount">0</span>
+            </div>
+            <div class="stat-item-info">
+                <span class="stat-label-info">Questions Total:</span>
+                <span class="stat-value-info" id="questionCount">0</span>
+            </div>
+            <div class="stat-item-info">
+                <span class="stat-label-info">Response Time:</span>
+                <span class="stat-value-info" id="responseTime">0ms</span>
+            </div>
+        </div>
+        
+        <!-- Card Grid -->
+        <div class="card-grid" id="cardGrid">
+            <div class="loading">Click "Load Quizzes" to fetch data from the JazzyPop API</div>
+        </div>
+    </div>
+    
+    <script>
+        // Language configurations - refined based on our analysis
+        const languageStyles = {
+            traditional: {
+                costLabel: "Cost:",
+                playButton: "PLAY QUIZ",
+                eventBadges: {
+                    'power-hour': '50% OFF',
+                    'learning-party': 'FREE PLAY',
+                    'perfect-streak': 'BONUS ACTIVE'
+                },
+                encouragements: ['Good job!', 'Well done!', 'Nice work!', 'Correct!'],
+                statsLabels: {
+                    questions: 'Questions:',
+                    time: 'Est. Time:',
+                    xp: 'XP Reward:'
+                }
+            },
+            gaming: {
+                costLabel: "Energy:",
+                playButton: "START QUEST",
+                eventBadges: {
+                    'power-hour': 'POWER BOOST',
+                    'learning-party': 'OPEN PLAY',
+                    'perfect-streak': 'COMBO MODE'
+                },
+                encouragements: ['Level up!', 'Achievement unlocked!', 'Victory!', 'XP gained!'],
+                statsLabels: {
+                    questions: 'Challenges:',
+                    time: 'Quest Time:',
+                    xp: 'XP Loot:'
+                }
+            },
+            enthusiastic: {
+                costLabel: "Energy:",
+                playButton: "LET'S GO!",
+                eventBadges: {
+                    'power-hour': 'DOUBLE POWER!',
+                    'learning-party': 'PARTY TIME!',
+                    'perfect-streak': 'ON FIRE!'
+                },
+                encouragements: ['Amazing!', 'Brilliant!', 'You rock!', 'Fantastic!'],
+                statsLabels: {
+                    questions: 'Questions:',
+                    time: 'Play Time:',
+                    xp: 'XP Bonus:'
+                }
+            },
+            refined: {
+                costLabel: "Energy:",
+                playButton: "PLAY NOW",
+                eventBadges: {
+                    'power-hour': 'DOUBLE EFFICIENCY',
+                    'learning-party': 'OPEN PRACTICE',
+                    'perfect-streak': 'STREAK BONUS'
+                },
+                encouragements: ['Brilliant!', 'Well played!', 'Nailed it!', 'Perfect!'],
+                statsLabels: {
+                    questions: 'Questions:',
+                    time: 'Duration:',
+                    xp: 'Earn XP:'
+                }
+            }
+        };
+        
+        // Category icon mapping
+        const categoryIcons = {
+            gaming: '🎮',
+            science: '🔬',
+            technology: '💻',
+            pop_culture: '🎪',
+            history: '📚',
+            geography: '🌍',
+            literature: '📖',
+            film: '🎬',
+            music: '🎵',
+            art: '🎨',
+            sports: '⚽',
+            nature: '🌿',
+            default: '🎯'
+        };
+        
+        let currentQuizzes = [];
+        let encouragementTimeout = null;
+        
+        // Fetch quizzes from API
+        async function fetchQuizzes() {
+            const grid = document.getElementById('cardGrid');
+            grid.innerHTML = '<div class="loading">Loading quizzes from JazzyPop API...</div>';
+            
+            const category = document.getElementById('categoryFilter').value;
+            const apiBase = 'https://p0qp0q.com';
+            
+            let url = `${apiBase}/api/content/quiz/sets?count=10`;
+            if (category) url += `&category=${category}`;
+            
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const responseTime = Date.now() - startTime;
+                
+                currentQuizzes = data;
+                displayQuizzes(data);
+                
+                // Update stats
+                document.getElementById('stats').style.display = 'flex';
+                document.getElementById('quizCount').textContent = data.length;
+                document.getElementById('questionCount').textContent = 
+                    data.reduce((sum, quiz) => sum + (quiz.data.questions?.length || 0), 0);
+                document.getElementById('responseTime').textContent = `${responseTime}ms`;
+                
+            } catch (error) {
+                grid.innerHTML = `<div class="error">Error loading quizzes: ${error.message}</div>`;
+                console.error('Fetch error:', error);
+            }
+        }
+        
+        // Display quiz cards
+        function displayQuizzes(quizzes) {
+            const grid = document.getElementById('cardGrid');
+            const eventMode = document.getElementById('eventMode').value;
+            const langStyle = document.getElementById('languageStyle').value;
+            const lang = languageStyles[langStyle];
+            
+            grid.innerHTML = quizzes.map((quiz, index) => {
+                const quizData = quiz.data;
+                const title = quizData.title || 'Mystery Quiz';
+                const category = quizData.category || 'general';
+                const description = quizData.questions?.[0]?.question || 'Test your knowledge!';
+                const questionCount = quizData.questions?.length || 10;
+                const mode = quiz.mode || 'poqpoq';
+                
+                return createCardHTML({
+                    id: quiz.id,
+                    title,
+                    category,
+                    description,
+                    questionCount,
+                    mode,
+                    eventMode,
+                    lang,
+                    index
+                });
+            }).join('');
+        }
+        
+        function createCardHTML(config) {
+            const { id, title, category, description, questionCount, mode, eventMode, lang, index } = config;
+            
+            // Get category icon
+            const icon = categoryIcons[category] || categoryIcons.default;
+            
+            // Calculate costs and display based on event
+            const baseCost = 10;
+            let costDisplay = '';
+            let buttonClass = '';
+            let eventBadge = '';
+            
+            if (eventMode === 'power-hour') {
+                costDisplay = `
+                    <div class="card-cost">
+                        <span class="cost-label">${lang.costLabel}</span>
+                        <span class="cost-item">
+                            <span class="cost-original">⚡ ${baseCost}</span>
+                            →
+                            <span class="cost-new">⚡ ${baseCost/2}</span>
+                        </span>
+                    </div>
+                `;
+                buttonClass = 'cta-power';
+                eventBadge = `<div class="event-badge power-hour">${lang.eventBadges['power-hour']}</div>`;
+            } else if (eventMode === 'learning-party') {
+                costDisplay = `
+                    <div class="card-cost">
+                        <span class="cost-label">${lang.costLabel}</span>
+                        <span class="cost-item">
+                            <span class="cost-free">✨ FREE ✨</span>
+                        </span>
+                    </div>
+                `;
+                buttonClass = 'cta-party';
+                eventBadge = `<div class="event-badge learning-party">${lang.eventBadges['learning-party']}</div>`;
+            } else if (eventMode === 'perfect-streak') {
+                costDisplay = `
+                    <div class="card-cost">
+                        <span class="cost-label">${lang.costLabel}</span>
+                        <span class="cost-item">⚡ ${baseCost}</span>
+                    </div>
+                `;
+                eventBadge = `<div class="event-badge perfect-streak">${lang.eventBadges['perfect-streak']}</div>`;
+            } else {
+                costDisplay = `
+                    <div class="card-cost">
+                        <span class="cost-label">${lang.costLabel}</span>
+                        <span class="cost-item">⚡ ${baseCost}</span>
+                    </div>
+                `;
+            }
+            
+            // Random encouragement
+            const encouragement = lang.encouragements[Math.floor(Math.random() * lang.encouragements.length)];
+            
+            // Card classes based on mode
+            const cardClasses = ['card'];
+            if (mode === 'chaos') cardClasses.push('theme-chaos');
+            if (mode === 'zen') cardClasses.push('theme-zen');
+            
+            return `
+                <div class="${cardClasses.join(' ')}" data-card-id="${id}">
+                    ${eventBadge}
+                    
+                    <!-- Economics Section -->
+                    ${costDisplay ? `<div class="card-economics">${costDisplay}</div>` : ''}
+                    
+                    <!-- Card Header -->
+                    <div class="card-header">
+                        <div class="card-icon">${icon}</div>
+                        <div class="card-meta">
+                            <span class="card-category">${category.replace(/_/g, ' ')}</span>
+                            <h3 class="card-title">${title}</h3>
+                        </div>
+                    </div>
+                    
+                    <!-- Card Body -->
+                    <div class="card-body">
+                        <p class="card-description">${description.length > 100 ? description.substring(0, 100) + '...' : description}</p>
+                    </div>
+                    
+                    <!-- Card Stats -->
+                    <div class="card-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">${lang.statsLabels.questions}</span>
+                            <span class="stat-value">${questionCount}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">${lang.statsLabels.xp}</span>
+                            <span class="stat-value">20-50</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Card Footer -->
+                    <div class="card-footer">
+                        <button class="card-cta ${buttonClass}" 
+                                onmouseover="showEncouragement(this, '${encouragement}')"
+                                onmouseout="hideEncouragement(this)"
+                                onclick="playQuiz('${id}')">
+                            ${lang.playButton}
+                            <div class="encouragement-popup">${encouragement}</div>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show encouragement on hover
+        function showEncouragement(button, text) {
+            clearTimeout(encouragementTimeout);
+            const popup = button.querySelector('.encouragement-popup');
+            if (popup) {
+                encouragementTimeout = setTimeout(() => {
+                    popup.classList.add('show');
+                }, 100);
+            }
+        }
+        
+        function hideEncouragement(button) {
+            clearTimeout(encouragementTimeout);
+            const popup = button.querySelector('.encouragement-popup');
+            if (popup) {
+                popup.classList.remove('show');
+            }
+        }
+        
+        // Play quiz action
+        function playQuiz(quizId) {
+            const quiz = currentQuizzes.find(q => q.id === quizId);
+            if (quiz) {
+                console.log('Playing quiz:', quiz);
+                alert(`Launching quiz: ${quiz.data.title}\n\nIn the real app, this would open the quiz modal.`);
+            }
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            fetchQuizzes();
+        });
+    </script>
+</body>
+</html>

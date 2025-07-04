@@ -1,0 +1,130 @@
+/**
+ * Normal Mode Styles
+ * Clean, focused learning experience
+ */
+
+/* Normal mode is the default, so these are base styles */
+[data-mode="normal"] {
+    /* Smooth transitions */
+    transition: all var(--duration-normal) var(--easing-default);
+}
+
+/* Card hover effects */
+[data-mode="normal"] .card {
+    transition: all var(--duration-normal) var(--easing-default);
+}
+
+[data-mode="normal"] .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Button styles */
+[data-mode="normal"] .btn {
+    transition: all var(--duration-fast) var(--easing-default);
+}
+
+[data-mode="normal"] .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+[data-mode="normal"] .btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* Quiz answer animations */
+[data-mode="normal"] .answer-option {
+    transition: all var(--duration-fast) var(--easing-default);
+}
+
+[data-mode="normal"] .answer-option:hover {
+    border-color: var(--color-secondary);
+    transform: translateX(4px);
+}
+
+[data-mode="normal"] .answer-option.selected {
+    background: var(--color-secondary);
+    border-color: var(--color-secondary);
+    color: var(--text-on-secondary);
+}
+
+/* Success/Error states */
+[data-mode="normal"] .answer-option.correct {
+    background: var(--color-success);
+    animation: gentle-pulse var(--duration-normal) ease-out;
+}
+
+[data-mode="normal"] .answer-option.incorrect {
+    background: var(--color-error);
+    animation: gentle-shake var(--duration-fast) ease-out;
+}
+
+/* Progress bar */
+[data-mode="normal"] .progress-bar {
+    background: var(--bg-elevated);
+    height: 8px;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+[data-mode="normal"] .progress-fill {
+    height: 100%;
+    background: var(--color-primary);
+    transition: width var(--duration-slow) var(--easing-default);
+}
+
+/* Stats display */
+[data-mode="normal"] .stat-icon {
+    font-size: var(--text-xl);
+    transition: transform var(--duration-fast) var(--easing-default);
+}
+
+[data-mode="normal"] .stat-value {
+    font-weight: var(--font-bold);
+    font-size: var(--text-lg);
+}
+
+/* Animations for normal mode */
+@keyframes gentle-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes gentle-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Focus states */
+[data-mode="normal"] :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* Loading states */
+[data-mode="normal"] .loading {
+    position: relative;
+    color: transparent;
+}
+
+[data-mode="normal"] .loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid var(--color-primary);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin var(--duration-slow) linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

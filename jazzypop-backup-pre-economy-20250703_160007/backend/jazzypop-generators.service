@@ -1,0 +1,18 @@
+[Unit]
+Description=JazzyPop Content Generators
+After=network.target postgresql.service redis.service jazzypop-backend.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=forking
+User=ubuntu
+WorkingDirectory=/home/ubuntu/jazzypop-backend
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/ubuntu/jazzypop-backend/start_all_set_generators.sh
+ExecStop=/usr/bin/pkill -f "_set_generator.py"
+Restart=always
+RestartSec=30
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

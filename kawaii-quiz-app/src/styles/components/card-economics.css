@@ -1,0 +1,306 @@
+/**
+ * Card Economics Display
+ * Shows costs and potential rewards on cards
+ * Enhanced with affordability indicators and visual states
+ */
+
+/* Economics container */
+.card-economics {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-subtle);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.card-economics.insufficient {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* Cost display */
+.card-cost {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cost-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cost-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--bg-card);
+    border-radius: var(--radius-xs);
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+/* Affordability Color Coding */
+.cost-item.affordable {
+    color: #4ecca3;
+    background: rgba(76, 236, 163, 0.1);
+}
+
+.cost-item.almost-affordable {
+    color: #f39c12;
+    background: rgba(243, 156, 18, 0.1);
+}
+
+.cost-item.insufficient {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Affordability dot indicator */
+.affordability-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 4px;
+    animation: pulse 2s infinite;
+}
+
+.affordability-dot.affordable {
+    background: #4ecca3;
+    box-shadow: 0 0 10px rgba(76, 236, 163, 0.6);
+}
+
+.affordability-dot.almost {
+    background: #f39c12;
+    box-shadow: 0 0 10px rgba(243, 156, 18, 0.6);
+}
+
+.affordability-dot.unaffordable {
+    background: #e94560;
+    box-shadow: 0 0 10px rgba(233, 69, 96, 0.6);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+.cost-item.hearts-required {
+    color: var(--error);
+}
+
+/* Rewards display */
+.card-rewards {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rewards-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.reward-items {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.reward-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: var(--bg-card);
+    border-radius: var(--radius-xs);
+    font-weight: 500;
+    color: var(--success);
+}
+
+.reward-range {
+    font-size: 13px;
+}
+
+.reward-item.bonus {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+    color: var(--primary);
+}
+
+/* XP label */
+.xp-label {
+    font-weight: 700;
+    color: var(--warning);
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+/* Icons in economics */
+.card-economics .icon-small {
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+}
+
+/* Free activities */
+.card-economics.free {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.card-economics.free .cost-label {
+    color: var(--success);
+    font-weight: 600;
+}
+
+/* Affordability Tags (wrap style) */
+.affordability-tag {
+    position: absolute;
+    top: -10px;
+    right: 20px;
+    background: var(--bg-primary, #0a0e27);
+    padding: 4px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 2px solid;
+    white-space: nowrap;
+    z-index: 3;
+    transition: all 0.3s ease;
+}
+
+.affordability-tag.tag-ready {
+    border-color: #4ecca3;
+    color: #4ecca3;
+}
+
+.affordability-tag.tag-almost {
+    border-color: #f39c12;
+    color: #f39c12;
+}
+
+.affordability-tag.tag-locked {
+    border-color: #e94560;
+    color: #e94560;
+}
+
+/* Card state modifiers based on affordability */
+.generic-card.card-affordable {
+    transition: all 0.3s ease;
+}
+
+.generic-card.card-affordable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(76, 236, 163, 0.2);
+}
+
+.generic-card.card-almost-affordable {
+    opacity: 0.95;
+}
+
+.generic-card.card-unaffordable {
+    opacity: 0.7;
+    filter: saturate(0.8);
+}
+
+/* Hide/show based on preferences */
+body[data-pref-hide-unaffordable="true"] .generic-card.card-unaffordable {
+    display: none;
+}
+
+body[data-pref-dim-expensive="false"] .generic-card.card-unaffordable {
+    opacity: 1;
+    filter: none;
+}
+
+body[data-pref-show-tags="false"] .affordability-tag {
+    display: none;
+}
+
+body[data-pref-highlight-affordable="true"] .generic-card.card-affordable {
+    border: 2px solid #4ecca3;
+    box-shadow: 0 0 20px rgba(76, 236, 163, 0.3);
+}
+
+/* Button state updates */
+.generic-card.card-affordable .action-primary {
+    background: #4ecca3;
+    color: #000;
+}
+
+.generic-card.card-affordable .action-primary:hover {
+    background: #45d899;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 236, 163, 0.4);
+}
+
+.generic-card.card-almost-affordable .action-primary {
+    background: #f39c12;
+    color: #000;
+}
+
+.generic-card.card-unaffordable .action-primary {
+    background: #444;
+    color: #888;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Animations */
+@keyframes pulse-insufficient {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.card-economics.insufficient {
+    animation: pulse-insufficient 2s ease-in-out infinite;
+}
+
+/* Card disabled state */
+.generic-card.disabled {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.generic-card.disabled .card-economics {
+    filter: grayscale(50%);
+}
+
+/* Compact layout adjustments */
+.layout-compact .card-economics {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.layout-compact .icon-small {
+    width: 14px;
+    height: 14px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+    .card-economics {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    
+    .card-rewards {
+        width: 100%;
+    }
+    
+    .reward-items {
+        justify-content: flex-start;
+    }
+}

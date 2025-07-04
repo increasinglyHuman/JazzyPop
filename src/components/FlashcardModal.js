@@ -12,7 +12,8 @@ class FlashcardModal {
         this.currentIndex = 0;
         this.score = 0;
         this.streak = 0;
-        this.isFlipped = false;
+        this.isFlipped = false; // so this is true if we are looking at the back of a card, and false if we are looking at the front.
+        // so we should be setting the this.isFlipped state to False to turn a card around - or 'when we turn that card around' yes?
         this.init();
     }
 
@@ -106,7 +107,7 @@ class FlashcardModal {
             console.log('Check answer button clicked');
             this.checkAnswer();
         });
-        
+
         // Continue button
         const continueBtn = this.modal.querySelector('#continueBtn');
         continueBtn.addEventListener('click', () => this.nextCard());
@@ -118,13 +119,15 @@ class FlashcardModal {
         // Keyboard support
         document.addEventListener('keydown', (e) => {
             if (!this.modal.classList.contains('active')) return;
-            
-            switch(e.key) {
+
+            switch (e.key) {
                 case 'Escape':
                     this.close();
                     break;
                 case ' ':
                 case 'Enter':
+                    // what's the scope of the isFlipped state - seems like it would easily get contaminated if it's global, no?
+                    // is it limited to the scope of the active object to which it is attached?
                     if (!this.isFlipped) {
                         this.flipCard();
                     }
@@ -145,7 +148,7 @@ class FlashcardModal {
 
     async open(config) {
         console.log('Opening flashcard modal with config:', config);
-        
+
         // Get cards based on category if provided
         if (config && config.category) {
             this.cards = this.getCardsByCategory(config.category);
@@ -155,7 +158,10 @@ class FlashcardModal {
         }
 
         if (!this.cards || this.cards.length === 0) {
-            console.error('No flashcards available for category:', config?.category);
+            console.error(
+                'No flashcards available for category:',
+                config?.category
+            );
             return;
         }
 
@@ -200,6 +206,8 @@ class FlashcardModal {
     getDefaultCards() {
         const cards = [
             // Famous Quotes with different challenge types
+            // what are these - hardcoded questions?
+            // so our api is still not aligned or not returning any questions?
             {
                 id: 'quote-1',
                 category: 'Famous Quote',
@@ -225,7 +233,8 @@ class FlashcardModal {
             {
                 id: 'quote-3',
                 category: 'Famous Quote',
-                content: '"I have a dream that one day this nation will rise up and live out the true meaning of its creed."',
+                content:
+                    '"I have a dream that one day this nation will rise up and live out the true meaning of its creed."',
                 author: 'Martin Luther King Jr.',
                 challengeType: 'who-said-it',
                 challenge: 'Who gave this famous speech?',
@@ -236,23 +245,41 @@ class FlashcardModal {
             {
                 id: 'quote-4',
                 category: 'Famous Quote',
-                content: '"Life is what happens when you\'re busy making other plans."',
+                content:
+                    '"Life is what happens when you\'re busy making other plans."',
                 author: 'John Lennon',
                 challengeType: 'word-order',
                 challenge: 'Put these words in order:',
-                scrambled: ['happens', 'Life', 'when', 'is', 'what', 'making', 'you\'re', 'busy', 'other', 'plans'],
-                answer: 'Life is what happens when you\'re busy making other plans',
+                scrambled: [
+                    'happens',
+                    'Life',
+                    'when',
+                    'is',
+                    'what',
+                    'making',
+                    "you're",
+                    'busy',
+                    'other',
+                    'plans'
+                ],
+                answer: "Life is what happens when you're busy making other plans",
                 difficulty: 'hard',
                 type: 'quote'
             },
             {
                 id: 'quote-5',
                 category: 'Famous Quote',
-                content: '"The only way to do great work is to love what you do."',
+                content:
+                    '"The only way to do great work is to love what you do."',
                 author: 'Steve Jobs',
                 challengeType: 'multiple-choice',
                 challenge: 'Who said this?',
-                options: ['Bill Gates', 'Steve Jobs', 'Elon Musk', 'Mark Zuckerberg'],
+                options: [
+                    'Bill Gates',
+                    'Steve Jobs',
+                    'Elon Musk',
+                    'Mark Zuckerberg'
+                ],
                 answer: 'Steve Jobs',
                 difficulty: 'medium',
                 type: 'quote'
@@ -261,7 +288,8 @@ class FlashcardModal {
             {
                 id: 'science-1',
                 category: 'Science Fact',
-                content: 'Jupiter is the largest planet in our solar system. It\'s so big that all other planets could fit inside it!',
+                content:
+                    "Jupiter is the largest planet in our solar system. It's so big that all other planets could fit inside it!",
                 challengeType: 'fill-blank',
                 challenge: '_____ is the largest planet in our solar system.',
                 answer: 'Jupiter',
@@ -271,7 +299,8 @@ class FlashcardModal {
             {
                 id: 'science-2',
                 category: 'Science Fact',
-                content: 'Octopuses have three hearts and blue blood! Two hearts pump blood to the gills, one to the body.',
+                content:
+                    'Octopuses have three hearts and blue blood! Two hearts pump blood to the gills, one to the body.',
                 challengeType: 'true-false',
                 challenge: 'True or False: Octopuses have three hearts',
                 answer: 'True',
@@ -282,7 +311,8 @@ class FlashcardModal {
             {
                 id: 'history-1',
                 category: 'Historical Event',
-                content: 'World War II ended in 1945 when Japan formally surrendered on September 2nd.',
+                content:
+                    'World War II ended in 1945 when Japan formally surrendered on September 2nd.',
                 challengeType: 'fill-blank',
                 challenge: 'World War II ended in the year _____.',
                 answer: '1945',
@@ -304,7 +334,8 @@ class FlashcardModal {
             {
                 id: 'fact-2',
                 category: 'Fun Fact',
-                content: 'Bananas are berries, but strawberries aren\'t! Botanically speaking, berries must have seeds inside their flesh.',
+                content:
+                    "Bananas are berries, but strawberries aren't! Botanically speaking, berries must have seeds inside their flesh.",
                 challengeType: 'true-false',
                 challenge: 'True or False: Bananas are berries',
                 answer: 'True',
@@ -339,7 +370,8 @@ class FlashcardModal {
                 category: 'Bad Pun 😅',
                 content: 'I used to hate facial hair, but then it grew on me.',
                 challengeType: 'fill-blank',
-                challenge: 'I used to hate facial hair, but then it _____ on me.',
+                challenge:
+                    'I used to hate facial hair, but then it _____ on me.',
                 answer: 'grew',
                 difficulty: 'easy',
                 type: 'pun'
@@ -349,7 +381,8 @@ class FlashcardModal {
                 category: 'Bad Pun 😅',
                 content: 'Time flies like an arrow. Fruit flies like a banana.',
                 challengeType: 'true-false',
-                challenge: 'True or False: This pun plays with the word "flies"',
+                challenge:
+                    'True or False: This pun plays with the word "flies"',
                 answer: 'True',
                 difficulty: 'medium',
                 type: 'pun'
@@ -357,9 +390,11 @@ class FlashcardModal {
             {
                 id: 'pun-3',
                 category: 'Bad Pun 😅',
-                content: 'I\'m reading a book about anti-gravity. It\'s impossible to put down!',
+                content:
+                    "I'm reading a book about anti-gravity. It's impossible to put down!",
                 challengeType: 'fill-blank',
-                challenge: 'I\'m reading a book about anti-gravity. It\'s impossible to put _____!',
+                challenge:
+                    "I'm reading a book about anti-gravity. It's impossible to put _____!",
                 answer: 'down',
                 difficulty: 'easy',
                 type: 'pun'
@@ -367,10 +402,16 @@ class FlashcardModal {
             {
                 id: 'pun-4',
                 category: 'Bad Pun 😅',
-                content: 'Why don\'t scientists trust atoms? Because they make up everything!',
+                content:
+                    "Why don't scientists trust atoms? Because they make up everything!",
                 challengeType: 'multiple-choice',
-                challenge: 'Why don\'t scientists trust atoms?',
-                options: ['They\'re too small', 'They make up everything', 'They\'re unstable', 'They\'re negative'],
+                challenge: "Why don't scientists trust atoms?",
+                options: [
+                    "They're too small",
+                    'They make up everything',
+                    "They're unstable",
+                    "They're negative"
+                ],
                 answer: 'They make up everything',
                 difficulty: 'easy',
                 type: 'pun'
@@ -389,9 +430,11 @@ class FlashcardModal {
             {
                 id: 'knock-1',
                 category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce in, it\'s cold out here!',
+                content:
+                    "Knock knock. Who's there? Lettuce. Lettuce who? Lettuce in, it's cold out here!",
                 challengeType: 'fill-blank',
-                challenge: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce _____, it\'s cold out here!',
+                challenge:
+                    "Knock knock. Who's there? Lettuce. Lettuce who? Lettuce _____, it's cold out here!",
                 answer: 'in',
                 difficulty: 'easy',
                 type: 'joke'
@@ -399,16 +442,22 @@ class FlashcardModal {
             {
                 id: 'knock-2',
                 category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Boo. Boo who? Don\'t cry, it\'s just a joke!',
+                content:
+                    "Knock knock. Who's there? Boo. Boo who? Don't cry, it's just a joke!",
                 challengeType: 'multiple-choice',
                 challenge: 'Complete the joke: "Boo who?"',
-                options: ['Don\'t cry, it\'s just a joke!', 'Boo to you too!', 'I\'m a ghost!', 'Halloween is here!'],
-                answer: 'Don\'t cry, it\'s just a joke!',
+                options: [
+                    "Don't cry, it's just a joke!",
+                    'Boo to you too!',
+                    "I'm a ghost!",
+                    'Halloween is here!'
+                ],
+                answer: "Don't cry, it's just a joke!",
                 difficulty: 'easy',
                 type: 'joke'
             }
         ];
-        
+
         // Shuffle and return a subset
         const shuffled = cards.sort(() => Math.random() - 0.5);
         return shuffled.slice(0, 10);
@@ -416,7 +465,7 @@ class FlashcardModal {
 
     getCardsByCategory(category) {
         console.log('Getting cards for category:', category);
-        
+
         // Get all cards first (not shuffled)
         const allCards = [
             // Famous Quotes
@@ -445,7 +494,8 @@ class FlashcardModal {
             {
                 id: 'quote-3',
                 category: 'Famous Quote',
-                content: '"I have a dream that one day this nation will rise up and live out the true meaning of its creed."',
+                content:
+                    '"I have a dream that one day this nation will rise up and live out the true meaning of its creed."',
                 author: 'Martin Luther King Jr.',
                 challengeType: 'who-said-it',
                 challenge: 'Who gave this famous speech?',
@@ -456,23 +506,41 @@ class FlashcardModal {
             {
                 id: 'quote-4',
                 category: 'Famous Quote',
-                content: '"Life is what happens when you\'re busy making other plans."',
+                content:
+                    '"Life is what happens when you\'re busy making other plans."',
                 author: 'John Lennon',
                 challengeType: 'word-order',
                 challenge: 'Put these words in order:',
-                scrambled: ['happens', 'Life', 'when', 'is', 'what', 'making', 'you\'re', 'busy', 'other', 'plans'],
-                answer: 'Life is what happens when you\'re busy making other plans',
+                scrambled: [
+                    'happens',
+                    'Life',
+                    'when',
+                    'is',
+                    'what',
+                    'making',
+                    "you're",
+                    'busy',
+                    'other',
+                    'plans'
+                ],
+                answer: "Life is what happens when you're busy making other plans",
                 difficulty: 'hard',
                 type: 'quote'
             },
             {
                 id: 'quote-5',
                 category: 'Famous Quote',
-                content: '"The only way to do great work is to love what you do."',
+                content:
+                    '"The only way to do great work is to love what you do."',
                 author: 'Steve Jobs',
                 challengeType: 'multiple-choice',
                 challenge: 'Who said this?',
-                options: ['Bill Gates', 'Steve Jobs', 'Elon Musk', 'Mark Zuckerberg'],
+                options: [
+                    'Bill Gates',
+                    'Steve Jobs',
+                    'Elon Musk',
+                    'Mark Zuckerberg'
+                ],
                 answer: 'Steve Jobs',
                 difficulty: 'medium',
                 type: 'quote'
@@ -483,7 +551,8 @@ class FlashcardModal {
                 category: 'Bad Pun 😅',
                 content: 'I used to hate facial hair, but then it grew on me.',
                 challengeType: 'fill-blank',
-                challenge: 'I used to hate facial hair, but then it _____ on me.',
+                challenge:
+                    'I used to hate facial hair, but then it _____ on me.',
                 answer: 'grew',
                 difficulty: 'easy',
                 type: 'pun'
@@ -493,7 +562,8 @@ class FlashcardModal {
                 category: 'Bad Pun 😅',
                 content: 'Time flies like an arrow. Fruit flies like a banana.',
                 challengeType: 'true-false',
-                challenge: 'True or False: This pun plays with the word "flies"',
+                challenge:
+                    'True or False: This pun plays with the word "flies"',
                 answer: 'True',
                 difficulty: 'medium',
                 type: 'pun'
@@ -501,9 +571,11 @@ class FlashcardModal {
             {
                 id: 'pun-3',
                 category: 'Bad Pun 😅',
-                content: 'I\'m reading a book about anti-gravity. It\'s impossible to put down!',
+                content:
+                    "I'm reading a book about anti-gravity. It's impossible to put down!",
                 challengeType: 'fill-blank',
-                challenge: 'I\'m reading a book about anti-gravity. It\'s impossible to put _____!',
+                challenge:
+                    "I'm reading a book about anti-gravity. It's impossible to put _____!",
                 answer: 'down',
                 difficulty: 'easy',
                 type: 'pun'
@@ -511,10 +583,16 @@ class FlashcardModal {
             {
                 id: 'pun-4',
                 category: 'Bad Pun 😅',
-                content: 'Why don\'t scientists trust atoms? Because they make up everything!',
+                content:
+                    "Why don't scientists trust atoms? Because they make up everything!",
                 challengeType: 'multiple-choice',
-                challenge: 'Why don\'t scientists trust atoms?',
-                options: ['They\'re too small', 'They make up everything', 'They\'re unstable', 'They\'re negative'],
+                challenge: "Why don't scientists trust atoms?",
+                options: [
+                    "They're too small",
+                    'They make up everything',
+                    "They're unstable",
+                    "They're negative"
+                ],
                 answer: 'They make up everything',
                 difficulty: 'easy',
                 type: 'pun'
@@ -533,9 +611,11 @@ class FlashcardModal {
             {
                 id: 'knock-1',
                 category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce in, it\'s cold out here!',
+                content:
+                    "Knock knock. Who's there? Lettuce. Lettuce who? Lettuce in, it's cold out here!",
                 challengeType: 'fill-blank',
-                challenge: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce _____, it\'s cold out here!',
+                challenge:
+                    "Knock knock. Who's there? Lettuce. Lettuce who? Lettuce _____, it's cold out here!",
                 answer: 'in',
                 difficulty: 'easy',
                 type: 'joke'
@@ -543,11 +623,17 @@ class FlashcardModal {
             {
                 id: 'knock-2',
                 category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Boo. Boo who? Don\'t cry, it\'s just a joke!',
+                content:
+                    "Knock knock. Who's there? Boo. Boo who? Don't cry, it's just a joke!",
                 challengeType: 'multiple-choice',
                 challenge: 'Complete the joke: "Boo who?"',
-                options: ['Don\'t cry, it\'s just a joke!', 'Boo to you too!', 'I\'m a ghost!', 'Halloween is here!'],
-                answer: 'Don\'t cry, it\'s just a joke!',
+                options: [
+                    "Don't cry, it's just a joke!",
+                    'Boo to you too!',
+                    "I'm a ghost!",
+                    'Halloween is here!'
+                ],
+                answer: "Don't cry, it's just a joke!",
                 difficulty: 'easy',
                 type: 'joke'
             },
@@ -555,7 +641,8 @@ class FlashcardModal {
             {
                 id: 'science-1',
                 category: 'Science Fact',
-                content: 'Jupiter is the largest planet in our solar system. It\'s so big that all other planets could fit inside it!',
+                content:
+                    "Jupiter is the largest planet in our solar system. It's so big that all other planets could fit inside it!",
                 challengeType: 'fill-blank',
                 challenge: '_____ is the largest planet in our solar system.',
                 answer: 'Jupiter',
@@ -565,7 +652,8 @@ class FlashcardModal {
             {
                 id: 'science-2',
                 category: 'Science Fact',
-                content: 'Octopuses have three hearts and blue blood! Two hearts pump blood to the gills, one to the body.',
+                content:
+                    'Octopuses have three hearts and blue blood! Two hearts pump blood to the gills, one to the body.',
                 challengeType: 'true-false',
                 challenge: 'True or False: Octopuses have three hearts',
                 answer: 'True',
@@ -576,7 +664,8 @@ class FlashcardModal {
             {
                 id: 'history-1',
                 category: 'Historical Event',
-                content: 'World War II ended in 1945 when Japan formally surrendered on September 2nd.',
+                content:
+                    'World War II ended in 1945 when Japan formally surrendered on September 2nd.',
                 challengeType: 'fill-blank',
                 challenge: 'World War II ended in the year _____.',
                 answer: '1945',
@@ -598,7 +687,8 @@ class FlashcardModal {
             {
                 id: 'fact-2',
                 category: 'Fun Fact',
-                content: 'Bananas are berries, but strawberries aren\'t! Botanically speaking, berries must have seeds inside their flesh.',
+                content:
+                    "Bananas are berries, but strawberries aren't! Botanically speaking, berries must have seeds inside their flesh.",
                 challengeType: 'true-false',
                 challenge: 'True or False: Bananas are berries',
                 answer: 'True',
@@ -628,33 +718,35 @@ class FlashcardModal {
                 type: 'phrase'
             }
         ];
-        
+
         // Map practice categories to card types
         const categoryMap = {
-            'bad_puns': 'pun',
-            'famous_quotes': 'quote',
-            'knock_knock': 'joke',
-            'trivia_mix': ['factoid', 'trivia', 'phrase']
+            bad_puns: 'pun',
+            famous_quotes: 'quote',
+            knock_knock: 'joke',
+            trivia_mix: ['factoid', 'trivia', 'phrase']
         };
-        
+
         const targetTypes = categoryMap[category];
         if (!targetTypes) {
             console.warn('Unknown category:', category);
             // Shuffle and return subset of all cards
             return allCards.sort(() => Math.random() - 0.5).slice(0, 10);
         }
-        
+
         // Filter cards by type
-        const filteredCards = allCards.filter(card => {
+        const filteredCards = allCards.filter((card) => {
             if (Array.isArray(targetTypes)) {
                 return targetTypes.includes(card.type);
             }
             return card.type === targetTypes;
         });
-        
-        console.log(`Found ${filteredCards.length} cards for category ${category}:`, 
-            filteredCards.map(c => `${c.id} (${c.type})`));
-        
+
+        console.log(
+            `Found ${filteredCards.length} cards for category ${category}:`,
+            filteredCards.map((c) => `${c.id} (${c.type})`)
+        );
+
         // Shuffle the filtered cards
         return filteredCards.sort(() => Math.random() - 0.5);
     }
@@ -665,22 +757,25 @@ class FlashcardModal {
             return;
         }
 
-        this.currentCard = this.cards[this.currentIndex];
-        this.isFlipped = false;
-        this.userAnswer = null;
+        this.currentCard = this.cards[this.currentIndex]; //what does this do - set's currentCard to the current index number?
+        this.isFlipped = false; // this declares that the current state of the flashcard is front side
+        this.userAnswer = null; // this removes any old answer
 
         // Reset card flip state
         const flashcard = document.getElementById('flashcard');
         flashcard.classList.remove('flipped');
 
         // Update progress
-        document.getElementById('currentCard').textContent = this.currentIndex + 1;
+        document.getElementById('currentCard').textContent =
+            this.currentIndex + 1;
         const progress = ((this.currentIndex + 1) / this.cards.length) * 100;
         document.getElementById('progressFill').style.width = `${progress}%`;
 
         // Update front of card
-        document.getElementById('cardCategory').textContent = this.currentCard.category;
-        
+        // but did anyone see us actually summon the flipping of the card? what function does that?
+        document.getElementById('cardCategory').textContent =
+            this.currentCard.category; // so we start completing the front messaging - the title here.
+
         // Display content with author if it's a quote
         const contentEl = document.getElementById('cardContent');
         if (this.currentCard.type === 'quote' && this.currentCard.author) {
@@ -714,12 +809,13 @@ class FlashcardModal {
     setupChallenge() {
         const questionEl = document.getElementById('challengeQuestion');
         const inputEl = document.getElementById('challengeInput');
-        
+
         console.log('Setting up challenge for card:', this.currentCard);
         console.log('Challenge text:', this.currentCard.challenge);
-        
-        questionEl.textContent = this.currentCard.challenge || 'No challenge text';
-        
+
+        questionEl.textContent =
+            this.currentCard.challenge || 'No challenge text';
+
         switch (this.currentCard.challengeType) {
             case 'fill-blank':
                 inputEl.innerHTML = `
@@ -730,7 +826,7 @@ class FlashcardModal {
                            autocomplete="off">
                 `;
                 break;
-                
+
             case 'who-said-it':
                 inputEl.innerHTML = `
                     <input type="text" 
@@ -740,23 +836,29 @@ class FlashcardModal {
                            autocomplete="off">
                 `;
                 break;
-                
+
             case 'multiple-choice':
                 inputEl.innerHTML = `
                     <div class="multiple-choice-options">
-                        ${this.currentCard.options.map((option, index) => `
+                        ${this.currentCard.options
+                            .map(
+                                (option, index) => `
                             <button class="mc-option" data-option="${option}">
                                 ${String.fromCharCode(65 + index)}. ${option}
                             </button>
-                        `).join('')}
+                        `
+                            )
+                            .join('')}
                     </div>
                 `;
                 // Add click handlers to options
                 setTimeout(() => {
-                    inputEl.querySelectorAll('.mc-option').forEach(btn => {
+                    inputEl.querySelectorAll('.mc-option').forEach((btn) => {
                         btn.addEventListener('click', (e) => {
                             // Remove previous selection
-                            inputEl.querySelectorAll('.mc-option').forEach(b => b.classList.remove('selected'));
+                            inputEl
+                                .querySelectorAll('.mc-option')
+                                .forEach((b) => b.classList.remove('selected'));
                             // Add selection to clicked option
                             btn.classList.add('selected');
                             this.userAnswer = btn.dataset.option;
@@ -764,7 +866,7 @@ class FlashcardModal {
                     });
                 }, 0);
                 break;
-                
+
             case 'true-false':
                 inputEl.innerHTML = `
                     <div class="true-false-options">
@@ -778,24 +880,30 @@ class FlashcardModal {
                 `;
                 // Add click handlers
                 setTimeout(() => {
-                    inputEl.querySelectorAll('.tf-option').forEach(btn => {
+                    inputEl.querySelectorAll('.tf-option').forEach((btn) => {
                         btn.addEventListener('click', (e) => {
-                            inputEl.querySelectorAll('.tf-option').forEach(b => b.classList.remove('selected'));
+                            inputEl
+                                .querySelectorAll('.tf-option')
+                                .forEach((b) => b.classList.remove('selected'));
                             btn.classList.add('selected');
                             this.userAnswer = btn.dataset.answer;
                         });
                     });
                 }, 0);
                 break;
-                
+
             case 'word-order':
                 const scrambled = [...this.currentCard.scrambled];
                 inputEl.innerHTML = `
                     <div class="word-order-container">
                         <div class="word-bank" id="wordBank">
-                            ${scrambled.map(word => `
+                            ${scrambled
+                                .map(
+                                    (word) => `
                                 <span class="word-chip" data-word="${word}">${word}</span>
-                            `).join('')}
+                            `
+                                )
+                                .join('')}
                         </div>
                         <div class="word-answer" id="wordAnswer">
                             <div class="answer-placeholder">Drag words here...</div>
@@ -812,18 +920,21 @@ class FlashcardModal {
         const wordBank = document.getElementById('wordBank');
         const wordAnswer = document.getElementById('wordAnswer');
         const selectedWords = [];
-        
+
         // Click to add words
         wordBank.addEventListener('click', (e) => {
-            if (e.target.classList.contains('word-chip') && !e.target.classList.contains('selected')) {
+            if (
+                e.target.classList.contains('word-chip') &&
+                !e.target.classList.contains('selected')
+            ) {
                 e.target.classList.add('selected');
                 selectedWords.push(e.target.dataset.word);
-                
+
                 // Clear placeholder
                 if (wordAnswer.querySelector('.answer-placeholder')) {
                     wordAnswer.innerHTML = '';
                 }
-                
+
                 // Add word to answer
                 const chip = document.createElement('span');
                 chip.className = 'word-chip';
@@ -835,16 +946,17 @@ class FlashcardModal {
                     e.target.classList.remove('selected');
                     const index = selectedWords.indexOf(e.target.dataset.word);
                     if (index > -1) selectedWords.splice(index, 1);
-                    
+
                     // Show placeholder if empty
                     if (wordAnswer.children.length === 0) {
-                        wordAnswer.innerHTML = '<div class="answer-placeholder">Click words to build the sentence...</div>';
+                        wordAnswer.innerHTML =
+                            '<div class="answer-placeholder">Click words to build the sentence...</div>';
                     }
                 });
                 wordAnswer.appendChild(chip);
             }
         });
-        
+
         // Store selected words for checking
         this.getSelectedWords = () => selectedWords.join(' ');
     }
@@ -856,23 +968,25 @@ class FlashcardModal {
         console.log('Flipping card. Current card:', this.currentCard);
         console.log('Card challenge:', this.currentCard.challenge);
         console.log('Card challenge type:', this.currentCard.challengeType);
-        
+
         // Check if back content exists
         const backEl = flashcard.querySelector('.flashcard-back');
         const challengeEl = document.getElementById('cardChallenge');
         console.log('Back element exists:', !!backEl);
         console.log('Challenge element exists:', !!challengeEl);
         console.log('Challenge content:', challengeEl?.innerHTML);
-        
+
         flashcard.classList.add('flipped');
         this.isFlipped = true;
 
         // Hide skip button when card is flipped
         document.getElementById('skipBtn').style.display = 'none';
-        
+
         // Focus input if present
         setTimeout(() => {
-            const input = document.querySelector('.fill-blank-input, .author-input');
+            const input = document.querySelector(
+                '.fill-blank-input, .author-input'
+            );
             if (input) input.focus();
         }, 600);
     }
@@ -881,7 +995,7 @@ class FlashcardModal {
         console.log('checkAnswer called');
         let userAnswer = '';
         let isCorrect = false;
-        
+
         switch (this.currentCard.challengeType) {
             case 'fill-blank':
                 const input = document.getElementById('fillBlankInput');
@@ -890,33 +1004,46 @@ class FlashcardModal {
                     return;
                 }
                 userAnswer = input.value.trim();
-                console.log('User answer:', userAnswer, 'Expected:', this.currentCard.answer);
-                
+                console.log(
+                    'User answer:',
+                    userAnswer,
+                    'Expected:',
+                    this.currentCard.answer
+                );
+
                 // More forgiving comparison
-                const normalizedUser = userAnswer.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const normalizedAnswer = this.currentCard.answer.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const normalizedUser = userAnswer
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/g, '');
+                const normalizedAnswer = this.currentCard.answer
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]/g, '');
                 isCorrect = normalizedUser === normalizedAnswer;
                 break;
-                
+
             case 'who-said-it':
-                userAnswer = document.getElementById('authorInput').value.trim();
-                isCorrect = userAnswer.toLowerCase() === this.currentCard.answer.toLowerCase();
+                userAnswer = document
+                    .getElementById('authorInput')
+                    .value.trim();
+                isCorrect =
+                    userAnswer.toLowerCase() ===
+                    this.currentCard.answer.toLowerCase();
                 break;
-                
+
             case 'multiple-choice':
                 isCorrect = this.userAnswer === this.currentCard.answer;
                 break;
-                
+
             case 'true-false':
                 isCorrect = this.userAnswer === this.currentCard.answer;
                 break;
-                
+
             case 'word-order':
                 userAnswer = this.getSelectedWords();
                 isCorrect = userAnswer === this.currentCard.answer;
                 break;
         }
-        
+
         this.handleAnswer(isCorrect);
     }
 
@@ -925,7 +1052,7 @@ class FlashcardModal {
             this.score++;
             this.streak++;
             this.showFeedback('correct');
-            
+
             // Award hearts/diamonds based on streak
             this.awardRewards();
         } else {
@@ -936,23 +1063,27 @@ class FlashcardModal {
         // Hide challenge, show feedback
         document.getElementById('cardChallenge').style.display = 'none';
         document.getElementById('checkAnswerBtn').style.display = 'none';
-        
+
         // Show feedback and continue button
         const feedbackEl = document.getElementById('answerFeedback');
         feedbackEl.style.display = 'block';
     }
-    
+
     showFeedback(type) {
         // Show bot overlay like in quiz
         const overlay = document.createElement('div');
         overlay.className = 'answer-overlay';
-        
+
         if (type === 'correct') {
             overlay.innerHTML = `
                 <img src="../src/images/bot-yes.svg" alt="Correct!" class="feedback-bot">
                 <div class="feedback-message">
                     <h3>Correct!</h3>
-                    ${this.streak >= 5 ? `<p>🔥 ${this.streak} in a row!</p>` : ''}
+                    ${
+                        this.streak >= 5
+                            ? `<p>🔥 ${this.streak} in a row!</p>`
+                            : ''
+                    }
                 </div>
             `;
             overlay.classList.add('correct');
@@ -966,26 +1097,26 @@ class FlashcardModal {
             `;
             overlay.classList.add('incorrect');
         }
-        
+
         // Add overlay to flashcard
         const flashcard = document.getElementById('flashcard');
         flashcard.appendChild(overlay);
-        
+
         // Animate in
         requestAnimationFrame(() => {
             overlay.classList.add('show');
         });
-        
+
         // Update answer feedback area
         const feedbackContent = document.getElementById('feedbackContent');
         feedbackContent.style.display = 'none';
-        
+
         // Show reward popup with score bar
         this.showReward(type);
-        
+
         // Show score message bar like in quiz
         this.showScoreMessage(type);
-        
+
         // Auto-advance to next card after showing feedback
         setTimeout(() => {
             if (type === 'correct') {
@@ -993,7 +1124,8 @@ class FlashcardModal {
                 this.nextCard();
             } else {
                 // Show continue button for incorrect answers
-                const answerFeedback = document.getElementById('answerFeedback');
+                const answerFeedback =
+                    document.getElementById('answerFeedback');
                 answerFeedback.style.display = 'block';
                 feedbackContent.style.display = 'none';
             }
@@ -1005,7 +1137,7 @@ class FlashcardModal {
         let heartsAwarded = 0;
         let diamondsAwarded = 0;
         let xpAwarded = 0;
-        
+
         // XP most common (60%), gems more common (30%), hearts rare (10%)
         const rand = Math.random();
         if (rand < 0.6) {
@@ -1021,80 +1153,98 @@ class FlashcardModal {
             heartsAwarded = 1;
             if (this.streak >= 5) heartsAwarded = 2;
         }
-        
+
         // Apply rewards with overflow protection
-        const actualRewards = ScoringEngine.applyReward(heartsAwarded, diamondsAwarded, xpAwarded);
-        
+        const actualRewards = ScoringEngine.applyReward(
+            heartsAwarded,
+            diamondsAwarded,
+            xpAwarded
+        );
+
         // Store for display
         this.lastReward = actualRewards;
-        
+
         // Dispatch event to update UI
-        window.dispatchEvent(new CustomEvent('statsUpdated', {
-            detail: actualRewards
-        }));
+        window.dispatchEvent(
+            new CustomEvent('statsUpdated', {
+                detail: actualRewards
+            })
+        );
     }
-    
+
     awardCompletionBonus() {
         const stackSize = this.cards.length;
         const percentage = Math.round((this.score / this.cards.length) * 100);
         let bonusHearts = 0;
         let bonusDiamonds = 0;
         let bonusXP = 0;
-        
+
         // Guaranteed heart for completing a stack of 10+
         if (stackSize >= 10) {
             bonusHearts = 1;
         }
-        
+
         // Chance for bonus heart based on performance
         if (percentage >= 80 && Math.random() < 0.3) {
             bonusHearts += 1;
         }
-        
+
         // Small XP bonus for completion
         bonusXP = stackSize * 5;
-        
+
         if (bonusHearts > 0 || bonusXP > 0) {
             // Apply rewards with overflow protection
-            const actualRewards = ScoringEngine.applyReward(bonusHearts, bonusDiamonds, bonusXP);
-            
+            const actualRewards = ScoringEngine.applyReward(
+                bonusHearts,
+                bonusDiamonds,
+                bonusXP
+            );
+
             // Create message based on what was actually awarded
             let message = '';
-            if (actualRewards.hearts > 0) message += `+${actualRewards.hearts} ❤️ `;
-            if (actualRewards.diamonds > 0) message += `+${actualRewards.diamonds} 💎 `;
+            if (actualRewards.hearts > 0)
+                message += `+${actualRewards.hearts} ❤️ `;
+            if (actualRewards.diamonds > 0)
+                message += `+${actualRewards.diamonds} 💎 `;
             if (actualRewards.xp > 0) message += `+${actualRewards.xp} XP `;
             message += 'Completion Bonus!';
-            
+
             // Show completion bonus popup
-            this.showCompletionBonus(actualRewards.hearts, actualRewards.diamonds, message);
-            
+            this.showCompletionBonus(
+                actualRewards.hearts,
+                actualRewards.diamonds,
+                message
+            );
+
             // Dispatch event to update UI
-            window.dispatchEvent(new CustomEvent('statsUpdated', {
-                detail: actualRewards
-            }));
+            window.dispatchEvent(
+                new CustomEvent('statsUpdated', {
+                    detail: actualRewards
+                })
+            );
         }
     }
-    
+
     showCompletionBonus(hearts, diamonds, message) {
         const bonus = document.createElement('div');
         bonus.className = 'completion-bonus';
-        
+
         // Choose icon based on what was awarded
         let icon = '❤️';
         let bgColor = 'linear-gradient(135deg, #2ecc40, #27ae60)';
-        
+
         if (diamonds > 0 && hearts === 0) {
             icon = '💎';
             bgColor = 'linear-gradient(135deg, #3498db, #2980b9)';
         } else if (diamonds > 0 && hearts > 0) {
             icon = '❤️💎';
         }
-        
+
         bonus.innerHTML = `
             <div class="bonus-icon">${icon}</div>
             <div class="bonus-text">${message}</div>
         `;
-        
+
         bonus.style.cssText = `
             position: fixed;
             top: 50%;
@@ -1109,21 +1259,21 @@ class FlashcardModal {
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             animation: bonusPopIn 0.5s ease;
         `;
-        
+
         const bonusIcon = bonus.querySelector('.bonus-icon');
         bonusIcon.style.cssText = `
             font-size: 48px;
             margin-bottom: 10px;
         `;
-        
+
         const bonusText = bonus.querySelector('.bonus-text');
         bonusText.style.cssText = `
             font-size: 18px;
             font-weight: 600;
         `;
-        
+
         document.body.appendChild(bonus);
-        
+
         // Remove after delay
         setTimeout(() => {
             bonus.style.animation = 'bonusPopOut 0.3s ease forwards';
@@ -1139,7 +1289,7 @@ class FlashcardModal {
         if (type === 'correct') {
             // Show the randomly assigned reward
             const reward = this.lastReward || { hearts: 1, diamonds: 0, xp: 0 };
-            
+
             if (reward.hearts > 0) {
                 icon.textContent = '❤️';
                 text.textContent = `+${reward.hearts} ❤️`;
@@ -1150,7 +1300,7 @@ class FlashcardModal {
                 icon.textContent = '⭐';
                 text.textContent = `+${reward.xp} XP`;
             }
-            
+
             popup.className = 'reward-popup correct';
         } else {
             icon.textContent = '💔';
@@ -1168,11 +1318,11 @@ class FlashcardModal {
         // Create score message bar
         const messageBar = document.createElement('div');
         messageBar.className = 'score-message-bar';
-        
+
         if (type === 'correct') {
             messageBar.classList.add('correct');
             const reward = this.lastReward || { hearts: 1, diamonds: 0, xp: 0 };
-            
+
             let rewardText = '';
             if (reward.hearts > 0) {
                 rewardText = `+${reward.hearts} ❤️`;
@@ -1181,13 +1331,19 @@ class FlashcardModal {
             } else if (reward.xp > 0) {
                 rewardText = `+${reward.xp} XP`;
             }
-            
+
             messageBar.innerHTML = `
                 <div class="score-message-content">
                     <span class="score-label">Reward:</span>
                     <span class="score-item">${rewardText}</span>
-                    <span class="score-item">Score: ${this.score}/${this.cards.length}</span>
-                    ${this.streak > 1 ? `<span class="score-item streak">🔥 Streak: ${this.streak}</span>` : ''}
+                    <span class="score-item">Score: ${this.score}/${
+                this.cards.length
+            }</span>
+                    ${
+                        this.streak > 1
+                            ? `<span class="score-item streak">🔥 Streak: ${this.streak}</span>`
+                            : ''
+                    }
                 </div>
             `;
         } else {
@@ -1200,16 +1356,16 @@ class FlashcardModal {
                 </div>
             `;
         }
-        
+
         // Add to flashcard content
         const flashcardContent = document.querySelector('.flashcard-content');
         flashcardContent.appendChild(messageBar);
-        
+
         // Animate in
         requestAnimationFrame(() => {
             messageBar.classList.add('show');
         });
-        
+
         // Remove after delay
         setTimeout(() => {
             messageBar.classList.remove('show');
@@ -1223,25 +1379,28 @@ class FlashcardModal {
         if (existingOverlay) {
             existingOverlay.remove();
         }
-        
+
         this.currentIndex++;
         document.getElementById('skipBtn').style.display = 'block';
         this.loadCard();
     }
 
     showResults() {
-        const flashcardContainer = document.getElementById('flashcardContainer');
+        const flashcardContainer =
+            document.getElementById('flashcardContainer');
         const percentage = Math.round((this.score / this.cards.length) * 100);
-        
+
         // Award completion bonus hearts
         this.awardCompletionBonus();
-        
+
         flashcardContainer.innerHTML = `
             <div class="results-screen">
                 <h2>Great Practice!</h2>
                 <div class="results-stats">
                     <div class="result-stat">
-                        <span class="stat-value">${this.score}/${this.cards.length}</span>
+                        <span class="stat-value">${this.score}/${
+            this.cards.length
+        }</span>
                         <span class="stat-label">Correct</span>
                     </div>
                     <div class="result-stat">
@@ -1267,9 +1426,9 @@ class FlashcardModal {
         if (percentage === 100) {
             return "🌟 Perfect! You're a trivia master!";
         } else if (percentage >= 80) {
-            return "🎉 Excellent work! Keep it up!";
+            return '🎉 Excellent work! Keep it up!';
         } else if (percentage >= 60) {
-            return "👍 Good job! Practice makes perfect!";
+            return '👍 Good job! Practice makes perfect!';
         } else if (percentage >= 40) {
             return "💪 Nice try! You're learning!";
         } else {
@@ -1282,10 +1441,10 @@ class FlashcardModal {
         this.score = 0;
         this.streak = 0;
         this.isFlipped = false;
-        
+
         // Restore footer
         document.querySelector('.flashcard-footer').style.display = 'flex';
-        
+
         // Recreate flashcard container
         const container = document.getElementById('flashcardContainer');
         container.innerHTML = `
@@ -1310,25 +1469,25 @@ class FlashcardModal {
                 </div>
             </div>
         `;
-        
+
         // Reattach card event listeners
         const flashcard = document.getElementById('flashcard');
         flashcard.addEventListener('click', () => this.flipCard());
-        
-        this.modal.querySelectorAll('.answer-btn').forEach(btn => {
+
+        this.modal.querySelectorAll('.answer-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.handleAnswer(btn.dataset.result === 'correct');
             });
         });
-        
+
         this.loadCard();
     }
 
     close() {
         this.modal.classList.remove('active');
         document.body.style.overflow = '';
-        
+
         // Reset state
         this.cards = [];
         this.currentIndex = 0;

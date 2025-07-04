@@ -1,0 +1,531 @@
+/* Goth/Punk Neo-Brutalist Style for Game Mode */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --void-black: #000000;
+    --ink-black: #0a0a0a;
+    --charcoal: #1a1a1a;
+    --blood-red: #dc143c;
+    --neon-pink: #ff1493;
+    --electric-purple: #9d00ff;
+    --toxic-green: #39ff14;
+    --pure-white: #ffffff;
+    --ash-grey: #666666;
+    --silver: #c0c0c0;
+}
+
+@font-face {
+    font-family: 'Punk';
+    src: local('Impact'), local('Arial Black'), local('Franklin Gothic Heavy');
+}
+
+body {
+    font-family: 'Punk', 'Arial Black', sans-serif;
+    background: var(--void-black);
+    color: var(--pure-white);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+}
+
+/* Harsh geometric background pattern */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+        repeating-linear-gradient(45deg, transparent, transparent 20px, var(--charcoal) 20px, var(--charcoal) 21px),
+        repeating-linear-gradient(-45deg, transparent, transparent 20px, var(--charcoal) 20px, var(--charcoal) 21px);
+    z-index: -2;
+}
+
+/* Noise texture overlay */
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj4KICA8ZmlsdGVyIGlkPSJub2lzZSI+CiAgICA8ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC45IiBudW1PY3RhdmVzPSI0IiAvPgogIDwvZmlsdGVyPgogIDxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCNub2lzZSkiIG9wYWNpdHk9IjAuMDUiLz4KPC9zdmc+');
+    opacity: 0.1;
+    z-index: -1;
+    mix-blend-mode: multiply;
+}
+
+#app {
+    width: 100%;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* Containers */
+.quiz-builder,
+.quiz-container {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+}
+
+/* Brutal Cards with punk aesthetic */
+.punk-card {
+    background: var(--void-black);
+    border: 4px solid var(--pure-white);
+    padding: 32px;
+    margin-bottom: 24px;
+    position: relative;
+    transition: all 0.1s;
+    box-shadow: 8px 8px 0 var(--blood-red);
+}
+
+.punk-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 10px 10px 0 var(--blood-red);
+}
+
+/* Glitch effect on hover */
+.punk-card:hover::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: 2px;
+    bottom: 2px;
+    background: var(--neon-pink);
+    z-index: -1;
+    opacity: 0.5;
+    animation: glitchPunk 0.3s infinite;
+}
+
+@keyframes glitchPunk {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(-2px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+    100% { transform: translate(0); }
+}
+
+/* Typography */
+h1 {
+    font-size: clamp(3rem, 6vw, 5rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    line-height: 0.8;
+    margin-bottom: 1rem;
+    letter-spacing: -0.05em;
+    position: relative;
+    display: inline-block;
+}
+
+/* Punk text effects */
+h1::before {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: var(--blood-red);
+    z-index: -1;
+    transform: translate(3px, 3px);
+}
+
+h1::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: var(--electric-purple);
+    z-index: -2;
+    transform: translate(-3px, -3px);
+}
+
+h2 {
+    font-size: 2rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    background: var(--pure-white);
+    color: var(--void-black);
+    padding: 8px 16px;
+    display: inline-block;
+    margin-bottom: 1rem;
+    transform: skew(-5deg);
+    box-shadow: 4px 4px 0 var(--blood-red);
+}
+
+p {
+    font-size: 1.125rem;
+    font-weight: 500;
+    line-height: 1.4;
+    font-family: 'Courier New', monospace;
+}
+
+/* Punk Buttons */
+.punk-button {
+    background: var(--void-black);
+    color: var(--pure-white);
+    border: 3px solid var(--pure-white);
+    padding: 16px 32px;
+    font-size: 1.25rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.1s;
+    letter-spacing: 0.05em;
+    box-shadow: 6px 6px 0 var(--blood-red);
+}
+
+.punk-button::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    background: repeating-linear-gradient(
+        45deg,
+        var(--blood-red),
+        var(--blood-red) 2px,
+        transparent 2px,
+        transparent 4px
+    );
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.1s;
+}
+
+.punk-button:hover {
+    background: var(--blood-red);
+    transform: translate(-2px, -2px);
+    box-shadow: 8px 8px 0 var(--pure-white);
+}
+
+.punk-button:hover::before {
+    opacity: 1;
+}
+
+.punk-button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--pure-white);
+}
+
+/* Goth Input Fields */
+.goth-input {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.125rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    border: 3px solid var(--pure-white);
+    background: var(--charcoal);
+    color: var(--pure-white);
+    margin-bottom: 16px;
+    transition: all 0.2s;
+    text-transform: uppercase;
+}
+
+.goth-input:focus {
+    outline: none;
+    background: var(--void-black);
+    border-color: var(--neon-pink);
+    box-shadow: 0 0 0 3px var(--neon-pink), 0 0 20px var(--neon-pink);
+}
+
+.goth-input::placeholder {
+    color: var(--ash-grey);
+    text-transform: none;
+}
+
+/* Question Cards */
+.question-block {
+    border: 3px solid var(--pure-white);
+    padding: 24px;
+    margin-bottom: 20px;
+    position: relative;
+    background: var(--ink-black);
+    transition: all 0.1s;
+}
+
+.question-block::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: 3px;
+    bottom: 3px;
+    background: var(--charcoal);
+    z-index: -1;
+}
+
+.question-block::after {
+    content: 'QUESTION';
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    background: var(--blood-red);
+    color: var(--pure-white);
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.1em;
+}
+
+/* Answer Options */
+.answer-block {
+    border: 3px solid var(--pure-white);
+    padding: 20px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    position: relative;
+    background: var(--void-black);
+    transition: all 0.1s;
+    font-weight: 700;
+    text-transform: uppercase;
+    overflow: hidden;
+}
+
+.answer-block::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: var(--blood-red);
+    transition: left 0.3s;
+    z-index: -1;
+}
+
+.answer-block:hover {
+    color: var(--pure-white);
+    transform: translateX(-4px);
+    box-shadow: 4px 0 0 var(--neon-pink);
+}
+
+.answer-block:hover::before {
+    left: 0;
+}
+
+.answer-block.selected {
+    background: var(--pure-white);
+    color: var(--void-black);
+    border-color: var(--blood-red);
+    box-shadow: 6px 6px 0 var(--blood-red);
+}
+
+.answer-block.selected::after {
+    content: '✗';
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    font-size: 2rem;
+    font-weight: 900;
+    color: var(--blood-red);
+}
+
+/* Punk Stickers */
+.punk-sticker {
+    position: absolute;
+    font-size: 1.5rem;
+    font-weight: 900;
+    transform: rotate(-15deg);
+    user-select: none;
+    text-transform: uppercase;
+    background: var(--toxic-green);
+    color: var(--void-black);
+    padding: 4px 8px;
+    box-shadow: 2px 2px 0 var(--void-black);
+}
+
+.punk-sticker:nth-child(1) { 
+    top: -20px; 
+    right: 20px; 
+    transform: rotate(12deg);
+    background: var(--neon-pink);
+}
+
+.punk-sticker:nth-child(2) { 
+    bottom: -20px; 
+    left: 30px; 
+    transform: rotate(-8deg);
+    background: var(--electric-purple);
+    color: var(--pure-white);
+}
+
+/* Progress Bar */
+.progress-container {
+    margin-bottom: 32px;
+    position: relative;
+}
+
+.progress-label {
+    font-size: 14px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    color: var(--silver);
+}
+
+.progress-track {
+    height: 24px;
+    border: 3px solid var(--pure-white);
+    background: var(--charcoal);
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: repeating-linear-gradient(
+        -45deg,
+        var(--blood-red) 0px,
+        var(--blood-red) 10px,
+        var(--neon-pink) 10px,
+        var(--neon-pink) 20px
+    );
+    transition: width 0.3s cubic-bezier(0.86, 0, 0.07, 1);
+    box-shadow: 0 0 10px var(--neon-pink);
+}
+
+/* Loading Screen */
+.loading-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--void-black);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.loading-text {
+    font-size: 3rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--pure-white);
+    position: relative;
+}
+
+.loading-text::before,
+.loading-text::after {
+    content: 'LOADING';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.loading-text::before {
+    color: var(--blood-red);
+    animation: glitchText 0.3s infinite;
+    z-index: -1;
+}
+
+.loading-text::after {
+    color: var(--electric-purple);
+    animation: glitchText 0.3s infinite reverse;
+    z-index: -2;
+}
+
+@keyframes glitchText {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(-2px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+    100% { transform: translate(0); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 2.5rem;
+    }
+    
+    .punk-card {
+        padding: 20px;
+        border-width: 3px;
+    }
+    
+    .punk-button {
+        width: 100%;
+        margin-bottom: 12px;
+    }
+}
+
+/* Special Effects */
+.slash-through {
+    position: relative;
+    display: inline-block;
+}
+
+.slash-through::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -10%;
+    width: 120%;
+    height: 3px;
+    background: var(--blood-red);
+    transform: rotate(-5deg);
+}
+
+.anarchy-symbol {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    position: relative;
+    margin: 0 5px;
+}
+
+.anarchy-symbol::before {
+    content: 'A';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.anarchy-symbol::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    border: 3px solid currentColor;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Graffiti Mode */
+.graffiti-text {
+    font-family: 'Permanent Marker', 'Marker Felt', cursive;
+    transform: rotate(-2deg);
+    display: inline-block;
+    background: linear-gradient(180deg, var(--neon-pink) 0%, var(--electric-purple) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* Warning tape decoration */
+.warning-tape {
+    position: absolute;
+    width: 100%;
+    height: 40px;
+    background: repeating-linear-gradient(
+        45deg,
+        var(--toxic-green),
+        var(--toxic-green) 20px,
+        var(--void-black) 20px,
+        var(--void-black) 40px
+    );
+    transform: rotate(-2deg);
+    left: -5%;
+    width: 110%;
+}

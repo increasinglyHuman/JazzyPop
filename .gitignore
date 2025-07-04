@@ -17,6 +17,7 @@ build/
 .alm-quiz-deploy
 .claude
 jazzyPopArchives
+kawaii-quiz-backend
 
 # Data files
 data/*.json

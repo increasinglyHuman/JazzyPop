@@ -95,12 +95,48 @@ class CardManager {
         try {
             // Use API URL from environment or default
             const apiBase = window.API_URL || 'https://p0qp0q.com';
-            console.log('Fetching cards from:', `${apiBase}/api/cards/active`);
-            const response = await fetch(`${apiBase}/api/cards/active`);
+            console.log('Fetching quiz sets from:', `${apiBase}/api/content/quiz/sets?count=10`);
+            // Fetch actual quiz sets instead of promotional cards
+            const response = await fetch(`${apiBase}/api/content/quiz/sets?count=10`);
+            
+            if (!response.ok) {
+                console.error('API request failed:', response.status, response.statusText);
+                const errorData = await response.json();
+                console.error('Error details:', errorData);
+                throw new Error(`API request failed: ${response.status}`);
+            }
             console.log('Response status:', response.status);
-            const data = await response.json();
-            console.log('Received cards:', data.cards);
-            this.syncCards(data.cards);
+            const quizSets = await response.json();
+            console.log('Received quiz sets:', quizSets);
+            
+            // Transform quiz sets into card format
+            let cards;
+            if (Array.isArray(quizSets)) {
+                // New format from quiz/sets endpoint
+                cards = quizSets.map(quiz => ({
+                    id: quiz.id,
+                    type: 'quiz_tease',
+                    template: 'quiz_preview',
+                    priority: 10,
+                    data: {
+                        quiz_id: quiz.id,
+                        title: quiz.data.title,
+                        description: quiz.data.questions?.[0]?.question || 'Test your knowledge!',
+                        category: quiz.data.category,
+                        difficulty: quiz.data.difficulty || 'medium',
+                        mode: quiz.mode || 'poqpoq',
+                        cta: 'Play Now!'
+                    }
+                }));
+            } else if (quizSets.cards) {
+                // Fallback: old format from cards endpoint
+                cards = quizSets.cards;
+            } else {
+                console.error('Unexpected response format:', quizSets);
+                cards = [];
+            }
+            
+            this.syncCards(cards);
         } catch (error) {
             console.error('Failed to fetch cards from backend:', error);
             

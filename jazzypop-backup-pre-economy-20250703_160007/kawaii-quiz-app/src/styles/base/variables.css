@@ -1,0 +1,237 @@
+/**
+ * CSS Variables - Design Tokens
+ * All theme variables with mode-specific overrides
+ */
+
+:root {
+    /* === NORMAL MODE (Default) === */
+    
+    /* Brand Colors */
+    --color-primary: #58cc02;
+    --color-primary-hover: #4aa002;
+    --color-primary-light: #7dd82f;
+    --color-secondary: #1cb0f6;
+    --color-secondary-hover: #0099e0;
+    --color-accent: #ff4b4b;
+    --color-warning: #ffc800;
+    --color-success: #58cc02;
+    --color-error: #ff4b4b;
+    
+    /* Neutral Colors */
+    --color-white: #ffffff;
+    --color-black: #000000;
+    --color-gray-100: #f8f9fa;
+    --color-gray-200: #e9ecef;
+    --color-gray-300: #dee2e6;
+    --color-gray-400: #ced4da;
+    --color-gray-500: #adb5bd;
+    --color-gray-600: #6c757d;
+    --color-gray-700: #495057;
+    --color-gray-800: #343a40;
+    --color-gray-900: #212529;
+    
+    /* Background Colors */
+    --bg-app: #131f24;
+    --bg-card: #1f2c34;
+    --bg-card-hover: #243139;
+    --bg-elevated: #2b3d48;
+    --bg-overlay: rgba(0, 0, 0, 0.7);
+    --bg-modal: rgba(19, 31, 36, 0.95);
+    
+    /* Text Colors */
+    --text-primary: #ffffff;
+    --text-secondary: #afafaf;
+    --text-muted: #7c7c7c;
+    --text-inverse: #131f24;
+    --text-on-primary: #ffffff;
+    --text-on-secondary: #ffffff;
+    
+    /* Border Colors */
+    --border-default: rgba(255, 255, 255, 0.1);
+    --border-active: var(--color-primary);
+    --border-hover: rgba(255, 255, 255, 0.2);
+    
+    /* Layout */
+    --border-width: 2px;
+    --container-max-width: 1200px;
+    --mobile-max-width: 600px;
+    
+    /* Spacing Scale */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+    --space-3xl: 64px;
+    --space-4xl: 96px;
+    
+    /* Border Radius Scale */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-2xl: 32px;
+    --radius-full: 9999px;
+    
+    /* Typography */
+    --font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-display: 'Fredoka', var(--font-primary);
+    --font-mono: 'Fira Code', 'Courier New', monospace;
+    
+    /* Font Sizes */
+    --text-xs: 0.75rem;    /* 12px */
+    --text-sm: 0.875rem;   /* 14px */
+    --text-base: 1rem;     /* 16px */
+    --text-lg: 1.125rem;   /* 18px */
+    --text-xl: 1.5rem;     /* 24px */
+    --text-2xl: 2rem;      /* 32px */
+    --text-3xl: 3rem;      /* 48px */
+    --text-4xl: 4rem;      /* 64px */
+    
+    /* Font Weights */
+    --font-normal: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+    
+    /* Line Heights */
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.75;
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+    --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.25);
+    --shadow-2xl: 0 24px 48px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 20px var(--color-primary);
+    --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    
+    /* Transitions */
+    --duration-instant: 50ms;
+    --duration-fast: 150ms;
+    --duration-normal: 300ms;
+    --duration-slow: 500ms;
+    --duration-slower: 1000ms;
+    --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+    --easing-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --easing-in: cubic-bezier(0.4, 0, 1, 1);
+    --easing-out: cubic-bezier(0, 0, 0.2, 1);
+    
+    /* Z-index Scale */
+    --z-base: 0;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 300;
+    --z-modal: 400;
+    --z-popover: 500;
+    --z-tooltip: 600;
+    --z-notification: 700;
+    --z-maximum: 9999;
+}
+
+/* === CHAOS MODE === */
+[data-mode="chaos"] {
+    /* Psychedelic color overrides */
+    --color-primary: #ff006e;
+    --color-primary-hover: #cc0056;
+    --color-secondary: #8338ec;
+    --color-secondary-hover: #6a2ac7;
+    --color-accent: #ffbe0b;
+    --color-warning: #fb5607;
+    --color-success: #06ffa5;
+    --color-error: #ff006e;
+    
+    /* Dark twisted backgrounds */
+    --bg-app: #0a0a0a;
+    --bg-card: #1a0f1f;
+    --bg-card-hover: #2a1a2e;
+    --bg-elevated: #2a1a2e;
+    --bg-overlay: rgba(255, 0, 110, 0.1);
+    
+    /* Glowing borders */
+    --border-default: rgba(255, 0, 110, 0.3);
+    --border-active: var(--color-primary);
+    --shadow-glow: 0 0 30px var(--color-primary);
+    
+    /* Faster animations */
+    --duration-fast: 100ms;
+    --duration-normal: 200ms;
+    --duration-slow: 400ms;
+    --easing-default: var(--easing-bounce);
+}
+
+/* === ZEN MODE === */
+[data-mode="zen"] {
+    /* Soft, calming colors */
+    --color-primary: #7fb069;
+    --color-primary-hover: #6b9659;
+    --color-secondary: #6ba3c5;
+    --color-secondary-hover: #5892b6;
+    --color-accent: #f4b393;
+    --color-warning: #e8c468;
+    --color-success: #7fb069;
+    --color-error: #d9847e;
+    
+    /* Light, airy backgrounds */
+    --bg-app: #f5f3f0;
+    --bg-card: #ffffff;
+    --bg-card-hover: #fafafa;
+    --bg-elevated: #fafafa;
+    --bg-overlay: rgba(0, 0, 0, 0.1);
+    
+    /* Dark text for light backgrounds */
+    --text-primary: #2d3436;
+    --text-secondary: #636e72;
+    --text-muted: #95a5a6;
+    --text-inverse: #ffffff;
+    
+    /* Soft borders */
+    --border-default: rgba(0, 0, 0, 0.06);
+    --border-active: var(--color-primary);
+    
+    /* Soft shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+    
+    /* Slower, peaceful animations */
+    --duration-fast: 300ms;
+    --duration-normal: 600ms;
+    --duration-slow: 1000ms;
+    --duration-slower: 2000ms;
+}
+
+/* === SPEED MODE === */
+[data-mode="speed"] {
+    /* High-energy neon colors */
+    --color-primary: #00ff88;
+    --color-primary-hover: #00cc6a;
+    --color-secondary: #ff0088;
+    --color-secondary-hover: #cc006a;
+    --color-accent: #ffaa00;
+    --color-warning: #ff3366;
+    --color-success: #00ffaa;
+    --color-error: #ff0044;
+    
+    /* Dark racing backgrounds */
+    --bg-app: #0a0a0a;
+    --bg-card: #1a1a1a;
+    --bg-card-hover: #252525;
+    --bg-elevated: #2a2a2a;
+    
+    /* Neon borders and effects */
+    --border-default: rgba(0, 255, 136, 0.2);
+    --border-active: var(--color-primary);
+    --shadow-glow: 0 0 20px var(--color-primary);
+    --shadow-neon: 0 0 30px var(--color-primary), inset 0 0 20px rgba(0, 255, 136, 0.2);
+    
+    /* Lightning-fast animations */
+    --duration-instant: 25ms;
+    --duration-fast: 50ms;
+    --duration-normal: 100ms;
+    --duration-slow: 200ms;
+    --easing-default: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}

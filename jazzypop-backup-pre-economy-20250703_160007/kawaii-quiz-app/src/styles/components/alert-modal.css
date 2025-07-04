@@ -1,0 +1,154 @@
+/* Alert Modal Styles - P0qP0q Normal Mode Design */
+.alert-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-normal, 0.3s) var(--easing-default, ease);
+}
+
+.alert-modal.active {
+    pointer-events: all;
+    opacity: 1;
+}
+
+.alert-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(19, 31, 36, 0.8); /* --bg-dark with opacity */
+    backdrop-filter: blur(4px);
+}
+
+.alert-modal-content {
+    position: relative;
+    background: #1f2c34; /* --bg-card */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* --border */
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transform: scale(0.95);
+    transition: all var(--duration-normal, 0.3s) var(--easing-default, ease);
+}
+
+.alert-modal.active .alert-modal-content {
+    transform: scale(1);
+}
+
+.alert-modal-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.alert-modal-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.alert-modal-body {
+    margin-bottom: 24px;
+}
+
+.alert-modal-message {
+    font-size: 16px;
+    line-height: 1.5;
+    color: #ffffff; /* --text-primary */
+    text-align: center;
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.alert-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.alert-modal-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--duration-fast, 0.2s) var(--easing-default, ease);
+    min-width: 80px;
+}
+
+.alert-modal-btn.primary {
+    background: #58cc02; /* --primary */
+    color: #131f24; /* --bg-dark */
+}
+
+.alert-modal-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(88, 204, 2, 0.4);
+}
+
+.alert-modal-btn.secondary {
+    background: transparent;
+    color: #afafaf; /* --text-secondary */
+    border: 2px solid rgba(255, 255, 255, 0.1); /* --border */
+}
+
+.alert-modal-btn.secondary:hover {
+    background: #2b3d48; /* --bg-elevated */
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .alert-modal-content {
+        padding: 20px;
+        max-width: 90%;
+    }
+    
+    .alert-modal-message {
+        font-size: 14px;
+    }
+    
+    .alert-modal-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+}
+
+/* P0qP0q Normal mode subtle animation */
+.alert-modal-content {
+    animation: normal-slide-up 0.3s ease-out;
+}
+
+@keyframes normal-slide-up {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px) scale(0.95);
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Active state animation */
+.alert-modal-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}

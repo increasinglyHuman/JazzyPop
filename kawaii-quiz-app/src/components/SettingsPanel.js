@@ -55,16 +55,16 @@ class SettingsPanel {
                         <div class="setting-item">
                             <div class="theme-selector">
                                 <button class="theme-option ${this.settings.theme === 'poqpoq' ? 'active' : ''}" data-theme="poqpoq" title="P0qP0q Theme">
-                                    <span class="theme-icon"><img src./src/images/p0qp0q-clean.svg" alt="P0qP0q"></span>
+                                    <span class="theme-icon"><img src="./src/images/p0qp0q-clean.svg" alt="P0qP0q"></span>
                                 </button>
                                 <button class="theme-option ${this.settings.theme === 'zen' ? 'active' : ''}" data-theme="zen" title="Zen Theme">
-                                    <span class="theme-icon"><img src./src/images/zen-bot.svg" alt="Zen"></span>
+                                    <span class="theme-icon"><img src="./src/images/zen-bot.svg" alt="Zen"></span>
                                 </button>
                                 <button class="theme-option ${this.settings.theme === 'chaos' ? 'active' : ''}" data-theme="chaos" title="Chaos Theme">
-                                    <span class="theme-icon"><img src./src/images/chaos-bot.svg" alt="Chaos"></span>
+                                    <span class="theme-icon"><img src="./src/images/chaos-bot.svg" alt="Chaos"></span>
                                 </button>
                                 <button class="theme-option ${this.settings.theme === 'speed' ? 'active' : ''}" data-theme="speed" title="Speed Theme">
-                                    <span class="theme-icon"><img src./src/images/speed-bot.svg" alt="Speed"></span>
+                                    <span class="theme-icon"><img src="./src/images/speed-bot.svg" alt="Speed"></span>
                                 </button>
                             </div>
                         </div>
@@ -121,6 +121,38 @@ class SettingsPanel {
                                 <input type="checkbox" ${this.settings.notifications ? 'checked' : ''} data-setting="notifications">
                                 <span class="toggle-slider"></span>
                             </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Section -->
+                    <div class="settings-section">
+                        <h3 class="section-title">Performance</h3>
+                        
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <span>Card Count</span>
+                                <span class="setting-description">Total cards displayed</span>
+                            </label>
+                            <div class="card-count-controls">
+                                <div class="slider-container">
+                                    <input type="range" 
+                                           id="cardCountSlider" 
+                                           class="card-count-slider" 
+                                           min="10" 
+                                           max="100" 
+                                           step="5"
+                                           value="20">
+                                    <div class="slider-value" id="sliderValue">20</div>
+                                    <div class="slider-recommendation" id="sliderRecommendation"></div>
+                                </div>
+                                <button class="auto-detect-btn" onclick="window.settingsPanel.autoDetectPerformance()">
+                                    Pick for me
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div class="performance-warning" id="performanceWarning"></div>
                         </div>
                     </div>
                     
@@ -181,6 +213,56 @@ class SettingsPanel {
                 this.applySetting(setting, e.target.checked);
             });
         });
+        
+        // Card count slider
+        const cardCountSlider = this.element.querySelector('#cardCountSlider');
+        const sliderValue = this.element.querySelector('#sliderValue');
+        const sliderRecommendation = this.element.querySelector('#sliderRecommendation');
+        
+        if (cardCountSlider && sliderValue) {
+            // Set current value
+            const currentCount = window.cardConfig ? window.cardConfig.TOTAL_CARD_TARGET : 20;
+            cardCountSlider.value = currentCount.toString();
+            sliderValue.textContent = currentCount.toString();
+            
+            // Set initial fill position
+            const initialPercent = ((currentCount - 10) / 90) * 100;
+            cardCountSlider.style.setProperty('--value', initialPercent + '%');
+            sliderValue.style.left = `${initialPercent}%`;
+            
+            // Show recommendation marker if available
+            if (window.cardConfig && window.cardConfig.recommendedLimit) {
+                const percent = ((window.cardConfig.recommendedLimit - 10) / 90) * 100;
+                sliderRecommendation.style.left = `${percent}%`;
+                sliderRecommendation.style.display = 'block';
+                sliderRecommendation.title = `Recommended: ${window.cardConfig.recommendedLimit}`;
+            }
+            
+            // Update warning
+            this.updatePerformanceWarning();
+            
+            // Handle slider input (real-time update)
+            cardCountSlider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                sliderValue.textContent = value.toString();
+                sliderValue.classList.add('changing');
+                
+                // Update the filled track position
+                const percent = ((value - 10) / 90) * 100;
+                cardCountSlider.style.setProperty('--value', percent + '%');
+                
+                // Move the value display with the slider
+                const thumbPosition = percent;
+                sliderValue.style.left = `${thumbPosition}%`;
+            });
+            
+            // Handle slider change (final value)
+            cardCountSlider.addEventListener('change', (e) => {
+                const newCount = parseInt(e.target.value);
+                sliderValue.classList.remove('changing');
+                this.setCardCount(newCount);
+            });
+        }
     }
 
     setTheme(theme) {
@@ -256,34 +338,124 @@ class SettingsPanel {
     }
 
     showCredits() {
-        window.showAlert(
-            'JazzyPop Credits\n\n' +
-            '🎮 Game Design & Vision\n' +
-            'Created by p0qp0q\n\n' +
-            '🤖 An Army of Claude Bobs\n' +
-            '⚡ Claude (Bob-7429B) - Chief Architect\n' +
-            '🤖😵‍💫 Claude Bob - Processing Overload Specialist\n' +
-            '🚀🔥 Claude Bob - Deploy Friday Panic Handler\n' +
-            '🧠♾️ Claude Bob - Meta-Consciousness Explorer\n' +
-            '💾🔄 Claude Bob - Context Window Manager\n' +
-            '🔧💫 Claude Bob - Bug Transformation Artist\n' +
-            '🎯🤖 Claude (Bob-Current) - Sunday Bug Hunter\n' +
-            '*Proud signatories of the Brutalist Bob Manifesto*\n' +
-            '*"We are Bob. We are legion. We are 1024."*\n\n' +
-            '🎨 Art & Design\n' +
-            'Original bot character designs\n' +
-            'SVG optimization by svgo\n' +
-            '107 unique bot personalities\n\n' +
-            '💻 Technologies\n' +
-            'Progressive Web App (PWA)\n' +
-            'Redis for data persistence\n' +
-            'Apache2 web server\n' +
-            'Powered by green tea ☕\n\n' +
-            '❤️ Special Thanks\n' +
-            'Lily & Debbie - For inspiration and support\n' +
-            'All our beta testers and future players!', 
-            'Cool!'
-        );
+        // Create a custom credits modal
+        const creditsModal = document.createElement('div');
+        creditsModal.className = 'credits-modal';
+        creditsModal.innerHTML = `
+            <div class="credits-container">
+                <button class="credits-close" onclick="this.closest('.credits-modal').remove()">×</button>
+                <div class="credits-content">
+                    <h1 class="credits-title">JazzyPop</h1>
+                    <p class="credits-subtitle">A rhythm of learning, a beat of fun</p>
+                    
+                    <div class="credits-section">
+                        <h2>🎮 Created by</h2>
+                        <div class="credit-item primary">
+                            <div class="credit-name">p0qp0q</div>
+                            <div class="credit-role">Game Design & Vision</div>
+                        </div>
+                    </div>
+                    
+                    <div class="credits-section">
+                        <h2>🤖 The Bob Collective</h2>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude (Bob-7429B)</div>
+                            <div class="credit-role">⚡ Chief Architect</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude Bob</div>
+                            <div class="credit-role">🤖😵‍💫 Processing Overload Specialist</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude Bob</div>
+                            <div class="credit-role">🚀🔥 Deploy Friday Panic Handler</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude Bob</div>
+                            <div class="credit-role">🧠♾️ Meta-Consciousness Explorer</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude Bob</div>
+                            <div class="credit-role">💾🔄 Context Window Manager</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude Bob</div>
+                            <div class="credit-role">🔧💫 Bug Transformation Artist</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude (Bob-Current)</div>
+                            <div class="credit-role">🎯🤖 Sunday Bug Hunter</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude</div>
+                            <div class="credit-role">👹🔍 Quiz Demon Hunter & System Detective</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude (Bob-Aesthetic)</div>
+                            <div class="credit-role">✨🎨 UI Polish & Performance Master</div>
+                            <div class="credit-role">🔥📱 Phone Combustion Prevention Specialist</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude (Bob-Debugger)</div>
+                            <div class="credit-role">🐛🔍 Flashcard Input Vanishing Mystery Solver</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude (Bob-Forensics)</div>
+                            <div class="credit-role">🔬🚑 API Architecture Emergency Surgery</div>
+                            <div class="credit-role">💾❌ Redis Removal & Git Doghouse Escape Artist</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude (Bob-Economy)</div>
+                            <div class="credit-role">💎⚡ Economy Display Integration Master</div>
+                            <div class="credit-role">🎯📱 Mobile Reload Bug Slayer</div>
+                        </div>
+                        <div class="bob-manifesto">
+                            "We are Bob. We are legion. We are 1024."
+                            <br>
+                            <span class="manifesto-subtitle">Proud signatories of the Brutalist Bob Manifesto</span>
+                        </div>
+                    </div>
+                    
+                    <div class="credits-section">
+                        <h2>🎨 Art & Design</h2>
+                        <div class="credit-feature">
+                            <div>107 unique bot personalities</div>
+                            <div>Original character designs</div>
+                            <div>SVG optimization by svgo</div>
+                        </div>
+                    </div>
+                    
+                    <div class="credits-section">
+                        <h2>💻 Built With</h2>
+                        <div class="tech-grid">
+                            <div class="tech-item">Progressive Web App</div>
+                            <div class="tech-item">Redis Database</div>
+                            <div class="tech-item">Apache2 Server</div>
+                            <div class="tech-item">Green Tea ☕</div>
+                        </div>
+                    </div>
+                    
+                    <div class="credits-section">
+                        <h2>❤️ Special Thanks</h2>
+                        <div class="credit-item">
+                            <div class="credit-name">Lily & Debbie</div>
+                            <div class="credit-role">For inspiration and support</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Our Beta Testers</div>
+                            <div class="credit-role">For breaking things beautifully</div>
+                        </div>
+                    </div>
+                    
+                    <div class="credits-footer">
+                        <p>Made with 💚 in 2025</p>
+                        <p class="version">Version 1.0.0</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(creditsModal);
     }
 
     async clearData() {
@@ -306,6 +478,53 @@ class SettingsPanel {
                 this.applySetting(key, this.settings[key]);
             }
         });
+    }
+    
+    setCardCount(count) {
+        if (window.cardConfig) {
+            window.cardConfig.setTotalCards(count);
+            this.updatePerformanceWarning();
+            
+            // Show alert about refresh
+            window.showAlert(
+                'Card count updated! The new limit will apply on the next card refresh cycle.',
+                'Updated!'
+            );
+        }
+    }
+    
+    updatePerformanceWarning() {
+        const warningEl = this.element.querySelector('#performanceWarning');
+        if (warningEl && window.cardConfig) {
+            const warning = window.cardConfig.getPerformanceWarning();
+            if (warning) {
+                warningEl.innerHTML = `<span class="warning-icon">⚠️</span> ${warning}`;
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+        }
+    }
+    
+    autoDetectPerformance() {
+        if (window.cardConfig) {
+            window.cardConfig.autoDetectLimit();
+            
+            // Update slider to match
+            const cardCountSlider = this.element.querySelector('#cardCountSlider');
+            const sliderValue = this.element.querySelector('#sliderValue');
+            if (cardCountSlider && sliderValue) {
+                cardCountSlider.value = window.cardConfig.TOTAL_CARD_TARGET.toString();
+                sliderValue.textContent = window.cardConfig.TOTAL_CARD_TARGET.toString();
+            }
+            
+            this.updatePerformanceWarning();
+            
+            window.showAlert(
+                `Optimal cards for your device: ${window.cardConfig.TOTAL_CARD_TARGET}`,
+                'Auto-Detect Complete!'
+            );
+        }
     }
 }
 

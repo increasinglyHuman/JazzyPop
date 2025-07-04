@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JazzyPop Card Affordability Visual Mockup</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1, h2 {
+            color: #00d2d3;
+        }
+        
+        .mockup-section {
+            background: #0a0e27;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        .card-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin: 20px 0;
+        }
+        
+        /* Base card styling matching current design */
+        .quiz-card {
+            background: #1e2139;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        /* Cost area enhancement */
+        .cost-badge {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 2;
+        }
+        
+        .cost-text {
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .energy-icon {
+            font-size: 18px;
+        }
+        
+        .affordability-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+        
+        .indicator-green { background: #4ecca3; box-shadow: 0 0 10px #4ecca3; }
+        .indicator-yellow { background: #f39c12; box-shadow: 0 0 10px #f39c12; }
+        .indicator-red { background: #e94560; box-shadow: 0 0 10px #e94560; }
+        
+        /* Hover state for cost badge */
+        .cost-details {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 10px 15px;
+            font-size: 12px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        
+        .cost-badge:hover .cost-details {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Card body */
+        .card-header {
+            padding: 60px 20px 20px 20px;
+            text-align: center;
+        }
+        
+        .bot-avatar {
+            width: 120px;
+            height: 120px;
+            background: #2d4356;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            border: 4px solid #0f3460;
+        }
+        
+        .card-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .card-description {
+            font-size: 14px;
+            color: #aaa;
+            line-height: 1.4;
+            padding: 0 10px;
+        }
+        
+        /* Reward band */
+        .reward-band {
+            background: linear-gradient(90deg, rgba(0, 210, 211, 0.2), rgba(15, 52, 96, 0.2));
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .reward-item {
+            text-align: center;
+        }
+        
+        .reward-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .reward-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00d2d3;
+        }
+        
+        /* Action button */
+        .card-action {
+            padding: 20px;
+        }
+        
+        .play-button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        
+        /* Affordability states */
+        .affordable .quiz-card {
+            border: 2px solid transparent;
+            background: linear-gradient(#1e2139, #1e2139) padding-box,
+                        linear-gradient(45deg, transparent, #4ecca3, transparent) border-box;
+        }
+        
+        .affordable .cost-text {
+            color: #4ecca3;
+        }
+        
+        .affordable .play-button {
+            background: #4ecca3;
+            color: #000;
+        }
+        
+        .affordable .play-button:hover {
+            background: #45d899;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(76, 236, 163, 0.4);
+        }
+        
+        /* Almost affordable */
+        .almost-affordable .cost-text {
+            color: #f39c12;
+        }
+        
+        .almost-affordable .play-button {
+            background: #f39c12;
+            color: #000;
+            font-size: 14px;
+        }
+        
+        .almost-affordable .quiz-card {
+            opacity: 0.95;
+        }
+        
+        /* Unaffordable */
+        .unaffordable .quiz-card {
+            opacity: 0.7;
+            filter: saturate(0.7);
+        }
+        
+        .unaffordable .cost-text {
+            color: #e94560;
+        }
+        
+        .unaffordable .cost-badge {
+            background: rgba(233, 69, 96, 0.2);
+        }
+        
+        .unaffordable .play-button {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+            font-size: 14px;
+        }
+        
+        /* Energy meter visualization */
+        .energy-meter {
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: #4ecca3;
+            transition: width 0.3s ease;
+        }
+        
+        .energy-fill.yellow {
+            background: #f39c12;
+        }
+        
+        .energy-fill.red {
+            background: #e94560;
+        }
+        
+        /* Special states */
+        .practice-card {
+            border: 2px solid #4ecca3;
+        }
+        
+        .practice-card .cost-badge {
+            background: rgba(76, 236, 163, 0.2);
+        }
+        
+        .practice-card .reward-band {
+            background: rgba(76, 236, 163, 0.1);
+        }
+        
+        /* Active bonuses indicator */
+        .bonus-indicators {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        
+        .bonus-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f39c12;
+            position: relative;
+            cursor: help;
+        }
+        
+        .bonus-tooltip {
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            background: #000;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            margin-bottom: 5px;
+        }
+        
+        .bonus-dot:hover .bonus-tooltip {
+            opacity: 1;
+        }
+        
+        /* Quest progress */
+        .quest-progress {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(243, 156, 18, 0.2);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #f39c12;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Card Affordability Visual Enhancement</h1>
+        
+        <div class="mockup-section">
+            <h2>Current Design → Enhanced Design</h2>
+            <p>Subtle enhancements that preserve the current aesthetic while adding clear affordability indicators</p>
+            
+            <div class="card-comparison">
+                <!-- Affordable Card -->
+                <div class="affordable">
+                    <h3 style="text-align: center; color: #4ecca3;">✅ Affordable (You have 50 ⚡)</h3>
+                    <div class="quiz-card">
+                        <div class="cost-badge">
+                            <span class="cost-text">
+                                <span class="energy-icon">⚡</span>
+                                <span>10</span>
+                                <span class="affordability-indicator indicator-green"></span>
+                            </span>
+                            <div class="cost-details">
+                                You have: ⚡ 50 | Cost: ⚡ 10 | Remaining: ⚡ 40
+                            </div>
+                        </div>
+                        
+                        <div class="bonus-indicators">
+                            <div class="bonus-dot">
+                                <span class="bonus-tooltip">2x Tuesday Active!</span>
+                            </div>
+                        </div>
+                        
+                        <div class="card-header">
+                            <div class="bot-avatar">👨‍🍳</div>
+                            <h3 class="card-title">Culinary Conundrums</h3>
+                            <p class="card-description">
+                                A Delicious Quiz of Food Facts and Fictions. What do the world's hottest pepper and the world's most expensive coffee have in common?
+                            </p>
+                        </div>
+                        
+                        <div class="reward-band">
+                            <div class="reward-item">
+                                <div class="reward-label">XP</div>
+                                <div class="reward-value">20</div>
+                            </div>
+                            <div class="reward-item">
+                                <div class="reward-label">GEMS</div>
+                                <div class="reward-value">2 💎</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-action">
+                            <button class="play-button">Play Now!</button>
+                        </div>
+                        
+                        <div class="energy-meter">
+                            <div class="energy-fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Almost Affordable -->
+                <div class="almost-affordable">
+                    <h3 style="text-align: center; color: #f39c12;">⚠️ Almost There (You have 25 ⚡)</h3>
+                    <div class="quiz-card">
+                        <div class="cost-badge">
+                            <span class="cost-text">
+                                <span class="energy-icon">⚡</span>
+                                <span>30</span>
+                                <span class="affordability-indicator indicator-yellow"></span>
+                            </span>
+                            <div class="cost-details">
+                                You have: ⚡ 25 | Cost: ⚡ 30 | Need: ⚡ 5 more
+                            </div>
+                        </div>
+                        
+                        <div class="quest-progress">Quest 3/5</div>
+                        
+                        <div class="card-header">
+                            <div class="bot-avatar">🌍</div>
+                            <h3 class="card-title">Mythical Mash-Ups</h3>
+                            <p class="card-description">
+                                Unexpected Connections in the World of Legends. What do the Trojan Horse and the Pokémon Eevee have in common?
+                            </p>
+                        </div>
+                        
+                        <div class="reward-band">
+                            <div class="reward-item">
+                                <div class="reward-label">XP</div>
+                                <div class="reward-value">20</div>
+                            </div>
+                            <div class="reward-item">
+                                <div class="reward-label">GEMS</div>
+                                <div class="reward-value">2 💎</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-action">
+                            <button class="play-button">Need 5 More ⚡</button>
+                        </div>
+                        
+                        <div class="energy-meter">
+                            <div class="energy-fill yellow" style="width: 83%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Unaffordable -->
+                <div class="unaffordable">
+                    <h3 style="text-align: center; color: #e94560;">❌ Not Enough Energy (You have 10 ⚡)</h3>
+                    <div class="quiz-card">
+                        <div class="cost-badge">
+                            <span class="cost-text">
+                                <span class="energy-icon">⚡</span>
+                                <span>50</span>
+                                <span class="affordability-indicator indicator-red"></span>
+                            </span>
+                            <div class="cost-details">
+                                You have: ⚡ 10 | Cost: ⚡ 50 | Need: ⚡ 40 more
+                            </div>
+                        </div>
+                        
+                        <div class="card-header">
+                            <div class="bot-avatar">🚀</div>
+                            <h3 class="card-title">Cosmic Curiosities</h3>
+                            <p class="card-description">
+                                A Surprising Space Quiz. What do the Sun and a neutrino have in common?
+                            </p>
+                        </div>
+                        
+                        <div class="reward-band">
+                            <div class="reward-item">
+                                <div class="reward-label">XP</div>
+                                <div class="reward-value">50</div>
+                            </div>
+                            <div class="reward-item">
+                                <div class="reward-label">GEMS</div>
+                                <div class="reward-value">5 💎</div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-action">
+                            <button class="play-button">Need 40 More ⚡</button>
+                        </div>
+                        
+                        <div class="energy-meter">
+                            <div class="energy-fill red" style="width: 20%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Practice Card Example -->
+        <div class="mockup-section">
+            <h2>Practice Card Enhancement</h2>
+            <div style="max-width: 400px; margin: 0 auto;">
+                <div class="quiz-card practice-card">
+                    <div class="cost-badge">
+                        <span class="cost-text" style="color: #4ecca3;">
+                            <span class="energy-icon">⚡</span>
+                            <span>1</span>
+                            <span style="margin-left: 10px; font-size: 12px;">PRACTICE</span>
+                        </span>
+                    </div>
+                    
+                    <div class="card-header" style="padding: 40px 20px 20px;">
+                        <div class="bot-avatar" style="width: 80px; height: 80px; font-size: 40px;">🤓</div>
+                        <h3 class="card-title" style="font-size: 20px;">Bad Pun Practice</h3>
+                        <p class="card-description">
+                            Groan-worthy wordplay to test your pun tolerance!
+                        </p>
+                    </div>
+                    
+                    <div class="reward-band" style="padding: 10px 20px;">
+                        <div class="reward-item">
+                            <div class="reward-label">13 CARDS</div>
+                        </div>
+                        <div class="reward-item">
+                            <div class="reward-label">1 ⚡ per card</div>
+                        </div>
+                        <div class="reward-item">
+                            <div class="reward-label">+1 XP per correct</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-action">
+                        <button class="play-button" style="background: #4ecca3;">Start Practice</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Key Enhancement Summary -->
+        <div class="mockup-section">
+            <h2>Key Visual Enhancements</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #00d2d3;">🎯 Affordability Indicator</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Colored dot next to cost (green/yellow/red)</li>
+                        <li>Subtle card border glow for affordable items</li>
+                        <li>Opacity reduction for unaffordable cards</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #00d2d3;">📊 Energy Meter</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Thin progress bar at card bottom</li>
+                        <li>Shows % of required energy you have</li>
+                        <li>Color-coded: green (100%), yellow (80%+), red (<80%)</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #00d2d3;">🎮 Smart Buttons</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Dynamic text based on affordability</li>
+                        <li>Color matches affordability state</li>
+                        <li>Disabled state for unaffordable items</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #00d2d3;">💡 Hover Details</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Cost badge expands on hover</li>
+                        <li>Shows current resources vs. cost</li>
+                        <li>Calculates what you'll have left</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #00d2d3;">✨ Bonus Indicators</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Small dots for active bonuses</li>
+                        <li>Quest progress badges</li>
+                        <li>Tooltips explain modifiers</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #00d2d3;">🎨 Minimal Impact</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Preserves current card design</li>
+                        <li>Adds functionality without clutter</li>
+                        <li>Progressive disclosure of details</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

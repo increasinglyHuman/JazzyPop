@@ -1,0 +1,527 @@
+/**
+ * Card Economics System
+ * Handles cost display, affordability states, event badges, and rewards
+ */
+
+/* ===========================
+   Cost Display Bar
+   =========================== */
+.card-cost-bar {
+    position: relative;
+    background: rgba(19, 31, 36, 0.2); /* Default: 20% opacity of #131f24 */
+    backdrop-filter: blur(8px);
+    padding: 12px 34px; /* Further reduced vertical padding */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: var(--radius) var(--radius) 0 0;
+    min-height: 60px; /* Further reduced by 25% */
+    margin: 0 -10px 0 -10px; /* Negative margin to extend past card padding */
+    z-index: 2;
+    overflow: visible; /* Allow badges to overflow */
+}
+
+/* Mode-specific cost bar colors */
+.card.theme-chaos .card-cost-bar {
+    background: rgba(107, 11, 56, 0.2); /* 20% opacity of #6b0b38 */
+}
+
+.card.theme-zen .card-cost-bar {
+    background: rgba(19, 129, 150, 0.4); /* 40% opacity for more punch */
+}
+
+.card.theme-speed .card-cost-bar {
+    background: rgba(201, 118, 3, 0.4); /* 40% opacity of #c97603 */
+}
+
+.cost-display {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.cost-label {
+    color: #fff;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cost-items {
+    display: flex;
+    align-items: center;
+    gap: 20px; /* Larger gap between sets */
+}
+
+.cost-item {
+    display: flex;
+    align-items: center;
+    gap: 2px; /* Tight clustering of icon and number */
+    color: #fff;
+    font-size: 18px;
+}
+
+.cost-item.insufficient { 
+    opacity: 0.7;
+    text-decoration: line-through;
+}
+
+/* Cost states */
+.cost-original {
+    text-decoration: line-through;
+    opacity: 0.5;
+    font-size: 18px;
+}
+
+.cost-discounted {
+    color: #fff;
+    font-weight: 700;
+}
+
+.cost-free {
+    color: #fff;
+    font-weight: 700;
+    font-size: 24px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Hover area for dropdown */
+.card-cost-bar:hover .cost-details {
+    display: block;
+}
+
+.cost-details {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: rgba(19, 31, 36, 0.45); /* Increased opacity by 15% */
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: none;
+    padding: 8px 24px; /* Reduced height by 50% */
+    display: none;
+    z-index: 11;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Mode-specific cost details colors */
+.card.theme-chaos .cost-details {
+    background: rgba(107, 11, 56, 0.45); /* Increased opacity by 15% */
+}
+
+.card.theme-zen .cost-details {
+    background: rgba(19, 129, 150, 0.45); /* Increased opacity by 15% */
+}
+
+.card.theme-speed .cost-details {
+    background: rgba(201, 118, 3, 0.45); /* Increased opacity by 15% */
+}
+
+.cost-detail-row {
+    display: flex;
+    justify-content: flex-start; /* Left align all content */
+    align-items: center;
+    gap: 8px; /* Space between label and value */
+    padding: 2px 0; /* Tighter spacing */
+    font-size: 12px; /* Slightly smaller text */
+}
+
+.cost-detail-row.insufficient {
+    color: #e94560;
+}
+
+/* ===========================
+   Border System - Back to Default
+   =========================== */
+/* All cards use default dark grey borders */
+.card {
+    border: 2px solid var(--border, #2a3138);
+}
+
+.card.economy-locked {
+    opacity: 0.85;
+    filter: grayscale(20%);
+}
+
+.card.economy-locked:hover {
+    transform: none;
+    cursor: not-allowed;
+}
+
+/* Ensure proper spacing when economics are present */
+.card-cost-bar + .card-section.card-header {
+    margin-top: 20px;
+}
+
+.card-rewards-footer + .card-section.section-actions {
+    margin-top: 12px;
+}
+
+/* ===========================
+   Event Badges
+   =========================== */
+/* Event badges positioned below cost bar on right */
+.card-event-badges {
+    position: absolute !important;
+    top: 10px !important; /* Moved way up to be just below cost bar */
+    right: 20px !important;
+    display: flex;
+    flex-direction: column; /* Vertical stacking */
+    gap: 8px;
+    z-index: 30 !important; /* Above content */
+    max-width: 200px; /* 25% wider for text */
+}
+
+/* Ensure the container allows proper positioning */
+.generic-card .card-flex-container {
+    position: relative !important;
+}
+
+.event-badge {
+    padding: 14px 24px; /* Bigger padding for larger badges */
+    border-radius: 30px;
+    font-weight: 800;
+    font-size: 14px; /* Slightly bigger text */
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    text-align: center;
+    white-space: nowrap;
+    animation: badge-entrance 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes badge-entrance {
+    0% { 
+        transform: scale(0) rotate(-180deg); 
+        opacity: 0; 
+    }
+    100% { 
+        transform: scale(1) rotate(0); 
+        opacity: 1; 
+    }
+}
+
+/* Event badge types - Hot tones only */
+.event-badge.power-hour {
+    background: #ff4444; /* Pure red */
+    color: white;
+}
+
+.event-badge.learning-party {
+    background: #ff6b35; /* Red-orange */
+    color: white;
+}
+
+.event-badge.perfect-streak {
+    background: #ff8c00; /* Orange */
+    color: white;
+}
+
+.event-badge.quest-active {
+    background: #ffa500; /* Orange-yellow */
+    color: #000;
+}
+
+.event-badge.limited-time {
+    background: #ff3333; /* Bright red */
+    color: white;
+    /* Removed pulse animation for cleaner look */
+}
+
+@keyframes pulse {
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* ===========================
+   Rewards Footer
+   =========================== */
+.card-rewards-footer {
+    position: relative;
+    background: rgba(19, 31, 36, 0.2); /* Default: 20% opacity of #131f24 */
+    backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 34px; /* Further reduced vertical padding */
+    display: flex;
+    justify-content: flex-start; /* Left justify */
+    align-items: center;
+    gap: 16px;
+    min-height: 60px; /* Further reduced by 25% */
+    margin: 0 -10px 0 -10px; /* Negative margin to extend past card padding */
+}
+
+/* Mode-specific rewards footer colors */
+.card.theme-chaos .card-rewards-footer {
+    background: rgba(107, 11, 56, 0.2); /* 20% opacity of #6b0b38 */
+}
+
+.card.theme-zen .card-rewards-footer {
+    background: rgba(19, 129, 150, 0.4); /* 40% opacity for more punch */
+}
+
+.card.theme-speed .card-rewards-footer {
+    background: rgba(201, 118, 3, 0.4); /* 40% opacity of #c97603 */
+}
+
+.rewards-label {
+    font-size: 16px;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.reward-items {
+    display: flex;
+    align-items: center;
+    gap: 24px; /* Larger gap between reward sets */
+}
+
+.reward-item {
+    display: flex;
+    align-items: center;
+    gap: 3px; /* Tight clustering of icon and value */
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+}
+
+/* ===========================
+   Play Button Adaptations
+   =========================== */
+/* All play buttons use bright fluorescent green */
+.action-primary {
+    background: #58cc02 !important; /* Bright fluorescent green */
+    color: #000 !important; /* Black text for contrast */
+    font-size: 18px !important; /* Bigger text */
+    font-weight: 400 !important; /* Regular weight instead of bold */
+    padding: 9px 40px !important; /* Another 10% less height */
+    border-radius: 25px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 12px rgba(88, 204, 2, 0.3);
+    transition: all 0.2s ease;
+}
+
+.action-primary:hover {
+    background: #4db802 !important; /* Slightly darker on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(88, 204, 2, 0.4);
+}
+
+/* Special states - Keep green but show state */
+.action-primary.cta-boost {
+    box-shadow: 0 0 20px rgba(88, 204, 2, 0.6);
+}
+
+.action-primary.cta-free {
+    animation: free-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes free-pulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(88, 204, 2, 0.3); }
+    50% { box-shadow: 0 0 30px rgba(88, 204, 2, 0.8); }
+}
+
+.action-primary.cta-locked {
+    background: #2a2a2a !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    box-shadow: none !important;
+}
+
+.action-primary.cta-locked:hover {
+    transform: none !important;
+    background: #2a2a2a !important;
+}
+
+/* ===========================
+   Hover Encouragements
+   =========================== */
+.encouragement-popup {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: #58cc02;
+    color: #000;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    z-index: 100;
+}
+
+.encouragement-popup.show {
+    transform: translateX(-50%) translateY(-10px);
+    opacity: 1;
+}
+
+.encouragement-popup::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #58cc02;
+}
+
+/* ===========================
+   Mode-specific Adjustments
+   =========================== */
+/* Ensure card overflow is visible for badges */
+.card {
+    overflow: visible;
+}
+
+/* All cards use consistent borders regardless of mode or state */
+
+/* Mode colors are already defined above */
+
+/* ===========================
+   Responsive Design
+   =========================== */
+@media (max-width: 768px) {
+    .card-cost-bar {
+        padding: 10px 16px;
+        min-height: 45px;
+    }
+    
+    .cost-display {
+        font-size: 16px;
+        gap: 16px;
+    }
+    
+    .icon-small {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .card-event-badges {
+        max-width: 150px !important; /* 25% wider on mobile too */
+        top: 5px !important; /* Much higher on mobile too */
+        right: 10px !important;
+    }
+    
+    .event-badge {
+        font-size: 12px;
+        padding: 10px 16px; /* Still bigger on mobile */
+        border-radius: 25px;
+    }
+    
+    .card-rewards-footer {
+        padding: 10px 16px;
+        min-height: 45px;
+    }
+    
+    .reward-item {
+        font-size: 16px;
+        gap: 2px;
+    }
+    
+    .cost-items {
+        gap: 12px; /* Smaller gap between sets on mobile */
+    }
+    
+    .cost-item {
+        gap: 2px; /* Keep tight clustering on mobile */
+    }
+    
+    .reward-items {
+        gap: 16px; /* Smaller gap between sets on mobile */
+    }
+}
+
+/* ===========================
+   Icon Styling
+   =========================== */
+.icon-small {
+    width: 29px;
+    height: 29px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0; /* Remove margin - using gap instead */
+}
+
+.cost-item .icon-small,
+.reward-item .icon-small {
+    filter: brightness(1.2);
+}
+
+.gem-icon {
+    margin-right: 2px; /* Tighter gem clustering */
+}
+
+.reward-value {
+    font-weight: 600;
+    font-size: 18px;
+    vertical-align: middle;
+    color: #fff;
+}
+
+/* ===========================
+   Card Layout Structure
+   =========================== */
+.card-flex-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: visible; /* Allow badges to overflow */
+    border-radius: var(--radius);
+    position: relative;
+}
+
+.card-content-area {
+    flex: 1;
+    padding: 20px 10px; /* 10px horizontal padding to match bars */
+    position: relative;
+    overflow-y: auto; /* Allow content to scroll if needed */
+}
+
+/* Icon positioning fix */
+.card-header .card-icon {
+    position: relative;
+    z-index: 1;
+}
+
+.card-header .card-icon img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* ===========================
+   Animation Performance
+   =========================== */
+@media (prefers-reduced-motion: reduce) {
+    .event-badge,
+    .encouragement-popup,
+    .cost-expand-btn {
+        animation: none;
+        transition: none;
+    }
+}

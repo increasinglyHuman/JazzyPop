@@ -1,0 +1,509 @@
+/**
+ * Zen Mode Styles
+ * Calm, peaceful, stress-free learning
+ */
+
+/* Zen mode base */
+[data-mode="zen"] {
+    background-image: 
+        radial-gradient(circle at 20% 50%, rgba(127, 176, 105, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(107, 163, 197, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 50% 80%, rgba(244, 179, 147, 0.05) 0%, transparent 50%);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Ripple container */
+[data-mode="zen"]::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Ripple effect on interaction */
+[data-mode="zen"] .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, 
+        rgba(107, 163, 197, 0.3) 0%, 
+        rgba(107, 163, 197, 0.1) 40%,
+        transparent 70%);
+    transform: scale(0);
+    animation: ripple-expand 3s ease-out forwards;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes ripple-expand {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+/* Gentle animations */
+[data-mode="zen"] * {
+    animation-timing-function: ease-in-out !important;
+}
+
+/* Cards in zen mode */
+[data-mode="zen"] .card {
+    box-shadow: 
+        var(--shadow-sm),
+        0 4px 20px -4px rgba(107, 163, 197, 0.2);
+    border: 1px solid var(--border-default);
+    animation: gentle-float 6s ease-in-out infinite;
+    transition: all var(--duration-normal) ease-in-out;
+    position: relative;
+    background: 
+        linear-gradient(135deg, 
+            rgba(255, 255, 255, 0.9) 0%, 
+            rgba(255, 255, 255, 0.7) 100%),
+        var(--bg-card);
+}
+
+[data-mode="zen"] .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
+        rgba(107, 163, 197, 0.1) 0%, 
+        transparent 50%);
+    opacity: 0;
+    transition: opacity var(--duration-normal);
+    pointer-events: none;
+}
+
+[data-mode="zen"] .card:hover {
+    box-shadow: 
+        var(--shadow-md),
+        0 8px 30px -8px rgba(107, 163, 197, 0.3);
+    transform: translateY(-2px);
+}
+
+[data-mode="zen"] .card:hover::after {
+    opacity: 1;
+}
+
+@keyframes gentle-float {
+    0%, 100% { 
+        transform: translateY(0);
+    }
+    33% { 
+        transform: translateY(-3px);
+    }
+    66% { 
+        transform: translateY(2px);
+    }
+}
+
+/* Hide stressful elements */
+[data-mode="zen"] .timer,
+[data-mode="zen"] .countdown,
+[data-mode="zen"] .speed-bonus,
+[data-mode="zen"] .time-pressure {
+    display: none !important;
+}
+
+/* De-emphasize hearts */
+[data-mode="zen"] .hearts-display {
+    opacity: 0.5;
+    font-size: var(--text-sm);
+}
+
+/* Soft text */
+[data-mode="zen"] h1,
+[data-mode="zen"] h2,
+[data-mode="zen"] h3 {
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+}
+
+/* Answer options in zen */
+[data-mode="zen"] .answer-option {
+    border: 2px solid var(--border-default);
+    transition: all var(--duration-normal) ease-in-out;
+    background: var(--bg-card);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-mode="zen"] .answer-option::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, 
+        rgba(127, 176, 105, 0.2) 0%, 
+        transparent 70%);
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform var(--duration-slow) ease-out;
+    pointer-events: none;
+}
+
+[data-mode="zen"] .answer-option:hover {
+    border-color: var(--color-primary);
+    background: var(--bg-elevated);
+    transform: scale(1.02);
+    box-shadow: 
+        var(--shadow-md),
+        inset 0 0 20px rgba(107, 163, 197, 0.1);
+}
+
+[data-mode="zen"] .answer-option:hover::before {
+    transform: translate(-50%, -50%) scale(2);
+}
+
+[data-mode="zen"] .answer-option.selected {
+    background: linear-gradient(135deg,
+        var(--color-primary) 0%,
+        rgba(127, 176, 105, 0.9) 100%);
+    border-color: var(--color-primary);
+    color: white;
+    box-shadow: 
+        var(--shadow-md),
+        0 4px 20px -4px rgba(127, 176, 105, 0.4);
+}
+
+[data-mode="zen"] .answer-option.selected::before {
+    background: radial-gradient(circle, 
+        rgba(255, 255, 255, 0.3) 0%, 
+        transparent 70%);
+    transform: translate(-50%, -50%) scale(2);
+}
+
+/* Gentle feedback */
+[data-mode="zen"] .correct {
+    background: var(--color-success);
+    animation: zen-success var(--duration-slow) ease-out;
+}
+
+[data-mode="zen"] .incorrect {
+    background: var(--color-warning);
+    animation: zen-gentle-shake var(--duration-normal) ease-out;
+}
+
+@keyframes zen-success {
+    0% { 
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+    100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes zen-gentle-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+
+/* Progress visualization */
+[data-mode="zen"] .progress-bar {
+    height: 12px;
+    background: rgba(107, 163, 197, 0.1);
+    border-radius: var(--radius-full);
+    box-shadow: 
+        var(--shadow-inner),
+        inset 0 2px 4px rgba(107, 163, 197, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+[data-mode="zen"] .progress-bar::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 255, 255, 0.1) 10px,
+        rgba(255, 255, 255, 0.1) 20px
+    );
+    animation: shimmer-slow 20s linear infinite;
+}
+
+[data-mode="zen"] .progress-fill {
+    background: linear-gradient(90deg, 
+        rgba(127, 176, 105, 0.8),
+        rgba(107, 163, 197, 0.8));
+    box-shadow: 
+        var(--shadow-sm),
+        0 0 20px rgba(107, 163, 197, 0.3);
+    transition: width var(--duration-slow) ease-in-out;
+    position: relative;
+}
+
+[data-mode="zen"] .progress-fill::after {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle, 
+        rgba(255, 255, 255, 0.8) 0%, 
+        transparent 70%);
+    transform: translateY(-50%);
+    animation: pulse-soft 2s ease-in-out infinite;
+}
+
+@keyframes shimmer-slow {
+    0% { transform: translateX(-20px); }
+    100% { transform: translateX(20px); }
+}
+
+@keyframes pulse-soft {
+    0%, 100% { 
+        transform: translateY(-50%) scale(0.8);
+        opacity: 0.5;
+    }
+    50% { 
+        transform: translateY(-50%) scale(1.2);
+        opacity: 1;
+    }
+}
+
+/* Buttons in zen mode */
+[data-mode="zen"] .btn {
+    background: var(--bg-card);
+    border: 2px solid var(--border-default);
+    color: var(--text-primary);
+    transition: all var(--duration-normal) ease-in-out;
+    font-weight: var(--font-medium);
+}
+
+[data-mode="zen"] .btn:hover {
+    background: var(--bg-elevated);
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+[data-mode="zen"] .btn-primary {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+[data-mode="zen"] .btn-primary:hover {
+    background: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+}
+
+/* Zen particles - floating elements */
+[data-mode="zen"] .zen-particle {
+    position: fixed;
+    color: var(--color-primary);
+    opacity: 0.4;
+    font-size: var(--text-lg);
+    animation: float-drift 20s ease-in-out infinite;
+    pointer-events: none;
+    filter: blur(0.5px);
+}
+
+[data-mode="zen"] .zen-particle:nth-child(odd) {
+    animation-duration: 25s;
+    animation-delay: -5s;
+}
+
+[data-mode="zen"] .zen-particle:nth-child(even) {
+    animation-duration: 30s;
+    animation-delay: -10s;
+    opacity: 0.3;
+}
+
+@keyframes float-drift {
+    0% {
+        transform: translateX(-10px) translateY(-100px) rotate(0deg) scale(1);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.4;
+    }
+    50% {
+        transform: translateX(30px) translateY(50vh) rotate(180deg) scale(1.1);
+    }
+    90% {
+        opacity: 0.4;
+    }
+    100% {
+        transform: translateX(-20px) translateY(100vh) rotate(360deg) scale(0.9);
+        opacity: 0;
+    }
+}
+
+/* Water surface effect */
+[data-mode="zen"] .water-surface {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(180deg, 
+        transparent 0%, 
+        rgba(107, 163, 197, 0.05) 50%,
+        rgba(107, 163, 197, 0.1) 100%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+[data-mode="zen"] .water-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 40px,
+        rgba(255, 255, 255, 0.1) 40px,
+        rgba(255, 255, 255, 0.1) 80px
+    );
+    animation: water-flow 10s linear infinite;
+}
+
+@keyframes water-flow {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(80px); }
+}
+
+/* Stats display in zen */
+[data-mode="zen"] .stat-icon {
+    font-size: var(--text-lg);
+    opacity: 0.8;
+}
+
+[data-mode="zen"] .stat-value {
+    font-weight: var(--font-medium);
+    color: var(--text-secondary);
+}
+
+/* Focus states */
+[data-mode="zen"] :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 4px;
+}
+
+/* Loading states */
+[data-mode="zen"] .loading::after {
+    border-color: var(--color-primary);
+    border-top-color: transparent;
+    animation: spin var(--duration-slower) linear infinite;
+}
+
+/* Special zen message */
+[data-mode="zen"] .zen-message {
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    animation: fade-in var(--duration-slow) ease-out;
+    position: relative;
+}
+
+[data-mode="zen"] .zen-message::before,
+[data-mode="zen"] .zen-message::after {
+    content: '~';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(107, 163, 197, 0.3);
+    font-size: var(--text-2xl);
+    animation: wave 3s ease-in-out infinite;
+}
+
+[data-mode="zen"] .zen-message::before {
+    left: -30px;
+}
+
+[data-mode="zen"] .zen-message::after {
+    right: -30px;
+    animation-delay: -1.5s;
+}
+
+@keyframes fade-in {
+    from { 
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes wave {
+    0%, 100% { transform: translateY(-50%) scaleY(1); }
+    50% { transform: translateY(-50%) scaleY(1.5); }
+}
+
+/* Ambient animations */
+[data-mode="zen"] .ambient-circle {
+    position: fixed;
+    border-radius: 50%;
+    background: radial-gradient(circle, 
+        rgba(107, 163, 197, 0.1) 0%, 
+        transparent 50%);
+    pointer-events: none;
+    animation: ambient-float 30s ease-in-out infinite;
+}
+
+[data-mode="zen"] .ambient-circle:nth-child(1) {
+    width: 300px;
+    height: 300px;
+    top: 10%;
+    left: 10%;
+    animation-duration: 35s;
+}
+
+[data-mode="zen"] .ambient-circle:nth-child(2) {
+    width: 200px;
+    height: 200px;
+    bottom: 20%;
+    right: 15%;
+    animation-duration: 40s;
+    animation-delay: -10s;
+}
+
+[data-mode="zen"] .ambient-circle:nth-child(3) {
+    width: 250px;
+    height: 250px;
+    top: 50%;
+    left: 60%;
+    animation-duration: 45s;
+    animation-delay: -20s;
+}
+
+@keyframes ambient-float {
+    0%, 100% { 
+        transform: translate(0, 0) scale(1);
+        opacity: 0.5;
+    }
+    25% { 
+        transform: translate(30px, -20px) scale(1.1);
+        opacity: 0.3;
+    }
+    50% { 
+        transform: translate(-20px, 30px) scale(0.9);
+        opacity: 0.6;
+    }
+    75% { 
+        transform: translate(-30px, -10px) scale(1.05);
+        opacity: 0.4;
+    }
+}

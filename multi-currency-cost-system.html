@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Currency Cost System - JazzyPop</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0a0e27;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1, h2 {
+            color: #00d2d3;
+        }
+        
+        .section {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        .currency-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .currency-card {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid;
+        }
+        
+        .currency-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .currency-energy { border-color: #f39c12; }
+        .currency-hearts { border-color: #e94560; }
+        .currency-gems { border-color: #00d2d3; }
+        .currency-coins { border-color: #ffd700; }
+        .currency-tickets { border-color: #9b59b6; }
+        .currency-keys { border-color: #34495e; }
+        
+        /* Card Examples */
+        .card-examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .quiz-card {
+            background: #1e2139;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        /* Multi-Currency Cost Display */
+        .cost-area {
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            font-size: 14px;
+        }
+        
+        .cost-single {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .cost-multi {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .cost-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .cost-item.affordable {
+            color: #4ecca3;
+            background: rgba(76, 236, 163, 0.1);
+        }
+        
+        .cost-item.unaffordable {
+            color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+            opacity: 0.8;
+        }
+        
+        /* OR separator */
+        .cost-or {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        
+        .cost-or::before,
+        .cost-or::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .cost-or span {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        /* Special Cost Types */
+        .cost-free {
+            color: #4ecca3;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        .cost-requirement {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #f39c12;
+            font-size: 13px;
+        }
+        
+        .cost-locked {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #e94560;
+        }
+        
+        /* Cost scenarios */
+        .scenario-box {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        
+        .scenario-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        /* Card content (unchanged) */
+        .card-content {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .bot-avatar {
+            width: 100px;
+            height: 100px;
+            background: #2d4356;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+        }
+        
+        .reward-band {
+            background: linear-gradient(90deg, rgba(0, 210, 211, 0.1), rgba(15, 52, 96, 0.1));
+            padding: 12px 15px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px;
+        }
+        
+        .play-button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #4ecca3;
+            color: #000;
+            text-transform: uppercase;
+        }
+        
+        .play-button:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+        }
+        
+        /* Cost type table */
+        .cost-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .cost-table th,
+        .cost-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .cost-table th {
+            background: #16213e;
+            font-weight: 600;
+            color: #00d2d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Multi-Currency Cost System</h1>
+        
+        <!-- Currency Types -->
+        <div class="section">
+            <h2>Available Currencies & Resources</h2>
+            <div class="currency-grid">
+                <div class="currency-card currency-energy">
+                    <div class="currency-icon">⚡</div>
+                    <h3>Energy</h3>
+                    <p>Primary resource<br>Regenerates over time<br>Used for most activities</p>
+                </div>
+                
+                <div class="currency-card currency-hearts">
+                    <div class="currency-icon">❤️</div>
+                    <h3>Hearts/Lives</h3>
+                    <p>Risk management<br>Lost on failures<br>Gates harder content</p>
+                </div>
+                
+                <div class="currency-card currency-gems">
+                    <div class="currency-icon">💎</div>
+                    <h3>Gems/Diamonds</h3>
+                    <p>Premium currency<br>Special purchases<br>Rare rewards</p>
+                </div>
+                
+                <div class="currency-card currency-coins">
+                    <div class="currency-icon">🪙</div>
+                    <h3>Coins</h3>
+                    <p>Common currency<br>Shop purchases<br>Upgrades</p>
+                </div>
+                
+                <div class="currency-card currency-tickets">
+                    <div class="currency-icon">🎫</div>
+                    <h3>Event Tickets</h3>
+                    <p>Special events<br>Limited availability<br>Time-gated content</p>
+                </div>
+                
+                <div class="currency-card currency-keys">
+                    <div class="currency-icon">🗝️</div>
+                    <h3>Keys</h3>
+                    <p>Unlock content<br>Boss challenges<br>Secret areas</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cost Display Examples -->
+        <div class="section">
+            <h2>Cost Display Variations</h2>
+            <div class="card-examples">
+                <!-- Standard Energy Cost -->
+                <div>
+                    <h3 style="text-align: center;">Standard Energy Cost</h3>
+                    <div class="quiz-card">
+                        <div class="cost-area">
+                            <div class="cost-single">
+                                <span style="opacity: 0.7;">Cost:</span>
+                                <div class="cost-item affordable">
+                                    <span>⚡</span>
+                                    <span>10</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="bot-avatar">📚</div>
+                            <h3>Daily Quiz</h3>
+                        </div>
+                        <div class="reward-band">XP: 20 | Gems: 2</div>
+                        <button class="play-button">Play Now!</button>
+                    </div>
+                </div>
+                
+                <!-- Multiple Requirements -->
+                <div>
+                    <h3 style="text-align: center;">Multiple Requirements</h3>
+                    <div class="quiz-card">
+                        <div class="cost-area">
+                            <div class="cost-multi">
+                                <span style="opacity: 0.7;">Cost:</span>
+                                <div class="cost-item affordable">
+                                    <span>⚡</span>
+                                    <span>10</span>
+                                </div>
+                                <span style="color: #666;">+</span>
+                                <div class="cost-item unaffordable">
+                                    <span>❤️</span>
+                                    <span>>2</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="bot-avatar">🎲</div>
+                            <h3>Chaos Challenge</h3>
+                        </div>
+                        <div class="reward-band">XP: 50 | Gems: 5 | Badge</div>
+                        <button class="play-button" disabled>Need More Hearts</button>
+                    </div>
+                </div>
+                
+                <!-- Alternative Costs -->
+                <div>
+                    <h3 style="text-align: center;">Alternative Payment</h3>
+                    <div class="quiz-card">
+                        <div class="cost-area">
+                            <div class="cost-multi">
+                                <div class="cost-item affordable">
+                                    <span>⚡</span>
+                                    <span>20</span>
+                                </div>
+                                <div class="cost-or">
+                                    <span>OR</span>
+                                </div>
+                                <div class="cost-item affordable">
+                                    <span>🎫</span>
+                                    <span>1 Ticket</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="bot-avatar">🎪</div>
+                            <h3>Special Event</h3>
+                        </div>
+                        <div class="reward-band">XP: 100 | Gems: 10</div>
+                        <button class="play-button">Choose Payment</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cost Scenarios -->
+        <div class="section">
+            <h2>Common Cost Scenarios</h2>
+            
+            <div class="scenario-box">
+                <div class="scenario-title">
+                    <span>🆓</span>
+                    <h3>Free Activities</h3>
+                </div>
+                <div class="cost-area" style="background: rgba(76, 236, 163, 0.1);">
+                    <div class="cost-free">
+                        ✨ FREE TO PLAY ✨
+                    </div>
+                </div>
+                <p style="margin-top: 10px; color: #888;">Tutorial, daily bonus, achievement rewards</p>
+            </div>
+            
+            <div class="scenario-box">
+                <div class="scenario-title">
+                    <span>🔒</span>
+                    <h3>Locked Content</h3>
+                </div>
+                <div class="cost-area">
+                    <div class="cost-locked">
+                        <span>🔒</span>
+                        <span>Requires: Level 10</span>
+                    </div>
+                </div>
+                <p style="margin-top: 10px; color: #888;">Level gates, achievement requirements, story progression</p>
+            </div>
+            
+            <div class="scenario-box">
+                <div class="scenario-title">
+                    <span>💰</span>
+                    <h3>Premium Option</h3>
+                </div>
+                <div class="cost-area">
+                    <div class="cost-multi">
+                        <div class="cost-item unaffordable">
+                            <span>⚡</span>
+                            <span>50</span>
+                        </div>
+                        <div class="cost-or">
+                            <span>OR</span>
+                        </div>
+                        <div class="cost-item affordable">
+                            <span>💎</span>
+                            <span>5</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="margin-top: 10px; color: #888;">Skip wait times, premium content, convenience options</p>
+            </div>
+            
+            <div class="scenario-box">
+                <div class="scenario-title">
+                    <span>🎯</span>
+                    <h3>Quest Requirement</h3>
+                </div>
+                <div class="cost-area">
+                    <div class="cost-requirement">
+                        <span>📋</span>
+                        <span>Part of "Master Scientist" Quest</span>
+                        <span style="color: #4ecca3;">✓</span>
+                    </div>
+                </div>
+                <p style="margin-top: 10px; color: #888;">No cost but must be on specific quest</p>
+            </div>
+        </div>
+        
+        <!-- Cost Types Reference -->
+        <div class="section">
+            <h2>Cost Type Reference</h2>
+            <table class="cost-table">
+                <tr>
+                    <th>Cost Type</th>
+                    <th>Example Display</th>
+                    <th>Use Case</th>
+                    <th>Player Impact</th>
+                </tr>
+                <tr>
+                    <td>Single Resource</td>
+                    <td>⚡ 10</td>
+                    <td>Standard activities</td>
+                    <td>Simple decision</td>
+                </tr>
+                <tr>
+                    <td>Multiple Required</td>
+                    <td>⚡ 10 + ❤️ >2</td>
+                    <td>High-risk challenges</td>
+                    <td>Strategic planning</td>
+                </tr>
+                <tr>
+                    <td>Either/Or</td>
+                    <td>⚡ 20 OR 🎫 1</td>
+                    <td>Flexible access</td>
+                    <td>Resource choice</td>
+                </tr>
+                <tr>
+                    <td>Premium Alternative</td>
+                    <td>⚡ 50 OR 💎 5</td>
+                    <td>Convenience option</td>
+                    <td>Time vs money</td>
+                </tr>
+                <tr>
+                    <td>Level Gate</td>
+                    <td>🔒 Requires Level 15</td>
+                    <td>Progression gate</td>
+                    <td>Long-term goal</td>
+                </tr>
+                <tr>
+                    <td>Item Required</td>
+                    <td>🗝️ Boss Key Required</td>
+                    <td>Special access</td>
+                    <td>Preparation needed</td>
+                </tr>
+                <tr>
+                    <td>Free</td>
+                    <td>✨ FREE ✨</td>
+                    <td>Promotions, tutorials</td>
+                    <td>No barrier</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Implementation Notes -->
+        <div class="section">
+            <h2>Implementation Considerations</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #00d2d3;">Visual Clarity</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Clear icons for each currency</li>
+                        <li>Color coding for affordability</li>
+                        <li>Obvious OR separators</li>
+                        <li>Requirements vs costs distinction</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #f39c12;">Smart Defaults</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Energy as primary currency</li>
+                        <li>Show best payment option first</li>
+                        <li>Hide OR if player can't afford alternative</li>
+                        <li>Auto-select cheapest available option</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #4ecca3;">Player Communication</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Tooltips explain currency types</li>
+                        <li>Show what player has on hover</li>
+                        <li>Clear "can't afford" messaging</li>
+                        <li>Suggest how to get more resources</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

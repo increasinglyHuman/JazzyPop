@@ -7,7 +7,7 @@
 .card {
     background: var(--bg-card);
     border-radius: var(--radius);
-    overflow: hidden;
+    overflow: visible; /* Changed to allow badges to break out */
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     cursor: pointer;
     position: relative;
@@ -31,11 +31,11 @@
 .card-header {
     padding: 0;
     display: flex;
-    align-items: center;
+    align-items: flex-end; /* Bottom align items */
     justify-content: flex-start;
     position: relative;
-    margin-top: -20px;
-    gap: 16px;
+    margin-top: 2px; /* Moved down 22px from -20px */
+    gap: 4px; /* Reduced gap to bring title closer to icon */
 }
 
 .card-icon {
@@ -49,9 +49,44 @@
     justify-content: center;
     background: var(--bg-elevated);
     border-radius: 20px;
-    margin-right: 16px;
+    margin-right: 10px; /* Slight adjustment - 2px more space */
     flex-shrink: 0;
     padding: 2px;
+    position: relative;
+}
+
+/* Prevent alt text from showing while loading */
+.card-icon img {
+    color: transparent;
+    font-size: 0;
+}
+
+/* Subtle loading pulse for category icons */
+.card-icon::after {
+    content: '';
+    position: absolute;
+    inset: 20%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.card-icon:has(img:not([style*="opacity: 1"]))::after {
+    opacity: 1;
+    animation: iconLoadPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes iconLoadPulse {
+    0%, 100% { 
+        transform: scale(0.8); 
+        opacity: 0.3; 
+    }
+    50% { 
+        transform: scale(1); 
+        opacity: 0.6; 
+    }
 }
 
 /* Mode-specific icon backgrounds */
@@ -155,7 +190,7 @@
 .card-title {
     font-size: 18px;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 4px; /* Reduce bottom margin */
     color: var(--text-primary);
     text-align: left;
 }
@@ -664,28 +699,16 @@
 .generic-card.theme-practice {
     background: linear-gradient(135deg, #2d4356, #1f2c34);
     color: rgba(255, 255, 255, 0.95);
-    border: 2px solid rgba(88, 204, 2, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.1);
     position: relative;
 }
 
-.generic-card.theme-practice::before {
-    content: '';
-    position: absolute;
-    bottom: -30px;
-    right: -30px;
-    width: 100px;
-    height: 100px;
-    background: url('../../images/signbots/signbot-thinking.svg') no-repeat center;
-    background-size: contain;
-    opacity: 0.2;
-    transform: rotate(-10deg);
-    pointer-events: none;
-}
+/* Removed ghost signbot background from practice cards */
 
 .generic-card.theme-practice:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(88, 204, 2, 0.3);
-    border-color: var(--primary);
+    box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 /* Mode badge styles */
@@ -821,9 +844,9 @@
 }
 
 .badge {
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 13px; /* 30% larger */
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;

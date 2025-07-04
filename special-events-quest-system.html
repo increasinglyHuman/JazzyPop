@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Special Events & Quest System - JazzyPop</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #0a0e27;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1, h2 {
+            color: #00d2d3;
+        }
+        
+        .section {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        /* Card Grid */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        /* Base Card (unchanged core) */
+        .quiz-card {
+            background: #1e2139;
+            border-radius: 16px;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        /* SPECIAL EVENT INDICATORS */
+        
+        /* Corner Ribbon for Special Events */
+        .event-ribbon {
+            position: absolute;
+            top: 10px;
+            right: -35px;
+            background: #e94560;
+            color: white;
+            padding: 8px 40px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            transform: rotate(45deg);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        
+        .event-ribbon.limited-time {
+            background: linear-gradient(45deg, #e94560, #f39c12);
+            animation: shimmer 3s infinite;
+        }
+        
+        .event-ribbon.special-offer {
+            background: linear-gradient(45deg, #4ecca3, #00d2d3);
+        }
+        
+        .event-ribbon.bonus-event {
+            background: linear-gradient(45deg, #f39c12, #ff6b6b);
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        /* Frame Glow for Active Events */
+        .quiz-card.event-active {
+            border: 2px solid transparent;
+            background: linear-gradient(#1e2139, #1e2139) padding-box,
+                        linear-gradient(45deg, #e94560, #f39c12, #4ecca3) border-box;
+            animation: border-dance 3s linear infinite;
+        }
+        
+        @keyframes border-dance {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+        
+        /* STREAK INDICATORS */
+        
+        /* Streak Badge */
+        .streak-badge {
+            position: absolute;
+            top: 60px;
+            left: 15px;
+            background: #ff6b6b;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.4);
+            z-index: 5;
+        }
+        
+        .streak-badge .flame {
+            font-size: 16px;
+            animation: flicker 1.5s infinite;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+        
+        .streak-multiplier {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        
+        /* QUEST PROGRESS */
+        
+        /* Quest Progress Bar */
+        .quest-progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .quest-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f39c12, #ff6b6b);
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .quest-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: sweep 2s infinite;
+        }
+        
+        @keyframes sweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Quest Tooltip */
+        .quest-tooltip {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .quest-progress-bar:hover .quest-tooltip {
+            opacity: 1;
+        }
+        
+        /* LIMITED TIME OFFERS */
+        
+        /* Countdown Timer */
+        .countdown-timer {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            background: rgba(233, 69, 96, 0.9);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 5;
+        }
+        
+        .countdown-timer .clock {
+            animation: tick 1s infinite;
+        }
+        
+        @keyframes tick {
+            0%, 90% { transform: rotate(0deg); }
+            95% { transform: rotate(10deg); }
+            100% { transform: rotate(0deg); }
+        }
+        
+        /* Special Offer Badge */
+        .special-badge {
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(45deg, #4ecca3, #00d2d3);
+            color: #000;
+            padding: 6px 20px;
+            border-radius: 0 0 12px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            box-shadow: 0 2px 10px rgba(0, 210, 211, 0.4);
+            z-index: 10;
+        }
+        
+        /* COMBINED REWARD BAND WITH EVENTS */
+        .reward-band-enhanced {
+            background: linear-gradient(90deg, rgba(0, 210, 211, 0.1), rgba(15, 52, 96, 0.1));
+            padding: 12px 15px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+        }
+        
+        .reward-band-enhanced.event-active {
+            background: linear-gradient(90deg, rgba(233, 69, 96, 0.1), rgba(243, 156, 18, 0.1));
+            animation: pulse-glow 2s infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        /* Event System Architecture */
+        .architecture-diagram {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .flow-chart {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .flow-node {
+            background: #0f3460;
+            border: 2px solid #00d2d3;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            flex: 1;
+        }
+        
+        .flow-arrow {
+            color: #f39c12;
+            font-size: 24px;
+        }
+        
+        /* Event Priority Levels */
+        .priority-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .priority-card {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 15px;
+            border: 2px solid;
+        }
+        
+        .priority-high { border-color: #e94560; }
+        .priority-medium { border-color: #f39c12; }
+        .priority-low { border-color: #4ecca3; }
+        
+        /* Standard elements */
+        .cost-area {
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+        
+        .card-content {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .bot-avatar {
+            width: 100px;
+            height: 100px;
+            background: #2d4356;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+        }
+        
+        .play-button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #4ecca3;
+            color: #000;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Special Events & Quest System</h1>
+        
+        <!-- Event Types Overview -->
+        <div class="section">
+            <h2>Event & Special Offer Types</h2>
+            <div class="card-grid">
+                <!-- Limited Time Event -->
+                <div class="quiz-card event-active">
+                    <div class="event-ribbon limited-time">LIMITED</div>
+                    <div class="countdown-timer">
+                        <span class="clock">⏰</span>
+                        <span>23:45:12</span>
+                    </div>
+                    
+                    <div class="cost-area">
+                        <span>Cost: Energy 10</span>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="bot-avatar">🎃</div>
+                        <h3>Halloween Special</h3>
+                        <p>Spooky trivia with 3x rewards!</p>
+                    </div>
+                    
+                    <div class="reward-band-enhanced event-active">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>XP: 60 (3x)</span>
+                            <span>GEMS: 6 (3x)</span>
+                            <span style="color: #ff6b6b;">EVENT ACTIVE</span>
+                        </div>
+                    </div>
+                    
+                    <button class="play-button">Play Limited Event!</button>
+                </div>
+                
+                <!-- Streak Bonus Card -->
+                <div class="quiz-card">
+                    <div class="streak-badge">
+                        <span class="flame">🔥</span>
+                        <span>5 Day Streak!</span>
+                        <span class="streak-multiplier">1.5x</span>
+                    </div>
+                    
+                    <div class="cost-area">
+                        <span>Cost: Energy 10</span>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="bot-avatar">🧠</div>
+                        <h3>Daily Brain Teaser</h3>
+                        <p>Keep your streak alive!</p>
+                    </div>
+                    
+                    <div class="reward-band-enhanced">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>XP: 30 (1.5x)</span>
+                            <span>GEMS: 3 (1.5x)</span>
+                            <span style="color: #ff6b6b;">STREAK BONUS</span>
+                        </div>
+                    </div>
+                    
+                    <button class="play-button">Continue Streak!</button>
+                </div>
+                
+                <!-- Quest Progress Card -->
+                <div class="quiz-card">
+                    <div class="special-badge">QUEST CARD</div>
+                    
+                    <div class="cost-area">
+                        <span>Cost: Energy 10</span>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="bot-avatar">🏛️</div>
+                        <h3>Ancient Architecture</h3>
+                        <p>Part of "Historian" quest line</p>
+                    </div>
+                    
+                    <div class="reward-band-enhanced">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>XP: 25</span>
+                            <span>GEMS: 3</span>
+                            <span style="color: #f39c12;">QUEST XP +10</span>
+                        </div>
+                    </div>
+                    
+                    <button class="play-button">Play Quest Card!</button>
+                    
+                    <div class="quest-progress-bar">
+                        <div class="quest-fill" style="width: 80%"></div>
+                        <div class="quest-tooltip">Historian Quest: 4/5 Complete</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Visual Priority System -->
+        <div class="section">
+            <h2>Visual Priority Hierarchy</h2>
+            <div class="priority-grid">
+                <div class="priority-card priority-high">
+                    <h3 style="color: #e94560;">🚨 High Priority</h3>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Limited Time Events</li>
+                        <li>Expiring Offers</li>
+                        <li>Last Chance Quests</li>
+                    </ul>
+                    <p style="font-size: 14px; color: #888;">Animated borders, countdown timers, ribbons</p>
+                </div>
+                
+                <div class="priority-card priority-medium">
+                    <h3 style="color: #f39c12;">⚡ Medium Priority</h3>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Active Streaks</li>
+                        <li>Quest Progress</li>
+                        <li>Daily Bonuses</li>
+                    </ul>
+                    <p style="font-size: 14px; color: #888;">Badges, progress bars, highlight colors</p>
+                </div>
+                
+                <div class="priority-card priority-low">
+                    <h3 style="color: #4ecca3;">✓ Standard Priority</h3>
+                    <ul style="margin: 10px 0; padding-left: 20px;">
+                        <li>Regular Cards</li>
+                        <li>Always Available</li>
+                        <li>Practice Mode</li>
+                    </ul>
+                    <p style="font-size: 14px; color: #888;">Clean design, no special indicators</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Event System Flow -->
+        <div class="section">
+            <h2>Event & Quest System Architecture</h2>
+            <div class="architecture-diagram">
+                <h3>How Events Integrate with Cards</h3>
+                <div class="flow-chart">
+                    <div class="flow-node">
+                        <h4>Event Trigger</h4>
+                        <p>Time-based<br>Achievement<br>Special date</p>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node">
+                        <h4>Card Enhancement</h4>
+                        <p>Add indicators<br>Modify rewards<br>Update styling</p>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node">
+                        <h4>Player Action</h4>
+                        <p>See opportunity<br>Play card<br>Earn bonus</p>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-node">
+                        <h4>Progress Update</h4>
+                        <p>Quest advance<br>Streak extend<br>Badge earned</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Combined Examples -->
+        <div class="section">
+            <h2>Combined Event Scenarios</h2>
+            <div class="card-grid">
+                <!-- Multiple Events -->
+                <div class="quiz-card event-active">
+                    <div class="event-ribbon bonus-event">2X TUESDAY</div>
+                    <div class="streak-badge">
+                        <span class="flame">🔥</span>
+                        <span>10 Days!</span>
+                        <span class="streak-multiplier">2x</span>
+                    </div>
+                    
+                    <div class="cost-area">
+                        <span>Cost: Energy 10</span>
+                        <span style="margin-left: auto; color: #4ecca3;">✓</span>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="bot-avatar">🎮</div>
+                        <h3>Gaming Trivia</h3>
+                        <p>Tuesday + Streak = 4x rewards!</p>
+                    </div>
+                    
+                    <div class="reward-band-enhanced event-active">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>XP: 80 (4x!)</span>
+                            <span>GEMS: 8 (4x!)</span>
+                            <span style="background: #ff6b6b; padding: 2px 8px; border-radius: 10px; font-size: 12px;">MEGA BONUS</span>
+                        </div>
+                    </div>
+                    
+                    <button class="play-button" style="background: linear-gradient(45deg, #4ecca3, #f39c12); font-size: 18px;">
+                        PLAY WITH 4X REWARDS!
+                    </button>
+                    
+                    <div class="quest-progress-bar">
+                        <div class="quest-fill" style="width: 60%"></div>
+                        <div class="quest-tooltip">Gamer Quest: 3/5 Complete</div>
+                    </div>
+                </div>
+                
+                <!-- Expiring Quest -->
+                <div class="quiz-card">
+                    <div class="special-badge" style="background: #e94560;">FINAL QUEST</div>
+                    <div class="countdown-timer">
+                        <span class="clock">⏰</span>
+                        <span>2:15:30</span>
+                    </div>
+                    
+                    <div class="cost-area">
+                        <span>Cost: Energy 15</span>
+                        <span style="margin-left: auto; color: #f39c12;">⚡</span>
+                    </div>
+                    
+                    <div class="card-content">
+                        <div class="bot-avatar">🏆</div>
+                        <h3>Master Challenge</h3>
+                        <p>Complete the Scientist quest!</p>
+                    </div>
+                    
+                    <div class="reward-band-enhanced">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>XP: 100</span>
+                            <span>GEMS: 10</span>
+                            <span>🏅 BADGE</span>
+                        </div>
+                    </div>
+                    
+                    <button class="play-button">Complete Quest!</button>
+                    
+                    <div class="quest-progress-bar">
+                        <div class="quest-fill" style="width: 95%"></div>
+                        <div class="quest-tooltip">Scientist Quest: 19/20 - LAST ONE!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Implementation Guidelines -->
+        <div class="section">
+            <h2>Implementation Guidelines</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #e94560;">Special Events</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Corner ribbons for visibility</li>
+                        <li>Animated borders for urgency</li>
+                        <li>Countdown timers when applicable</li>
+                        <li>Enhanced reward displays</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #f39c12;">Streak System</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Persistent badge with flame icon</li>
+                        <li>Shows current streak + multiplier</li>
+                        <li>Glows/pulses at milestones</li>
+                        <li>Integrates with reward calculations</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #16213e; padding: 20px; border-radius: 8px;">
+                    <h3 style="color: #4ecca3;">Quest Progress</h3>
+                    <ul style="line-height: 1.8;">
+                        <li>Bottom progress bar (non-intrusive)</li>
+                        <li>Hover for detailed progress</li>
+                        <li>Special badge for quest cards</li>
+                        <li>Completion animations</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

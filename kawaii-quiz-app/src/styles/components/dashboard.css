@@ -318,10 +318,11 @@ body {
 .cards-container {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 20px; /* Increased gap for badge overlap */
     max-width: 600px;
     margin: 0 auto;
-    padding: 0 12px;
+    padding: 20px 12px 0 12px; /* Added top padding for badge overflow */
+    overflow: visible;
 }
 
 /* Keep vertical stack on all screen sizes */

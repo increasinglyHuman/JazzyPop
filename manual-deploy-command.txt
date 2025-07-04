@@ -1,0 +1,17 @@
+# Manual deployment commands for JazzyPop
+
+# 1. First, sync to temporary directory:
+rsync -avz --delete -e "ssh -i ~/.ssh/poqpoq2025.pem" --exclude='.git' --exclude='node_modules' --exclude='*.log' --exclude='.env' --exclude='*.sh' --progress kawaii-quiz-app/ ubuntu@p0qp0q.com:~/temp-jazzypop/
+
+# 2. Then SSH in and move files:
+ssh -i ~/.ssh/poqpoq2025.pem ubuntu@p0qp0q.com
+
+# 3. On the server, run:
+sudo rm -rf /var/www/html/jazzypop/*
+sudo mv ~/temp-jazzypop/* /var/www/html/jazzypop/
+rmdir ~/temp-jazzypop
+sudo chown -R www-data:www-data /var/www/html/jazzypop
+sudo chmod -R 755 /var/www/html/jazzypop
+
+# Quick one-liner (after rsync):
+ssh -i ~/.ssh/poqpoq2025.pem ubuntu@p0qp0q.com "sudo rm -rf /var/www/html/jazzypop/* && sudo mv ~/temp-jazzypop/* /var/www/html/jazzypop/ && rmdir ~/temp-jazzypop && sudo chown -R www-data:www-data /var/www/html/jazzypop && sudo chmod -R 755 /var/www/html/jazzypop"
