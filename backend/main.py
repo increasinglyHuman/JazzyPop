@@ -27,11 +27,50 @@ async def lifespan(app: FastAPI):
     # Shutdown
     await db.disconnect()
 
-# Initialize FastAPI app
+# Initialize FastAPI app with enhanced OpenAPI documentation
 app = FastAPI(
     title="JazzyPop API",
-    description="Backend for the JazzyPop quiz platform",
+    description="""
+## JazzyPop Quiz Platform API
+
+Welcome to the JazzyPop API! This backend powers an engaging quiz and learning platform with gamification features.
+
+### Features:
+* 🎯 **Quiz Management** - Dynamic quiz content with multiple difficulty levels
+* 💰 **Economy System** - Energy, coins, gems, and XP tracking
+* 🃏 **Flashcards** - Practice mode with spaced repetition
+* 👤 **User Profiles** - Track progress and achievements
+* 🏆 **Leaderboards** - Compete with other players
+* 🔊 **Audio Support** - Text-to-speech for quiz questions
+
+### Getting Started:
+1. Check the `/api/health` endpoint to verify the API is running
+2. Use `/api/content/quiz/sets` to fetch quiz content
+3. Track game results with `/api/economy/process-result`
+
+### Authentication:
+Currently, the API uses session-based identification. Full authentication is coming soon.
+    """,
     version="1.0.0",
+    openapi_tags=[
+        {"name": "Health", "description": "API health and status endpoints"},
+        {"name": "Quiz", "description": "Quiz content and gameplay endpoints"},
+        {"name": "Economy", "description": "Game economy, rewards, and energy management"},
+        {"name": "Flashcards", "description": "Practice mode and flashcard endpoints"},
+        {"name": "Users", "description": "User profile and progress tracking"},
+        {"name": "Leaderboard", "description": "Competition and ranking endpoints"},
+        {"name": "Audio", "description": "Text-to-speech and audio services"},
+        {"name": "Content", "description": "General content delivery endpoints"}
+    ],
+    contact={
+        "name": "JazzyPop Support",
+        "url": "https://p0qp0q.com",
+        "email": "support@p0qp0q.com"
+    },
+    license_info={
+        "name": "Proprietary",
+        "url": "https://p0qp0q.com/license"
+    },
     lifespan=lifespan
 )
 
@@ -45,50 +84,156 @@ app.add_middleware(
     expose_headers=["*"],  # Add this to expose all headers
 )
 
-# Pydantic models
+# Pydantic models with enhanced documentation
 class ContentBase(BaseModel):
-    type: str
-    data: Dict[str, Any]
-    metadata: Optional[Dict[str, Any]] = {}
-    tags: Optional[List[str]] = []
+    """Base model for all content types in JazzyPop"""
+    type: str = Field(
+        ..., 
+        description="Content type: 'quiz', 'flashcard', 'quote', etc.",
+        example="quiz"
+    )
+    data: Dict[str, Any] = Field(
+        ..., 
+        description="Content payload specific to the content type",
+        example={"question": "What's 2+2?", "answers": [{"id": "a", "text": "4", "correct": True}]}
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default={},
+        description="Additional metadata like difficulty, category, author",
+        example={"difficulty": "easy", "category": "math"}
+    )
+    tags: Optional[List[str]] = Field(
+        default=[],
+        description="Content tags for filtering and categorization",
+        example=["mathematics", "basic", "arithmetic"]
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "type": "quiz",
+                "data": {
+                    "question": "What's the capital of France?",
+                    "answers": [
+                        {"id": "a", "text": "London"},
+                        {"id": "b", "text": "Paris", "correct": True},
+                        {"id": "c", "text": "Berlin"},
+                        {"id": "d", "text": "Madrid"}
+                    ]
+                },
+                "metadata": {"difficulty": "easy", "category": "geography"},
+                "tags": ["geography", "capitals", "europe"]
+            }
+        }
 
 class Content(ContentBase):
-    id: UUID
-    created_at: datetime
-    updated_at: datetime
+    """Complete content model with system fields"""
+    id: UUID = Field(..., description="Unique content identifier")
+    created_at: datetime = Field(..., description="Content creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
 
 class QuizAnswer(BaseModel):
-    quiz_id: UUID
-    answer_id: str
-    time_taken: float
-    mode: str = "poqpoq"
+    """Model for submitting quiz answers"""
+    quiz_id: UUID = Field(
+        ..., 
+        description="ID of the quiz being answered",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    )
+    answer_id: str = Field(
+        ..., 
+        description="Selected answer ID (a, b, c, or d)",
+        example="b"
+    )
+    time_taken: float = Field(
+        ..., 
+        description="Time taken to answer in seconds",
+        example=5.2
+    )
+    mode: str = Field(
+        default="poqpoq",
+        description="Game mode: 'poqpoq', 'chaos', 'zen', etc.",
+        example="chaos"
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "quiz_id": "550e8400-e29b-41d4-a716-446655440000",
+                "answer_id": "c",
+                "time_taken": 3.7,
+                "mode": "poqpoq"
+            }
+        }
 
 class UserProfile(BaseModel):
-    username: Optional[str]
-    display_name: str
-    avatar_id: str = "default"
-    email: Optional[str]
+    """User profile information"""
+    username: Optional[str] = Field(
+        None,
+        description="Unique username for the user",
+        example="jazzmaster2000",
+        min_length=3,
+        max_length=30
+    )
+    display_name: str = Field(
+        ...,
+        description="Display name shown in game",
+        example="Jazz Master",
+        min_length=1,
+        max_length=50
+    )
+    avatar_id: str = Field(
+        default="default",
+        description="Avatar identifier or image URL",
+        example="avatar_03"
+    )
+    email: Optional[str] = Field(
+        None,
+        description="User email for account recovery",
+        example="user@example.com",
+        regex="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "username": "quizwhiz",
+                "display_name": "Quiz Whiz",
+                "avatar_id": "avatar_07",
+                "email": "whiz@example.com"
+            }
+        }
 
 # Routes
-@app.get("/")
+@app.get("/", tags=["Health"])
 async def root():
+    """Root endpoint with API information"""
     return {
         "message": "Welcome to JazzyPop API",
         "version": "1.0.0",
         "docs": "/docs"
     }
 
-@app.get("/api/health")
+@app.get("/api/health", 
+    tags=["Health"],
+    summary="Health check endpoint",
+    description="Check if the API is running and healthy")
 async def health_check():
+    """Returns the health status of the API"""
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow()
     }
 
 # Content endpoints
-@app.get("/api/content/quiz/current")
-async def get_current_quiz(mode: str = "poqpoq"):
-    """Get the current active quiz"""
+@app.get("/api/content/quiz/current",
+    tags=["Quiz"],
+    summary="Get current quiz (deprecated)",
+    description="Returns a single quiz. Use /api/content/quiz/sets instead for better performance",
+    deprecated=True)
+async def get_current_quiz(
+    mode: str = Query("poqpoq", description="Game mode: 'poqpoq', 'chaos', 'zen'")
+):
+    """Get the current active quiz - DEPRECATED: Use /api/content/quiz/sets instead"""
     quiz = await db.get_current_quiz(mode)
     
     if not quiz:
@@ -209,9 +354,21 @@ async def get_current_quote(category: str = "wisdom"):
     fallback = quote_generator.get_fallback_quote(category)
     return fallback
 
-@app.post("/api/content/quiz/{quiz_id}/answer")
-async def submit_quiz_answer(quiz_id: UUID, answer: QuizAnswer, user_id: Optional[UUID] = None):
-    """Submit an answer to a quiz"""
+@app.post("/api/content/quiz/{quiz_id}/answer",
+    tags=["Quiz"],
+    summary="Submit quiz answer",
+    description="Track a user's answer to a specific quiz question",
+    responses={
+        200: {"description": "Answer recorded successfully"},
+        404: {"description": "Quiz not found"},
+        500: {"description": "Failed to submit answer"}
+    })
+async def submit_quiz_answer(
+    quiz_id: UUID,
+    answer: QuizAnswer,
+    user_id: Optional[UUID] = Query(None, description="User ID for tracking progress")
+):
+    """Submit an answer to a quiz question"""
     try:
         result = await db.submit_answer(
             user_id=user_id,
@@ -358,7 +515,10 @@ async def get_quiz_sets(
         return results
 
 
-@app.post("/api/users/profile")
+@app.post("/api/users/profile",
+    tags=["Users"],
+    summary="Create or update user profile",
+    description="Create a new user profile or update existing one")
 async def create_or_update_profile(profile: UserProfile):
     """Create or update user profile"""
     # TODO: Implement user creation/update
@@ -438,14 +598,19 @@ async def get_flashcards(request: Dict[str, Any]):
     
     try:
         # Fetch content from database based on category and user progression
+        logger.info(f"Fetching flashcards: category={category}, count={count}, user_id={user_id}")
         flashcards = await db.get_flashcard_content(category, count, user_id)
         
         if not flashcards:
+            logger.warning(f"No flashcards found for category {category}, generating dynamic content")
             # Generate dynamic flashcards if none in database
             flashcards = await generate_dynamic_flashcards(category, count)
+        else:
+            logger.info(f"Found {len(flashcards)} flashcards from database")
         
         return {"cards": flashcards}
     except Exception as e:
+        logger.error(f"Error in get_flashcards: {str(e)}", exc_info=True)
         # Return minimal set for testing
         return {
             "cards": [{
@@ -481,31 +646,284 @@ async def track_flashcard_view(request: Dict[str, Any]):
 
 # Economy endpoints
 class EconomyState(BaseModel):
-    energy: int = 100
-    hearts: int = 5
-    coins: int = 0
-    sapphires: int = 0
-    emeralds: int = 0
-    rubies: int = 0
-    amethysts: int = 0
-    diamonds: int = 0
-    xp: int = 0
-    level: int = 1
-    streak: int = 0
+    """Current state of a player's game economy"""
+    energy: int = Field(
+        default=100,
+        description="Available energy for playing games (0-100)",
+        ge=0,
+        le=100,
+        example=85
+    )
+    hearts: int = Field(
+        default=5,
+        description="Lives/hearts remaining",
+        ge=0,
+        le=10,
+        example=3
+    )
+    coins: int = Field(
+        default=0,
+        description="Basic currency earned from gameplay",
+        ge=0,
+        example=1250
+    )
+    sapphires: int = Field(
+        default=0,
+        description="Rare blue gems for special purchases",
+        ge=0,
+        example=5
+    )
+    emeralds: int = Field(
+        default=0,
+        description="Rare green gems for unlocking content",
+        ge=0,
+        example=3
+    )
+    rubies: int = Field(
+        default=0,
+        description="Rare red gems for premium features",
+        ge=0,
+        example=2
+    )
+    amethysts: int = Field(
+        default=0,
+        description="Rare purple gems for cosmetic items",
+        ge=0,
+        example=1
+    )
+    diamonds: int = Field(
+        default=0,
+        description="Ultra-rare gems for exclusive content",
+        ge=0,
+        example=0
+    )
+    xp: int = Field(
+        default=0,
+        description="Experience points for leveling up",
+        ge=0,
+        example=3450
+    )
+    level: int = Field(
+        default=1,
+        description="Current player level",
+        ge=1,
+        example=7
+    )
+    streak: int = Field(
+        default=0,
+        description="Current winning streak",
+        ge=0,
+        example=5
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "energy": 75,
+                "hearts": 4,
+                "coins": 2500,
+                "sapphires": 8,
+                "emeralds": 4,
+                "rubies": 2,
+                "amethysts": 1,
+                "diamonds": 0,
+                "xp": 4200,
+                "level": 8,
+                "streak": 3
+            }
+        }
 
 class GameResult(BaseModel):
-    type: str  # quiz_complete, practice_complete, etc
-    category: Optional[str] = 'general'
-    difficulty: Optional[str] = 'medium'
-    mode: Optional[str] = 'normal'
-    correct_answers: Optional[int] = 0
-    total_questions: Optional[int] = 1
-    time_spent: Optional[float] = 0
-    perfect_score: Optional[bool] = False
-    streak: Optional[int] = 0
+    """Game completion result for reward calculation"""
+    type: str = Field(
+        ...,
+        description="Game type: 'quiz_complete', 'practice_complete', 'flashcard_complete'",
+        example="quiz_complete"
+    )
+    category: Optional[str] = Field(
+        default='general',
+        description="Content category played",
+        example="science"
+    )
+    difficulty: Optional[str] = Field(
+        default='medium',
+        description="Difficulty level: 'easy', 'medium', 'hard', 'extreme'",
+        example="hard"
+    )
+    mode: Optional[str] = Field(
+        default='normal',
+        description="Game mode: 'normal', 'chaos', 'zen', 'speed'",
+        example="chaos"
+    )
+    correct_answers: Optional[int] = Field(
+        default=0,
+        description="Number of correct answers",
+        ge=0,
+        example=8
+    )
+    total_questions: Optional[int] = Field(
+        default=1,
+        description="Total number of questions",
+        ge=1,
+        example=10
+    )
+    time_spent: Optional[float] = Field(
+        default=0,
+        description="Time spent in seconds",
+        ge=0,
+        example=125.5
+    )
+    perfect_score: Optional[bool] = Field(
+        default=False,
+        description="Whether all answers were correct",
+        example=False
+    )
+    streak: Optional[int] = Field(
+        default=0,
+        description="Current winning streak",
+        ge=0,
+        example=3
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "type": "quiz_complete",
+                "category": "science",
+                "difficulty": "medium",
+                "mode": "chaos",
+                "correct_answers": 7,
+                "total_questions": 10,
+                "time_spent": 98.5,
+                "perfect_score": False,
+                "streak": 2
+            }
+        }
 
-@app.post("/api/economy/process-result")
-async def process_game_result(result: GameResult, session_id: Optional[str] = None, user_id: Optional[UUID] = None):
+class EnergySpendRequest(BaseModel):
+    """Request model for spending energy"""
+    amount: int = Field(
+        ...,
+        description="Amount of energy to spend",
+        ge=1,
+        le=100,
+        example=10
+    )
+    activity_type: str = Field(
+        ...,
+        description="Type of activity: 'quiz_start', 'practice_start', 'flashcard_start', 'bonus_unlock'",
+        example="quiz_start"
+    )
+    session_id: Optional[str] = Field(
+        None,
+        description="Session identifier",
+        example="session_123"
+    )
+    user_id: Optional[UUID] = Field(
+        None,
+        description="User identifier",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "amount": 10,
+                "activity_type": "quiz_start",
+                "session_id": "session_abc123",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000"
+            }
+        }
+
+@app.post("/api/economy/spend-energy", 
+    tags=["Economy"],
+    summary="Spend energy to start an activity",
+    description="Deducts energy from the player's economy when starting a game or activity",
+    response_description="Returns success status and updated economy state",
+    responses={
+        200: {
+            "description": "Energy successfully spent",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "remaining_energy": 90,
+                        "new_state": {
+                            "energy": 90,
+                            "hearts": 5,
+                            "coins": 1250
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Insufficient energy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": "Insufficient energy",
+                        "required": 10,
+                        "available": 5
+                    }
+                }
+            }
+        }
+    }
+)
+async def spend_energy(request: EnergySpendRequest):
+    """Spend energy to start a game or activity"""
+    # Get current economy state
+    economy_state = await db.get_economy_state(request.user_id, request.session_id)
+    
+    # Check if user has enough energy
+    if economy_state.energy < request.amount:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "error": "Insufficient energy",
+                "required": request.amount,
+                "available": economy_state.energy
+            }
+        )
+    
+    # Deduct energy
+    economy_state.energy -= request.amount
+    
+    # Log the energy spend transaction
+    await db.log_transaction(
+        user_id=request.user_id,
+        session_id=request.session_id,
+        transaction_type="energy_spend",
+        amount=-request.amount,
+        activity_type=request.activity_type,
+        metadata={
+            "timestamp": datetime.utcnow().isoformat(),
+            "remaining_energy": economy_state.energy
+        }
+    )
+    
+    # Save updated state
+    await db.save_economy_state(request.user_id, request.session_id, economy_state)
+    
+    return {
+        "success": True,
+        "remaining_energy": economy_state.energy,
+        "new_state": economy_state.dict()
+    }
+
+@app.post("/api/economy/process-result",
+    tags=["Economy"],
+    summary="Process game completion",
+    description="Calculate and apply rewards after game completion",
+    response_description="Rewards earned and updated economy state")
+async def process_game_result(
+    result: GameResult,
+    session_id: Optional[str] = Query(None, description="Session identifier"),
+    user_id: Optional[UUID] = Query(None, description="User identifier")
+):
     """Process game results and calculate rewards server-side"""
     # Calculate rewards based on result
     rewards = calculate_rewards(result)
@@ -529,8 +947,14 @@ async def process_game_result(result: GameResult, session_id: Optional[str] = No
         "level_up": level_up
     }
 
-@app.get("/api/economy/state")
-async def get_economy_state(session_id: Optional[str] = None, user_id: Optional[UUID] = None):
+@app.get("/api/economy/state",
+    tags=["Economy"],
+    summary="Get current economy state",
+    description="Retrieve the current economy state including energy, coins, gems, and level")
+async def get_economy_state(
+    session_id: Optional[str] = Query(None, description="Session identifier"),
+    user_id: Optional[UUID] = Query(None, description="User identifier")
+):
     """Get current economy state for a user or session"""
     state = await db.get_economy_state(user_id, session_id)
     return {"state": state}
@@ -675,16 +1099,18 @@ async def generate_dynamic_flashcards(category: str, count: int):
                 flashcards.append(flashcard)
                 
     elif category == "trivia_mix":
+        # Generate factoids (simple-flip format) for trivia_mix
         from trivia_generator import trivia_generator
-        themes = ["history", "science", "geography", "animals", "space"]
+        themes = ["history", "science", "geography", "animals", "space", "technology", "nature", "ocean"]
         
         for i in range(min(count, len(themes))):
-            trivia = await trivia_generator.generate_single_trivia(themes[i % len(themes)])
+            # Generate factoid format instead of true/false
+            trivia = await trivia_generator.generate_single_trivia(themes[i % len(themes)], format="factoid")
             if trivia:
                 flashcard = {
                     "id": trivia["id"],
-                    "category": "Trivia",
-                    "type": "trivia",
+                    "category": "Factoid 🤯",
+                    "type": "factoid",
                     **trivia["data"]
                 }
                 flashcards.append(flashcard)

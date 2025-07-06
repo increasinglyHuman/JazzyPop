@@ -33,33 +33,33 @@ deploy_file() {
 
 # Deploy Components
 echo -e "\n📂 Deploying Components..."
-deploy_file "kawaii-quiz-app/src/components/AlertModal.js" "$REMOTE_WEB_DIR/src/components/AlertModal.js"
-deploy_file "kawaii-quiz-app/src/components/EconomyManager.js" "$REMOTE_WEB_DIR/src/components/EconomyManager.js"
-deploy_file "kawaii-quiz-app/src/components/FlashcardModal.js" "$REMOTE_WEB_DIR/src/components/FlashcardModal.js"
-deploy_file "kawaii-quiz-app/src/components/GenericCard.js" "$REMOTE_WEB_DIR/src/components/GenericCard.js"
-deploy_file "kawaii-quiz-app/src/components/HerdingGame.js" "$REMOTE_WEB_DIR/src/components/HerdingGame.js"
-deploy_file "kawaii-quiz-app/src/components/ScoringEngine.js" "$REMOTE_WEB_DIR/src/components/ScoringEngine.js"
-deploy_file "kawaii-quiz-app/src/components/SettingsPanel.js" "$REMOTE_WEB_DIR/src/components/SettingsPanel.js"
+deploy_file "frontend/src/components/AlertModal.js" "$REMOTE_WEB_DIR/src/components/AlertModal.js"
+deploy_file "frontend/src/components/EconomyManager.js" "$REMOTE_WEB_DIR/src/components/EconomyManager.js"
+deploy_file "frontend/src/components/FlashcardModal.js" "$REMOTE_WEB_DIR/src/components/FlashcardModal.js"
+deploy_file "frontend/src/components/GenericCard.js" "$REMOTE_WEB_DIR/src/components/GenericCard.js"
+deploy_file "frontend/src/components/HerdingGame.js" "$REMOTE_WEB_DIR/src/components/HerdingGame.js"
+deploy_file "frontend/src/components/ScoringEngine.js" "$REMOTE_WEB_DIR/src/components/ScoringEngine.js"
+deploy_file "frontend/src/components/SettingsPanel.js" "$REMOTE_WEB_DIR/src/components/SettingsPanel.js"
 
 # Deploy Config (create directory if needed)
 echo -e "\n📂 Deploying Config..."
 ssh -i "$SSH_KEY" "$REMOTE_USER@$REMOTE_HOST" "sudo mkdir -p '$REMOTE_WEB_DIR/src/config' && sudo chown www-data:www-data '$REMOTE_WEB_DIR/src/config'"
-deploy_file "kawaii-quiz-app/src/config/CardConfig.js" "$REMOTE_WEB_DIR/src/config/CardConfig.js"
+deploy_file "frontend/src/config/CardConfig.js" "$REMOTE_WEB_DIR/src/config/CardConfig.js"
 
 # Deploy Scripts
 echo -e "\n📂 Deploying Scripts..."
-deploy_file "kawaii-quiz-app/src/scripts/dashboard.js" "$REMOTE_WEB_DIR/src/scripts/dashboard.js"
+deploy_file "frontend/src/scripts/dashboard.js" "$REMOTE_WEB_DIR/src/scripts/dashboard.js"
 
 # Deploy Styles
 echo -e "\n📂 Deploying Styles..."
-deploy_file "kawaii-quiz-app/src/styles/components/card.css" "$REMOTE_WEB_DIR/src/styles/components/card.css"
-deploy_file "kawaii-quiz-app/src/styles/components/flashcard-modal.css" "$REMOTE_WEB_DIR/src/styles/components/flashcard-modal.css"
-deploy_file "kawaii-quiz-app/src/styles/components/flashcard-modal-enhanced.css" "$REMOTE_WEB_DIR/src/styles/components/flashcard-modal-enhanced.css"
-deploy_file "kawaii-quiz-app/src/styles/components/settings.css" "$REMOTE_WEB_DIR/src/styles/components/settings.css"
+deploy_file "frontend/src/styles/components/card.css" "$REMOTE_WEB_DIR/src/styles/components/card.css"
+deploy_file "frontend/src/styles/components/flashcard-modal.css" "$REMOTE_WEB_DIR/src/styles/components/flashcard-modal.css"
+deploy_file "frontend/src/styles/components/flashcard-modal-enhanced.css" "$REMOTE_WEB_DIR/src/styles/components/flashcard-modal-enhanced.css"
+deploy_file "frontend/src/styles/components/settings.css" "$REMOTE_WEB_DIR/src/styles/components/settings.css"
 
 # Deploy index.html (last)
 echo -e "\n📂 Deploying index.html..."
-deploy_file "kawaii-quiz-app/index.html" "$REMOTE_WEB_DIR/index.html"
+deploy_file "frontend/index.html" "$REMOTE_WEB_DIR/index.html"
 
 echo -e "\n✨ Frontend deployment complete!"
 echo "🌐 Visit https://p0qp0q.com to verify"

@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # JazzyPop Deployment Script
-# Deploys the kawaii-quiz-app to p0qp0q.com
+# Deploys the frontend to p0qp0q.com
 
 echo "🚀 Deploying JazzyPop to p0qp0q.com..."
 
 # Configuration
-LOCAL_DIR="kawaii-quiz-app/"
+LOCAL_DIR="frontend/"
 REMOTE_USER="ubuntu"
 REMOTE_HOST="p0qp0q.com"
 REMOTE_DIR="~/temp-jazzypop/"  # Temporary directory first

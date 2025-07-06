@@ -21,21 +21,21 @@ echo ""
 
 # Frontend files - need to preserve directory structure
 FRONTEND_FILES=(
-    "kawaii-quiz-app/index.html"
-    "kawaii-quiz-app/src/components/EconomyManager.js"
-    "kawaii-quiz-app/src/components/QuizModal.js"
-    "kawaii-quiz-app/src/components/FlashcardModal.js"
-    "kawaii-quiz-app/src/components/CardManager.js"
-    "kawaii-quiz-app/src/components/RewardsPopup.js"
-    "kawaii-quiz-app/src/styles/components/rewards-popup.css"
-    "kawaii-quiz-app/src/scripts/dashboard.js"
+    "frontend/index.html"
+    "frontend/src/components/EconomyManager.js"
+    "frontend/src/components/QuizModal.js"
+    "frontend/src/components/FlashcardModal.js"
+    "frontend/src/components/CardManager.js"
+    "frontend/src/components/RewardsPopup.js"
+    "frontend/src/styles/components/rewards-popup.css"
+    "frontend/src/scripts/dashboard.js"
 )
 
 # Deploy frontend files
 echo "Copying frontend files..."
 for file in "${FRONTEND_FILES[@]}"; do
-    # Get the relative path after kawaii-quiz-app/
-    relative_path=${file#kawaii-quiz-app/}
+    # Get the relative path after frontend/
+    relative_path=${file#frontend/}
     echo "  Deploying: $file -> $relative_path"
     
     # Ensure directory exists on remote

@@ -6,7 +6,7 @@
 echo "🔍 JazzyPop Deployment DRY RUN..."
 
 # Configuration
-LOCAL_DIR="kawaii-quiz-app/"
+LOCAL_DIR="frontend/"
 REMOTE_USER="ubuntu"
 REMOTE_HOST="p0qp0q.com"
 REMOTE_DIR="~/temp-jazzypop/"

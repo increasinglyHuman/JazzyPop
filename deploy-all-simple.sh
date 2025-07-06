@@ -17,7 +17,7 @@ rsync -avz --delete \
     --exclude '.git' \
     --exclude '*.log' \
     --exclude '.DS_Store' \
-    kawaii-quiz-app/ \
+    frontend/ \
     $REMOTE_USER@$REMOTE_HOST:~/jazzypop-frontend-temp/
 
 # Move frontend files to web directory with proper permissions

@@ -32,7 +32,7 @@ src/scripts/dashboard.js
 EOF
 
 # Use rsync with file list
-cd kawaii-quiz-app
+cd frontend
 rsync -avz --files-from=/tmp/economy-frontend-files.txt \
     -e "ssh -i ~/.ssh/poqpoq2025.pem" \
     . ubuntu@p0qp0q.com:/var/www/html/jazzypop/

@@ -18,9 +18,9 @@ mkdir -p "${BACKUP_DIR}"
 # Define directories to backup
 echo "📦 Backing up application files..."
 
-# Backup kawaii-quiz-app directory
-cp -r kawaii-quiz-app "${BACKUP_DIR}/"
-echo "  ✓ Backed up kawaii-quiz-app"
+# Backup frontend directory
+cp -r frontend "${BACKUP_DIR}/"
+echo "  ✓ Backed up frontend"
 
 # Backup backend directory
 cp -r backend "${BACKUP_DIR}/"
@@ -42,7 +42,7 @@ cat > "${BACKUP_DIR}/BACKUP_MANIFEST.md" << EOF
 
 ## Backed Up Components
 
-### Frontend (kawaii-quiz-app)
+### Frontend (frontend)
 - All components (CardManager, GenericCard, EconomyManager, etc.)
 - All styles (card.css, dashboard.css, etc.)
 - All scripts (dashboard.js, etc.)
@@ -54,9 +54,9 @@ cat > "${BACKUP_DIR}/BACKUP_MANIFEST.md" << EOF
 - All Python services
 
 ### Key Files to Note
-- \`kawaii-quiz-app/src/components/GenericCard.js\` - Current card structure
-- \`kawaii-quiz-app/src/styles/components/card.css\` - Current card styles
-- \`kawaii-quiz-app/src/components/CardManager.js\` - Card management logic
+- \`frontend/src/components/GenericCard.js\` - Current card structure
+- \`frontend/src/styles/components/card.css\` - Current card styles
+- \`frontend/src/components/CardManager.js\` - Card management logic
 - \`backend/main.py\` - API endpoints
 
 ## Pre-Economy State
@@ -79,10 +79,10 @@ cat > "${BACKUP_DIR}/BACKUP_MANIFEST.md" << EOF
 To restore this backup:
 \`\`\`bash
 # Remove current directories
-rm -rf kawaii-quiz-app backend
+rm -rf frontend backend
 
 # Copy backup directories back
-cp -r ${BACKUP_DIR}/kawaii-quiz-app ./
+cp -r ${BACKUP_DIR}/frontend ./
 cp -r ${BACKUP_DIR}/backend ./
 \`\`\`
 
