@@ -252,12 +252,16 @@ class GenericCardEnhanced {
             `);
         }
         
-        if (rewards.gems) {
-            const gemText = rewards.gems.min === rewards.gems.max ? 
-                `(${rewards.gems.max})` : 
-                `(${rewards.gems.min}-${rewards.gems.max})`;
+        if (rewards.gems && rewards.gems.max > 0) {
+            // Round up fractional values
+            const minGems = Math.ceil(rewards.gems.min);
+            const maxGems = Math.ceil(rewards.gems.max);
+            
+            const gemText = minGems === maxGems ? 
+                `(${maxGems})` : 
+                `(${minGems}-${maxGems})`;
             rewardItems.push(`
-                <span class="reward-item gems" title="${rewards.gems.min}-${rewards.gems.max} Gems">
+                <span class="reward-item gems" title="${minGems}-${maxGems} Gems">
                     <img src="./src/images/economy-icons/gemIcon.svg" class="icon-small" alt="Gems">
                     <span class="reward-value">${gemText}</span>
                 </span>
@@ -297,9 +301,7 @@ class GenericCardEnhanced {
                 ${primary ? `
                     <button class="action-button action-primary ${buttonClass}" 
                             data-action="${primary.action}"
-                            ${!canAfford ? 'disabled' : ''}
-                            onmouseover="this.querySelector('.encouragement-popup')?.classList.add('show')"
-                            onmouseout="this.querySelector('.encouragement-popup')?.classList.remove('show')">
+                            ${!canAfford ? 'disabled' : ''}>
                         ${primary.icon || ''} ${this.getButtonText(primary.text)}
                         <div class="encouragement-popup">${encouragement}</div>
                     </button>
@@ -352,6 +354,12 @@ class GenericCardEnhanced {
     }
     
     applyEventModifiers(baseCost, modifiers) {
+        // Use EconomyManager's event system if available
+        if (this.economyManager && this.economyManager.applyEventModifiers) {
+            return this.economyManager.applyEventModifiers(baseCost);
+        }
+        
+        // Fallback to local calculation
         let cost = baseCost;
         
         modifiers.forEach(mod => {
@@ -575,7 +583,9 @@ class GenericCardEnhanced {
         
         // Action button handlers
         this.element.querySelectorAll('[data-action]').forEach(button => {
+            // console.log('Attaching click handler to button:', button, 'with action:', button.dataset.action);
             button.addEventListener('click', (e) => {
+                console.log('Button clicked! Action:', button.dataset.action, 'Event:', e);
                 e.preventDefault();
                 e.stopPropagation();
                 
@@ -587,6 +597,17 @@ class GenericCardEnhanced {
                 
                 this.handleAction(button.dataset.action);
             });
+            
+            // Add hover handlers for encouragement popup
+            const popup = button.querySelector('.encouragement-popup');
+            if (popup) {
+                button.addEventListener('mouseenter', () => {
+                    popup.classList.add('show');
+                });
+                button.addEventListener('mouseleave', () => {
+                    popup.classList.remove('show');
+                });
+            }
         });
     }
     
@@ -599,10 +620,12 @@ class GenericCardEnhanced {
     }
     
     handleAction(action) {
-        this.onAction(action, {
+        console.log('GenericCardEnhanced.handleAction called with:', action, 'for card:', this.id);
+        this.onAction({
+            action: action,
             cardId: this.id,
             component: this.component,
-            config: this.componentConfig,
+            componentConfig: this.componentConfig,
             data: this.data
         });
     }

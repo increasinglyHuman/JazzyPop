@@ -109,7 +109,7 @@ class ContentBase(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "type": "quiz",
                 "data": {
@@ -156,7 +156,7 @@ class QuizAnswer(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "quiz_id": "550e8400-e29b-41d4-a716-446655440000",
                 "answer_id": "c",
@@ -190,11 +190,11 @@ class UserProfile(BaseModel):
         None,
         description="User email for account recovery",
         example="user@example.com",
-        regex="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "username": "quizwhiz",
                 "display_name": "Quiz Whiz",
@@ -717,7 +717,7 @@ class EconomyState(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "energy": 75,
                 "hearts": 4,
@@ -786,7 +786,7 @@ class GameResult(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "type": "quiz_complete",
                 "category": "science",
@@ -826,7 +826,7 @@ class EnergySpendRequest(BaseModel):
     )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "amount": 10,
                 "activity_type": "quiz_start",
@@ -1155,6 +1155,146 @@ async def get_audio_usage():
     """Get current audio generation usage stats"""
     stats = await audio_service.get_usage_stats()
     return stats
+
+# Player Feedback endpoints
+class FeedbackRequest(BaseModel):
+    """Request model for submitting player feedback"""
+    content_id: UUID = Field(
+        ...,
+        description="ID of the content being reviewed",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    )
+    feedback_type: str = Field(
+        ...,
+        description="Type of feedback: 'thumbs_up', 'thumbs_down', 'difficulty', 'flag', 'emote'",
+        example="thumbs_up"
+    )
+    user_id: Optional[UUID] = Field(
+        None,
+        description="User ID if authenticated",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    )
+    session_id: Optional[str] = Field(
+        None,
+        description="Session ID for anonymous users",
+        example="session_123"
+    )
+    # Type-specific fields
+    rating: Optional[int] = Field(
+        None,
+        description="Difficulty rating (1-5) for 'difficulty' feedback",
+        ge=1,
+        le=5,
+        example=3
+    )
+    reason: Optional[str] = Field(
+        None,
+        description="Reason for flagging (for 'flag' feedback)",
+        example="wrong_answer"
+    )
+    details: Optional[str] = Field(
+        None,
+        description="Additional details for flag feedback",
+        example="The capital of France is Paris, not London"
+    )
+    emote: Optional[str] = Field(
+        None,
+        description="Emote reaction (for 'emote' feedback)",
+        example="mind_blown"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "content_id": "550e8400-e29b-41d4-a716-446655440000",
+                "feedback_type": "thumbs_up",
+                "session_id": "session_abc123"
+            }
+        }
+
+@app.post("/api/feedback/submit",
+    tags=["Feedback"],
+    summary="Submit player feedback",
+    description="Submit feedback for quiz content including ratings, flags, and reactions",
+    response_description="Feedback submission result with rewards")
+async def submit_feedback(feedback: FeedbackRequest):
+    """Submit player feedback for content quality control"""
+    from player_feedback import player_feedback_system
+    
+    # Convert request to feedback data
+    feedback_data = {
+        "content_id": feedback.content_id,
+        "feedback_type": feedback.feedback_type,
+        "user_id": feedback.user_id,
+        "session_id": feedback.session_id
+    }
+    
+    # Add type-specific fields
+    if feedback.feedback_type == "difficulty" and feedback.rating:
+        feedback_data["rating"] = feedback.rating
+    elif feedback.feedback_type == "flag":
+        feedback_data["reason"] = feedback.reason or "other"
+        feedback_data["details"] = feedback.details or ""
+    elif feedback.feedback_type == "emote" and feedback.emote:
+        feedback_data["emote"] = feedback.emote
+    
+    result = await player_feedback_system.submit_feedback(feedback_data)
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.get("/api/feedback/content/{content_id}",
+    tags=["Feedback"],
+    summary="Get feedback summary for content",
+    description="Retrieve aggregated feedback data for a specific piece of content")
+async def get_content_feedback(content_id: UUID):
+    """Get aggregated feedback for a content item"""
+    from player_feedback import player_feedback_system
+    
+    summary = await player_feedback_system.get_content_feedback_summary(content_id)
+    return summary
+
+@app.get("/api/feedback/user/{user_id}/stats",
+    tags=["Feedback"],
+    summary="Get user feedback statistics",
+    description="Retrieve a user's feedback history and achievements")
+async def get_user_feedback_stats(user_id: UUID):
+    """Get user's feedback statistics and achievements"""
+    from player_feedback import player_feedback_system
+    
+    stats = await player_feedback_system.get_user_feedback_stats(user_id)
+    return stats
+
+@app.get("/api/validation/stats",
+    tags=["Validation"],
+    summary="Get validation statistics",
+    description="Retrieve overall validation system statistics")
+async def get_validation_stats():
+    """Get validation system statistics"""
+    from validation_service import validation_service
+    
+    stats = await validation_service.get_validation_stats()
+    return {
+        "validation_stats": stats,
+        "timestamp": datetime.utcnow()
+    }
+
+@app.post("/api/validation/validate/{content_id}",
+    tags=["Validation"],
+    summary="Manually trigger validation",
+    description="Manually trigger validation for a specific quiz set (admin only)")
+async def trigger_validation(
+    content_id: UUID,
+    api_key: str = Query(..., description="Admin API key")
+):
+    """Manually trigger validation for a quiz set"""
+    # TODO: Verify admin API key
+    from validation_service import validation_service
+    
+    result = await validation_service.validate_quiz_set(content_id)
+    return result
 
 # WebSocket for real-time updates
 @app.websocket("/ws")

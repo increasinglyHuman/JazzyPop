@@ -96,9 +96,10 @@ Get flashcard content for practice mode.
 ```
 
 **Categories:**
-- `famous_quotes` - Quote flashcards
-- `bad_puns` - Pun flashcards  
-- `trivia_mix` - Mixed trivia content
+- `famous_quotes` - Quote flashcards (fill-in-the-blank author challenge)
+- `bad_puns` - Pun flashcards (multi-page conversation format)
+- `knock_knock` - Knock-knock jokes (5-page conversation format)
+- `trivia_mix` - Factoids with simple-flip format (fascinating fact on front, mind-blowing detail on back)
 
 **Response:**
 ```json
@@ -106,13 +107,12 @@ Get flashcard content for practice mode.
   "cards": [
     {
       "id": "card-id",
-      "category": "Trivia",
-      "type": "trivia",
-      "content": "The Great Wall of China was originally built to keep out rabbits",
-      "challengeType": "true-false",
-      "challenge": "Is this fact true?",
-      "answer": "False",
-      "difficulty": "easy"
+      "category": "Factoid 🤯",
+      "type": "factoid",
+      "content": "Honey never spoils.",
+      "answer": "Archaeologists have found 3000-year-old honey in Egyptian tombs that was still perfectly edible. Its low moisture content and acidic pH create an environment where bacteria can't survive.",
+      "challengeType": "simple-flip",
+      "difficulty": "medium"
     }
   ]
 }

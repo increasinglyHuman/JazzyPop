@@ -162,8 +162,8 @@ function updateAvatarDisplay() {
     if (avatar && avatar.file) {
         // User has selected a bot avatar - use it
         const imagePath = avatar.id === 'default' 
-            ? '../src/images/p0qp0q-clean.svg'
-            : `../src/images/profile-bots/${avatar.file}`;
+            ? './src/images/p0qp0q-clean.svg'
+            : `./src/images/profile-bots/${avatar.file}`;
         
         avatarElement.innerHTML = `<img src="${imagePath}" alt="${avatar.name}">`;
     } else {
@@ -176,7 +176,7 @@ function updateAvatarDisplay() {
             avatarElement.innerHTML = `<img src="${userPicture}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
         } else {
             // Default to p0qp0q
-            avatarElement.innerHTML = `<img src="../src/images/p0qp0q-clean.svg" alt="P0qP0q">`;
+            avatarElement.innerHTML = `<img src="./src/images/p0qp0q-clean.svg" alt="P0qP0q">`;
         }
     }
 }
@@ -225,8 +225,8 @@ function populateAvatarRow() {
         if (avatar.file) {
             // Special case for p0qp0q which is in main images folder
             const imagePath = avatar.id === 'default' 
-                ? '../src/images/p0qp0q-clean.svg'
-                : `../src/images/profile-bots/${avatar.file}`;
+                ? './src/images/p0qp0q-clean.svg'
+                : `./src/images/profile-bots/${avatar.file}`;
             preview.innerHTML = `<img src="${imagePath}" alt="${avatar.name}" onerror="this.style.display='none'" style="pointer-events: none;">`;
         }
         
@@ -1210,6 +1210,12 @@ let dashboardSyncInterval = null;
 
 // Update dashboard display with economy data
 function updateDashboardDisplay(economyData) {
+    // Safety check for undefined data
+    if (!economyData) {
+        console.warn('updateDashboardDisplay called with undefined data');
+        return;
+    }
+    
     // Update XP and level
     const userLevel = document.getElementById('userLevel');
     const xpFill = document.getElementById('xpFill');
@@ -1327,7 +1333,11 @@ function startDashboardSync() {
     });
     
     window.addEventListener('economyUpdated', (e) => {
-        updateDashboardDisplay(e.detail);
+        if (e.detail) {
+            updateDashboardDisplay(e.detail);
+        } else if (window.economyManager) {
+            updateDashboardDisplay(window.economyManager.getDisplayState());
+        }
     });
 }
 

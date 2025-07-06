@@ -34,6 +34,8 @@ X-Session-ID: <session-id>
 5. **[Leaderboard Endpoints](endpoints/leaderboard.md)** - Rankings and competition
 6. **[Audio Endpoints](endpoints/audio.md)** - Text-to-speech services
 7. **[Content Endpoints](endpoints/content.md)** - General content delivery
+8. **[Feedback Endpoints](endpoints/feedback.md)** - Player feedback and quality control
+9. **[Validation Endpoints](endpoints/validation.md)** - Content validation system
 
 ## Common Response Formats
 

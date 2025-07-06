@@ -724,7 +724,7 @@
 }
 
 .badge-speed-mode {
-    background: linear-gradient(45deg, #f7971e, #ffd200);
+    background: linear-gradient(45deg, #ff6600, #ff8800); /* Orange instead of yellow */
     color: #0f1b20;
     animation: speed-badge-flash 1s ease-in-out infinite;
 }

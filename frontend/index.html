@@ -25,30 +25,37 @@
         <link rel="apple-touch-icon" href="./src/images/p0qp0q-clean.svg" />
 
         <!-- External CSS Files -->
+        <link rel="stylesheet" href="./src/styles/base/reset.css" />
+        <link rel="stylesheet" href="./src/styles/base/variables.css" />
+        <link rel="stylesheet" href="./src/styles/base/typography.css" />
         <link rel="stylesheet" href="./src/styles/components/dashboard.css" />
         <link
             rel="stylesheet"
             href="./src/styles/components/profile-selector.css"
         />
-        <link rel="stylesheet" href="./src/styles/components/card.css" />
-        <link rel="stylesheet" href="./src/styles/components/card-economics-new.css" />
+        <link rel="stylesheet" href="./src/styles/components/card.css?v=20250104" />
+        <link rel="stylesheet" href="./src/styles/components/card-economics-new.css?v=20250104e" />
         <link rel="stylesheet" href="./src/styles/components/settings.css" />
-        <link rel="stylesheet" href="./src/styles/components/quiz-modal.css" />
+        <link rel="stylesheet" href="./src/styles/components/quiz-modal.css?v=20250104" />
         <link
             rel="stylesheet"
             href="./src/styles/components/flashcard-modal.css"
         />
         <!-- TESTING: Re-enabling to review styles one by one -->
-        <!-- <link
+        <link
             rel="stylesheet"
             href="./src/styles/components/flashcard-modal-enhanced.css"
-        /> -->
+        />
         <link
             rel="stylesheet"
             href="./src/styles/components/herding-game.css"
         />
         <link rel="stylesheet" href="./src/styles/components/alert-modal.css" />
-        <link rel="stylesheet" href="./src/styles/components/rewards-popup.css" />
+        <link rel="stylesheet" href="./src/styles/components/rewards-popup.css?v=20250104" />
+        <link rel="stylesheet" href="./src/styles/components/rewards-display.css" />
+        <link rel="stylesheet" href="./src/styles/components/event-dots.css" />
+        <link rel="stylesheet" href="./src/styles/components/joke-pages.css" />
+        <link rel="stylesheet" href="./src/styles/components/wonder-meter.css" />
     </head>
     <body>
         <div class="app">
@@ -315,9 +322,12 @@
 
         <!-- External JavaScript -->
         <script src="./src/config/CardConfig.js"></script>
+        <script src="./src/core/SoundManager.js"></script>
         <script src="./src/components/AlertModal.js"></script>
         <script src="./src/components/RewardsPopup.js"></script>
+        <script src="./src/components/RewardsDisplay.js"></script>
         <script src="./src/components/EconomyManager.js?v=20250104"></script>
+        <script src="./src/components/EventDotsDisplay.js"></script>
         <script src="./src/components/ScoringEngine.js"></script>
         <script src="./src/components/GenericCard.js"></script>
         <script src="./src/components/GenericCardEnhanced.js"></script>
@@ -325,6 +335,8 @@
         <script src="./src/components/CardManager.js"></script>
         <script src="./src/components/SettingsPanel.js"></script>
         <script src="./src/components/QuizModal.js"></script>
+        <script src="./src/components/GiggleMeter.js"></script>
+        <script src="./src/components/WonderMeter.js"></script>
         <script src="./src/components/FlashcardModal.js"></script>
         <script src="./src/components/HerdingGame.js"></script>
         <script src="./src/scripts/dashboard.js"></script>

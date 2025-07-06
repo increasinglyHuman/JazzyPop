@@ -1,0 +1,358 @@
+/**
+ * RewardsDisplay Component Styles
+ * Slot machine animation styles for reward displays
+ */
+
+/* Rewards Display Container */
+.rewards-display-container {
+    width: 100%;
+    padding: 20px;
+}
+
+/* Rewards Bar Container */
+.rewards-bar-container {
+    margin: 40px auto;
+    padding: 30px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    max-width: 600px;
+}
+
+/* Rewards Bar - Main container for slots */
+.rewards-bar {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    min-height: 100px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* Size variations */
+.rewards-bar-small {
+    gap: 15px;
+}
+
+.rewards-bar-small .reward-slot {
+    width: 60px;
+    height: 60px;
+}
+
+.rewards-bar-small .slot-item {
+    width: 60px;
+    height: 60px;
+}
+
+.rewards-bar-small .slot-item img {
+    width: 30px;
+    height: 30px;
+}
+
+.rewards-bar-large {
+    gap: 30px;
+}
+
+.rewards-bar-large .reward-slot {
+    width: 100px;
+    height: 100px;
+}
+
+.rewards-bar-large .slot-item {
+    width: 100px;
+    height: 100px;
+}
+
+.rewards-bar-large .slot-item img {
+    width: 50px;
+    height: 50px;
+}
+
+/* Theme variations */
+.rewards-bar-light {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.rewards-bar-light .reward-slot {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Individual Reward Slot */
+.reward-slot {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.reward-slot.celebrate {
+    animation: celebratePulse 0.6s ease-out;
+}
+
+@keyframes celebratePulse {
+    0% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(88, 204, 2, 0.7);
+    }
+    50% { 
+        transform: scale(1.05);
+        box-shadow: 0 0 20px 10px rgba(88, 204, 2, 0.3);
+    }
+    100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(88, 204, 2, 0);
+    }
+}
+
+/* Slot Reel Container */
+.slot-reel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Spinning animation */
+.slot-reel.spinning {
+    animation: slotSpin 0.3s linear infinite;
+}
+
+/* Final position when stopped */
+.slot-reel.stopped {
+    transform: translateY(-160px); /* Show the middle (3rd) item */
+}
+
+/* Individual slot items */
+.slot-item {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.slot-item img {
+    width: 40px;
+    height: 40px;
+    filter: brightness(0) invert(1); /* Make icons white by default */
+    transition: transform 0.2s ease;
+}
+
+/* Reward value display */
+.reward-value {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.reward-value.show {
+    opacity: 1;
+}
+
+/* Reward label */
+.reward-label {
+    position: absolute;
+    bottom: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* Slot spin animation */
+@keyframes slotSpin {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-400px); }
+}
+
+/* Quick Reward Notification Styles */
+.reward-notification {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 30px;
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* Position variations */
+.reward-notification-top {
+    top: 20px;
+    transform: translateX(-50%) translateY(-20px);
+}
+
+.reward-notification-top.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.reward-notification-center {
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+}
+
+.reward-notification-center.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.reward-notification-bottom {
+    bottom: 20px;
+    transform: translateX(-50%) translateY(20px);
+}
+
+.reward-notification-bottom.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Notification content */
+.reward-notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.reward-notification-icon {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(1);
+}
+
+.reward-notification-text {
+    font-size: 18px;
+    color: #58cc02;
+}
+
+/* Special styling for different reward types */
+.reward-slot[data-reward-type="hearts"] .slot-item img {
+    filter: none; /* Keep original heart color */
+}
+
+.reward-slot[data-reward-type="giftBox"] {
+    background: linear-gradient(135deg, rgba(243, 156, 18, 0.2), rgba(241, 196, 15, 0.2));
+    border-color: rgba(243, 156, 18, 0.5);
+}
+
+.reward-slot[data-reward-type="giftBox"] .slot-item img {
+    animation: giftShake 2s ease-in-out infinite;
+}
+
+@keyframes giftShake {
+    0%, 100% { transform: rotate(-3deg); }
+    25% { transform: rotate(3deg); }
+    50% { transform: rotate(-3deg); }
+    75% { transform: rotate(3deg); }
+}
+
+/* Mobile responsiveness */
+@media (max-width: 600px) {
+    .rewards-bar {
+        gap: 15px;
+    }
+    
+    .reward-slot {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .slot-item {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .slot-item img {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .slot-reel.stopped {
+        transform: translateY(-140px); /* Adjust for smaller size */
+    }
+    
+    .reward-value {
+        font-size: 18px;
+        bottom: -25px;
+    }
+    
+    .reward-label {
+        font-size: 11px;
+        bottom: -42px;
+    }
+}
+
+/* Integration with existing modals */
+.quiz-modal .rewards-display-container,
+.flashcard-modal .rewards-display-container {
+    margin: 30px 0;
+}
+
+/* Results screen integration */
+.results-screen .rewards-display-container {
+    margin: 40px 0;
+}
+
+/* Ensure rewards display works in dark mode */
+@media (prefers-color-scheme: dark) {
+    .rewards-bar-light {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .rewards-bar-light .reward-slot {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .slot-reel.spinning {
+        animation: none;
+    }
+    
+    .slot-reel.stopped {
+        transition: none;
+    }
+    
+    .reward-slot.celebrate {
+        animation: none;
+    }
+    
+    .reward-notification {
+        transition: opacity 0.3s ease;
+    }
+}

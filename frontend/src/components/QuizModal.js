@@ -76,6 +76,7 @@ class QuizModal {
     }
 
     async open(quizData, config = {}) {
+        console.log('QuizModal.open called, checking economyManager:', window.economyManager);
         // Check if user has enough energy to play
         if (window.economyManager) {
             const economyState = window.economyManager.getDisplayState();
@@ -98,7 +99,9 @@ class QuizModal {
             }
             
             // Deduct energy cost
+            console.log('Quiz: About to spend energy...');
             const energyResult = await window.economyManager.spendEnergy(10, 'quiz_start');
+            console.log('Quiz: Energy spend result:', energyResult);
             if (!energyResult.success) {
                 console.error('Failed to deduct energy:', energyResult.error);
                 return;
@@ -383,8 +386,8 @@ class QuizModal {
         img.style.width = '100%';
         img.style.height = '100%';
         img.src = isCorrect 
-            ? '../src/images/checkmark-bot.svg' 
-            : '../src/images/not-bot.svg';
+            ? './src/images/checkmark-bot.svg' 
+            : './src/images/not-bot.svg';
         
         bot.appendChild(img);
         this.modal.appendChild(bot);
@@ -421,6 +424,11 @@ class QuizModal {
     }
 
     async trackAnswer(isCorrect) {
+        // Increment correct answer count
+        if (isCorrect) {
+            this.correctAnswers++;
+        }
+        
         // Track the answer with the API
         try {
             const apiBase = window.API_URL || 'http://52.88.234.65:8000';
@@ -452,9 +460,9 @@ class QuizModal {
         
         // Show mode bot icon
         const botIcons = {
-            'chaos': '../src/images/chaos-bot.svg',
-            'zen': '../src/images/zen-bot.svg',
-            'speed': '../src/images/speed-bot.svg'
+            'chaos': './src/images/chaos-bot.svg',
+            'zen': './src/images/zen-bot.svg',
+            'speed': './src/images/speed-bot.svg'
         };
         
         if (botIcons[this.mode]) {
@@ -893,12 +901,12 @@ class QuizModal {
             </div>
         `;
         
-        // Change button to "Play Again"
+        // Change button to "Close"
         const submitBtn = document.getElementById('submitBtn');
-        submitBtn.textContent = 'Play Again';
+        submitBtn.textContent = 'Close';
         submitBtn.onclick = () => {
             this.close();
-            window.quizModal.open('new');
+            // Let user pick a new quiz from the dashboard
         };
     }
 }

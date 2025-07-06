@@ -171,9 +171,10 @@
 .card-event-badges {
     position: absolute !important;
     top: 10px !important; /* Moved way up to be just below cost bar */
-    right: 20px !important;
+    right: -10px !important; /* Negative margin to extend beyond card edge */
     display: flex;
     flex-direction: column; /* Vertical stacking */
+    align-items: flex-end; /* Align badges to the right */
     gap: 8px;
     z-index: 30 !important; /* Above content */
     max-width: 200px; /* 25% wider for text */
@@ -185,7 +186,7 @@
 }
 
 .event-badge {
-    padding: 14px 24px; /* Bigger padding for larger badges */
+    padding: 9px 24px; /* Reduced padding for shorter badges */
     border-radius: 30px;
     font-weight: 800;
     font-size: 14px; /* Slightly bigger text */
@@ -195,13 +196,25 @@
     white-space: nowrap;
     animation: badge-entrance 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 4px solid rgba(255, 255, 255, 0.4); /* Thicker borders */
+    /* Default bright orange-red gradient */
+    background: linear-gradient(135deg, #ff6600 0%, #ff3333 100%);
+    color: white;
 }
 
 @keyframes badge-entrance {
     0% { 
-        transform: scale(0) rotate(-180deg); 
+        transform: scale(0); 
         opacity: 0; 
+    }
+    50% { 
+        transform: scale(1.2) rotate(-10deg); 
+    }
+    75% { 
+        transform: scale(0.9) rotate(10deg); 
+    }
+    90% { 
+        transform: scale(1.05) rotate(-5deg); 
     }
     100% { 
         transform: scale(1) rotate(0); 
@@ -210,30 +223,51 @@
 }
 
 /* Event badge types - Hot tones only */
-.event-badge.power-hour {
-    background: #ff4444; /* Pure red */
-    color: white;
+.event-badge.power-hour,
+.event-badge.discount {
+    background: linear-gradient(135deg, #ff9500 0%, #ff5500 100%); /* Bright orange */
 }
 
-.event-badge.learning-party {
-    background: #ff6b35; /* Red-orange */
-    color: white;
+.event-badge.learning-party,
+.event-badge.boost {
+    background: linear-gradient(135deg, #ff7700 0%, #ff3300 100%); /* Orange-red */
 }
 
 .event-badge.perfect-streak {
-    background: #ff8c00; /* Orange */
-    color: white;
+    background: linear-gradient(135deg, #ff6600 0%, #ff2200 100%); /* Red-orange */
 }
 
-.event-badge.quest-active {
-    background: #ffa500; /* Orange-yellow */
-    color: #000;
+.event-badge.quest-active,
+.event-badge.gems {
+    background: linear-gradient(135deg, #ff8800 0%, #ff4400 100%); /* Bright orange blend */
 }
 
-.event-badge.limited-time {
-    background: #ff3333; /* Bright red */
-    color: white;
+.event-badge.limited-time,
+.event-badge.free {
+    background: linear-gradient(135deg, #ff5500 0%, #ff0000 100%); /* Bright red */
     /* Removed pulse animation for cleaner look */
+}
+
+/* Special event types */
+.event-badge.energy,
+.event-badge.celebration {
+    background: linear-gradient(135deg, #ff9900 0%, #ff3300 100%); /* Energetic orange */
+}
+
+.event-badge.hearts,
+.event-badge.gift {
+    background: linear-gradient(135deg, #ff6666 0%, #ff0033 100%); /* Valentine red */
+}
+
+.event-badge.chaos,
+.event-badge.spooky {
+    background: linear-gradient(135deg, #ff4500 0%, #cc0000 100%); /* Dark orange-red */
+}
+
+/* First lesson and tutorial badges */
+.event-badge.first-lesson,
+.event-badge.tutorial {
+    background: linear-gradient(135deg, #ff8833 0%, #ff4433 100%); /* Welcoming orange */
 }
 
 @keyframes pulse {
@@ -425,7 +459,8 @@
     .card-event-badges {
         max-width: 150px !important; /* 25% wider on mobile too */
         top: 5px !important; /* Much higher on mobile too */
-        right: 10px !important;
+        right: -5px !important; /* Slight negative margin on mobile */
+        align-items: flex-end !important; /* Align badges to the right on mobile too */
     }
     
     .event-badge {

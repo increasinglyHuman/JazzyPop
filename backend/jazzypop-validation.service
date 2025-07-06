@@ -1,0 +1,28 @@
+[Unit]
+Description=JazzyPop Validation Worker
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/jazzypop-backend
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/ubuntu/jazzypop-backend"
+ExecStart=/home/ubuntu/jazzypop-backend/venv/bin/python /home/ubuntu/jazzypop-backend/validation_worker.py
+Restart=always
+RestartSec=30
+StandardOutput=append:/var/log/jazzypop-validation.log
+StandardError=append:/var/log/jazzypop-validation.error.log
+
+# Restart conditions
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

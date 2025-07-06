@@ -1,4 +1,4 @@
-# Contributing to JazzyPop 🌸
+# Contributing to JazzyPop 
 
 We love your input! We want to make contributing to JazzyPop as easy and transparent as possible.
 
@@ -19,7 +19,6 @@ We love your input! We want to make contributing to JazzyPop as easy and transpa
 
 ## Design Guidelines
 
-- **Kawaii aesthetic**: Soft colors, rounded corners, playful animations
 - **Emojis**: Use sparingly and meaningfully
 - **Typography**: Large, readable fonts (min 16px)
 - **Touch targets**: Minimum 44x44px
@@ -41,7 +40,6 @@ npm test
 ## Reporting Bugs
 
 Use GitHub Issues. Include:
-- ALM version
 - Browser version
 - Steps to reproduce
 - Expected vs actual behavior

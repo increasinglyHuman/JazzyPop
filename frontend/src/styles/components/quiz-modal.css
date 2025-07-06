@@ -304,7 +304,7 @@
         rgba(255, 255, 255, 0.1) 50%, 
         transparent 70%);
     background-size: 200% 200%;
-    animation: water-shimmer 8s ease-in-out infinite;
+    animation: water-shimmer 20s ease-in-out infinite; /* Slowed from 8s to 20s for more soothing effect */
     pointer-events: none;
 }
 
@@ -743,7 +743,7 @@
 }
 
 .quiz-content.mode-zen .mode-bot-indicator {
-    animation: zen-bot-breathe 4s ease-in-out infinite;
+    animation: zen-bot-breathe 8s ease-in-out infinite; /* Slowed from 4s to 8s for calmer breathing */
 }
 
 .quiz-content.mode-speed .mode-bot-indicator {
@@ -830,7 +830,7 @@
         rgba(255, 255, 255, 0.1) 50%, 
         transparent 70%);
     background-size: 200% 200%;
-    animation: water-shimmer 8s ease-in-out infinite;
+    animation: water-shimmer 20s ease-in-out infinite; /* Slowed from 8s to 20s for more soothing effect */
     pointer-events: none;
 }
 

@@ -62,6 +62,7 @@ body {
     background: var(--bg-card);
     padding: 16px 12px;
     border-bottom: 1px solid var(--border);
+    position: relative; /* For absolute positioning of event dots */
 }
 
 .user-section {

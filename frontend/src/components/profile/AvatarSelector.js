@@ -56,7 +56,7 @@ export class AvatarSelector {
                 </div>
                 
                 <div class="current-avatar">
-                    <img src./src/images/profile-bots/${this.selectedAvatar}.svg" 
+                    <img src="./src/images/profile-bots/${this.selectedAvatar}.svg" 
                          alt="Current avatar" 
                          class="current-avatar-img">
                     <p class="current-avatar-name">${this.getAvatarName(this.selectedAvatar)}</p>
@@ -102,7 +102,7 @@ export class AvatarSelector {
                         <img src="${imagePath}" 
                              alt="${this.getAvatarName(avatarId)}"
                              class="avatar-image"
-                             onerror="this.src./src/images/profile-bots/bot-default-anon.svg'">
+                             onerror="this.src='./src/images/profile-bots/bot-default-anon.svg'">
                         ${!isUnlocked ? `
                             <div class="lock-overlay">
                                 <span class="lock-icon">🔒</span>
@@ -139,7 +139,7 @@ export class AvatarSelector {
         };
         
         const filename = mapping[avatarId] || avatarId;
-        return./src/images/profile-bots/${filename}.svg`;
+        return `./src/images/profile-bots/${filename}.svg`;
     }
     
     getAvatarName(avatarId) {

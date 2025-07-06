@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RewardsDisplay Component Demo</title>
+    
+    <!-- Include the styles -->
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/components/rewards-display.css">
+    
+    <style>
+        body {
+            background: #1a1a1a;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+        }
+        
+        .demo-section {
+            margin: 40px 0;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 10px;
+        }
+        
+        .demo-section h2 {
+            margin-bottom: 20px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .demo-button {
+            padding: 10px 20px;
+            background: #58cc02;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .demo-button:hover {
+            background: #6dd30f;
+            transform: translateY(-2px);
+        }
+        
+        #demoContainer {
+            min-height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>RewardsDisplay Component Demo</h1>
+    
+    <div class="demo-section">
+        <h2>Slot Machine Animation Demo</h2>
+        
+        <div class="demo-controls">
+            <button class="demo-button" onclick="showSmallRewards()">Small Rewards</button>
+            <button class="demo-button" onclick="showMediumRewards()">Medium Rewards</button>
+            <button class="demo-button" onclick="showLargeRewards()">Large Rewards</button>
+            <button class="demo-button" onclick="showAllRewards()">All Rewards</button>
+            <button class="demo-button" onclick="showQuizRewards()">Quiz Completion</button>
+            <button class="demo-button" onclick="showDailyBonus()">Daily Bonus</button>
+        </div>
+        
+        <div id="demoContainer"></div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>Quick Notification Demo</h2>
+        
+        <div class="demo-controls">
+            <button class="demo-button" onclick="showQuickCoin()">Quick Coin</button>
+            <button class="demo-button" onclick="showQuickXP()">Quick XP</button>
+            <button class="demo-button" onclick="showQuickHeart()">Quick Heart</button>
+            <button class="demo-button" onclick="showQuickGem()">Quick Diamond</button>
+        </div>
+    </div>
+    
+    <!-- Include the RewardsDisplay component -->
+    <script src="RewardsDisplay.js"></script>
+    
+    <script>
+        // Initialize rewards display
+        const rewardsDisplay = new RewardsDisplay();
+        const demoContainer = document.getElementById('demoContainer');
+        
+        // Demo functions
+        async function showSmallRewards() {
+            demoContainer.innerHTML = '';
+            const rewards = {
+                coins: 50,
+                xp: 100
+            };
+            await rewardsDisplay.show(rewards, demoContainer, { size: 'small' });
+        }
+        
+        async function showMediumRewards() {
+            demoContainer.innerHTML = '';
+            const rewards = {
+                coins: 100,
+                tickets: 5,
+                xp: 200
+            };
+            await rewardsDisplay.show(rewards, demoContainer, { size: 'medium' });
+        }
+        
+        async function showLargeRewards() {
+            demoContainer.innerHTML = '';
+            const rewards = {
+                coins: 500,
+                diamonds: 2,
+                hearts: 3,
+                xp: 1000
+            };
+            await rewardsDisplay.show(rewards, demoContainer, { size: 'large' });
+        }
+        
+        async function showAllRewards() {
+            demoContainer.innerHTML = '';
+            const rewards = {
+                hearts: 5,
+                giftBox: 1,
+                diamonds: 3,
+                amethysts: 10,
+                rubies: 5,
+                emeralds: 7,
+                sapphires: 4,
+                coins: 1000,
+                keys: 3,
+                tickets: 20,
+                xp: 5000
+            };
+            await rewardsDisplay.show(rewards, demoContainer, { size: 'medium' });
+        }
+        
+        async function showQuizRewards() {
+            demoContainer.innerHTML = '';
+            // Simulate quiz completion rewards
+            const rewards = {
+                coins: 150,
+                xp: 300,
+                tickets: 3,
+                sapphires: Math.random() > 0.7 ? 1 : 0 // 30% chance for gem
+            };
+            await rewardsDisplay.show(rewards, demoContainer, { size: 'medium' });
+        }
+        
+        async function showDailyBonus() {
+            demoContainer.innerHTML = '';
+            // Simulate daily bonus rewards
+            const rewards = {
+                coins: 500,
+                hearts: 5,
+                tickets: 10,
+                giftBox: 1,
+                xp: 1000
+            };
+            await rewardsDisplay.show(rewards, demoContainer, { size: 'large', theme: 'light' });
+        }
+        
+        // Quick notification demos
+        function showQuickCoin() {
+            rewardsDisplay.showQuickReward('coins', 50, { position: 'top' });
+        }
+        
+        function showQuickXP() {
+            rewardsDisplay.showQuickReward('xp', 100, { position: 'top' });
+        }
+        
+        function showQuickHeart() {
+            rewardsDisplay.showQuickReward('hearts', 1, { position: 'center' });
+        }
+        
+        function showQuickGem() {
+            rewardsDisplay.showQuickReward('diamonds', 1, { position: 'top', duration: 4000 });
+        }
+        
+        // Show initial demo on load
+        window.addEventListener('load', () => {
+            showMediumRewards();
+        });
+    </script>
+</body>
+</html>

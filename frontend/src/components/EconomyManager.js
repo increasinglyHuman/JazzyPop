@@ -61,6 +61,9 @@ class EconomyManager {
         this.activeBonuses = [];
         this.globalEvents = [];
         
+        // Special events system
+        this.activeEvents = new Map(); // event id -> event data
+        
         // Storage warning shown flag
         this.storageWarningShown = false;
         
@@ -114,15 +117,21 @@ class EconomyManager {
         // Sync with server immediately
         await this.syncWithServer();
         
-        // Set up periodic sync (every 30 seconds)
+        // Set up periodic sync (every 90 seconds - reduced from 30)
         this.syncInterval = setInterval(() => {
             this.syncWithServer();
-        }, 30000);
+        }, 90000);
         
-        // Set up heartbeat (detect tampering)
+        // Set up heartbeat (every 30 seconds - reduced from 5)
         this.heartbeatInterval = setInterval(() => {
             this.validateClientState();
-        }, 5000);
+        }, 30000);
+        
+        // Check for special events every minute
+        this.checkActiveEvents(); // Initial check
+        this.eventCheckInterval = setInterval(() => {
+            this.checkActiveEvents();
+        }, 60000); // Check every minute
         
         // Show warning if no localStorage
         if (!this.hasLocalStorage) {
@@ -233,7 +242,9 @@ class EconomyManager {
         
         // Send to server
         try {
+            console.log('Sending transaction to server:', transaction);
             const response = await this.sendToServer(transaction);
+            console.log('Server response:', response);
             
             if (response.success) {
                 // Server approved - update confirmed
@@ -658,6 +669,11 @@ class EconomyManager {
         if (xpText) {
             xpText.textContent = `${currentXP} / ${xpForNextLevel} XP`;
         }
+        
+        // Dispatch event to update other components
+        window.dispatchEvent(new CustomEvent('economyUpdated', { 
+            detail: this.getDisplayState() 
+        }));
     }
     
     // Public methods for game integration
@@ -808,7 +824,7 @@ class EconomyManager {
         const streakNotif = document.createElement('div');
         streakNotif.className = 'streak-notification';
         streakNotif.innerHTML = `
-            <img src="../src/images/power-icons/HotStreak.svg" alt="Streak">
+            <img src="./src/images/power-icons/HotStreak.svg" alt="Streak">
             <span>Streak Extended!</span>
         `;
         
@@ -871,7 +887,10 @@ class EconomyManager {
     }
     
     async spendEnergy(amount, reason) {
-        return this.requestResourceChange('spend', 'energy', amount, { reason });
+        console.log('spendEnergy called with amount:', amount, 'reason:', reason);
+        const result = await this.requestResourceChange('spend', 'energy', amount, { reason });
+        console.log('spendEnergy result:', result);
+        return result;
     }
     
     async earnXP(amount, source) {
@@ -1444,7 +1463,8 @@ class EconomyManager {
             category: category || cardType || 'general',
             mode: 'normal',
             streak: 0, // No streaks for practice
-            perfectScore: correctCount === totalCards
+            perfectScore: correctCount === totalCards,
+            isFactoid: cardType === 'factoid' // Special handling for factoids
         };
         
         return this.processGameResult(gameResult);
@@ -1545,10 +1565,262 @@ class EconomyManager {
         return true;
     }
     
+    // Special Events System
+    checkActiveEvents() {
+        const now = new Date();
+        const day = now.getDay(); // 0 = Sunday, 6 = Saturday
+        const hour = now.getHours();
+        const month = now.getMonth();
+        const date = now.getDate();
+        
+        // Store previous event state to detect changes
+        const previousEventIds = new Set(this.activeEvents.keys());
+        
+        // Clear existing events
+        this.activeEvents.clear();
+        
+        // Happy Hour - Every day 3-4 PM and 7-8 PM
+        if (hour === 15 || hour === 19) {
+            this.activeEvents.set('happy-hour', {
+                type: 'discount',
+                label: '🎉 HAPPY HOUR!',
+                description: '50% off all quizzes!',
+                costModifier: { type: 'percentage', value: 0.5 },
+                endTime: new Date(now.getTime() + 60 * 60 * 1000) // 1 hour
+            });
+        }
+        
+        // Weekend Special - Friday evening through Sunday
+        if ((day === 5 && hour >= 17) || day === 6 || day === 0) {
+            this.activeEvents.set('weekend-special', {
+                type: 'boost',
+                label: '🌟 Weekend Boost',
+                description: 'Double XP all weekend!',
+                xpMultiplier: 2,
+                endTime: day === 0 ? new Date(now.setHours(23, 59, 59)) : null
+            });
+        }
+        
+        // Day-specific events
+        const dayEvents = {
+            1: { // Monday
+                type: 'energy',
+                label: '☕ Monday Motivation',
+                description: 'Free energy refills!',
+                energyBonus: true
+            },
+            3: { // Wednesday
+                type: 'gems',
+                label: '💎 Gem Wednesday',
+                description: '+50% gem rewards!',
+                gemMultiplier: 1.5
+            },
+            5: { // Friday
+                type: 'free',
+                label: '🎊 Free Friday',
+                description: 'First quiz free!',
+                freePlay: 1
+            }
+        };
+        
+        if (dayEvents[day]) {
+            this.activeEvents.set('day-special', dayEvents[day]);
+        }
+        
+        // First Practice of the Day bonus
+        const lastPractice = localStorage.getItem('lastPracticeDate');
+        const today = now.toDateString();
+        if (lastPractice !== today) {
+            this.activeEvents.set('first-practice', {
+                type: 'limited',
+                label: '🌅 First Practice',
+                description: 'Daily bonus awaits! +50% XP on your first practice session',
+                practiceBonus: { xpMultiplier: 1.5 },
+                endTime: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+            });
+        }
+        
+        // Holiday events
+        const holidays = this.checkHolidays(month, date);
+        holidays.forEach(holiday => {
+            this.activeEvents.set(holiday.id, holiday);
+        });
+        
+        // Check if events have changed
+        const currentEventIds = new Set(this.activeEvents.keys());
+        const eventsChanged = previousEventIds.size !== currentEventIds.size || 
+                            [...previousEventIds].some(id => !currentEventIds.has(id)) ||
+                            [...currentEventIds].some(id => !previousEventIds.has(id));
+        
+        // Only notify cards to update if events have actually changed
+        if (eventsChanged) {
+            window.dispatchEvent(new Event('eventsUpdated'));
+        }
+        
+        return this.activeEvents;
+    }
+    
+    checkHolidays(month, date) {
+        const holidays = [];
+        
+        // Major holidays with special events
+        const holidayMap = {
+            '0-1': { // New Year's Day
+                id: 'new-year',
+                type: 'celebration',
+                label: '🎊 New Year Special',
+                description: 'Triple XP to start the year!',
+                xpMultiplier: 3
+            },
+            '1-14': { // Valentine's Day
+                id: 'valentine',
+                type: 'hearts',
+                label: '💝 Valentine Special',
+                description: 'Hearts never decrease!',
+                heartProtection: true
+            },
+            '3-1': { // April Fool's
+                id: 'april-fools',
+                type: 'chaos',
+                label: '🃏 April Fools!',
+                description: 'Chaos mode activated!',
+                forceMode: 'chaos'
+            },
+            '6-4': { // Independence Day
+                id: 'july-4',
+                type: 'freedom',
+                label: '🎆 Freedom Play',
+                description: 'All quizzes free!',
+                costModifier: { type: 'percentage', value: 1.0 }
+            },
+            '9-31': { // Halloween
+                id: 'halloween',
+                type: 'spooky',
+                label: '🎃 Halloween Special',
+                description: 'Mystery rewards doubled!',
+                mysteryMultiplier: 2
+            },
+            '11-25': { // Thanksgiving (approximate)
+                id: 'thanksgiving',
+                type: 'grateful',
+                label: '🦃 Thankful Thursday',
+                description: 'Share the bounty - all rewards doubled!',
+                allRewardsMultiplier: 2
+            },
+            '11-25': { // Christmas
+                id: 'christmas',
+                type: 'gift',
+                label: '🎄 Holiday Magic',
+                description: 'Gift boxes on every win!',
+                guaranteedGift: true
+            }
+        };
+        
+        const key = `${month}-${date}`;
+        if (holidayMap[key]) {
+            holidays.push(holidayMap[key]);
+        }
+        
+        return holidays;
+    }
+    
+    getActiveEvents() {
+        // Don't refresh here - just return current events
+        // checkActiveEvents should be called on a timer instead
+        
+        // Check for testing override
+        if (window.DISABLE_EVENTS_UNTIL && new Date() < window.DISABLE_EVENTS_UNTIL) {
+            return [];
+        }
+        
+        return Array.from(this.activeEvents.values());
+    }
+    
+    // Disable events for testing
+    disableEventsForMinutes(minutes = 30) {
+        window.DISABLE_EVENTS_UNTIL = new Date(Date.now() + minutes * 60 * 1000);
+        this.activeEvents.clear();
+        window.dispatchEvent(new Event('eventsUpdated'));
+        console.log(`[EconomyManager] Events disabled until ${window.DISABLE_EVENTS_UNTIL.toLocaleTimeString()}`);
+    }
+    
+    // Manual event trigger for testing
+    triggerSpecialEvent(eventType = 'half-off') {
+        const testEvents = {
+            'half-off': {
+                type: 'discount',
+                label: '💸 HALF OFF!',
+                description: '50% off all activities!',
+                costModifier: { type: 'percentage', value: 0.5 },
+                endTime: new Date(Date.now() + 30 * 60 * 1000) // 30 minutes
+            },
+            'free-play': {
+                type: 'free',
+                label: '🎁 FREE PLAY!',
+                description: 'Everything is FREE!',
+                costModifier: { type: 'percentage', value: 1.0 },
+                endTime: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+            },
+            'double-xp': {
+                type: 'boost',
+                label: '⚡ DOUBLE XP!',
+                description: 'Earn double experience!',
+                xpMultiplier: 2,
+                endTime: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+            },
+            'triple-gems': {
+                type: 'gems',
+                label: '💎 TRIPLE GEMS!',
+                description: 'Triple gem rewards!',
+                gemMultiplier: 3,
+                endTime: new Date(Date.now() + 45 * 60 * 1000) // 45 minutes
+            }
+        };
+        
+        if (testEvents[eventType]) {
+            this.activeEvents.set('manual-event', testEvents[eventType]);
+            window.dispatchEvent(new Event('eventsUpdated'));
+            
+            // Force card refresh
+            if (window.cardManager) {
+                window.cardManager.updateAffordability();
+            }
+            
+            console.log(`Special event triggered: ${eventType}`);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    applyEventModifiers(baseCost, resource = 'energy') {
+        let modifiedCost = baseCost;
+        
+        this.activeEvents.forEach(event => {
+            if (event.costModifier) {
+                if (event.costModifier.type === 'percentage') {
+                    modifiedCost = Math.floor(baseCost * (1 - event.costModifier.value));
+                } else if (event.costModifier.type === 'flat') {
+                    modifiedCost = Math.max(0, baseCost - event.costModifier.value);
+                }
+            }
+            
+            if (event.freePlay && this.displayCache.freePlayUsed !== true) {
+                modifiedCost = 0;
+                // Mark free play as used for today
+                this.displayCache.freePlayUsed = true;
+                this.saveToStorage();
+            }
+        });
+        
+        return modifiedCost;
+    }
+    
     // Cleanup
     destroy() {
         clearInterval(this.syncInterval);
         clearInterval(this.heartbeatInterval);
+        clearInterval(this.eventCheckInterval);
     }
 }
 

@@ -32,50 +32,66 @@ class TriviaSetGenerator:
             "horror_films", "language_evolution", "jokes"
         ]
         
-    async def generate_trivia_set(self) -> Dict[str, Any]:
-        """Generate a set of 10 true/false trivia questions"""
+    async def generate_trivia_set(self, theme: str = None) -> Dict[str, Any]:
+        """Generate a set of 10 factoids with simple-flip format"""
         
-        prompt = f"""Generate 10 interesting true/false trivia questions about various topics.
+        # Pick a random theme if not specified
+        if not theme:
+            import random
+            theme = random.choice(self.categories)
+        
+        prompt = f"""Generate 10 fascinating factoids ALL about {theme}.
 
-        REQUIREMENTS FOR EACH TRIVIA QUESTION:
-        1. Make it surprising or counterintuitive
-        2. Include a fascinating explanation
-        3. Mix difficulties - some obvious, some tricky
-        4. The statement should be definitively true or false
-        5. Avoid ambiguous or opinion-based statements
-        6. Cover diverse themes from: {', '.join(self.categories)}
-        7. Balance between True and False answers (aim for 5-5 or 6-4 split)
+        REQUIREMENTS:
+        1. ALL 10 factoids MUST be about {theme} - do not mix topics
+        2. Create a simple, interesting fact as the front (keep under 80 characters)
+        3. Add a mind-blowing detail or twist as the back (keep under 200 characters)
+        4. Make it surprising and memorable
+        5. Focus on "wow factor" - things that make people say "I never knew that!"
+        6. Vary difficulty levels (mix of easy, medium, hard)
+        7. Each factoid must have accurate, verifiable information
         
-        Return a JSON array with exactly 10 trivia questions in this format:
+        IMPORTANT: Return ONLY valid JSON array with no extra text before or after
+        
+        Return ONLY a JSON array with exactly 10 factoids in this format (no markdown, no extra text):
         [
             {{
                 "id": 1,
-                "content": "A statement that is either true or false",
-                "answer": "True" or "False",
+                "fact": "The simple, interesting fact (under 80 chars)",
+                "detail": "The mind-blowing detail or deeper explanation (under 200 chars)",
+                "content": "{{fact}}",
+                "answer": "{{detail}}",
                 "category": "trivia_mix",
                 "difficulty": "easy|medium|hard",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "Detailed explanation of why it's true/false with interesting context",
-                "theme": "{"|".join(self.categories)}"
+                "challengeType": "simple-flip",
+                "theme": "science"
             }},
-            ... (9 more questions)
+            ... (9 more factoids)
         ]
         
-        Example themes and questions:
-        - Space: "A day on Venus is longer than a year on Venus." (True)
-        - Animals: "Octopuses have three hearts and blue blood." (True)
-        - History: "Oxford University is older than the Aztec Empire." (True)
-        - Science: "Bananas are berries, but strawberries are not." (True)
-        - Technology: "The first computer bug was an actual insect." (True)
-        - Geography: "Russia has a larger surface area than Pluto." (True)
-        - Food: "Honey never spoils." (True)
-        - Pop Culture: "The name 'Jessica' was invented by Shakespeare." (True)
+        Note: Include both 'fact'/'detail' (for clarity) AND 'content'/'answer' (for compatibility)
+        
+        Example factoids:
+        - Space: 
+          Front: "You could fit all the planets between Earth and the Moon."
+          Back: "The average Earth-Moon distance is 384,400 km. The diameters of all planets combined equal about 380,000 km. They'd fit with about 4,400 km to spare!"
+        
+        - Animals:
+          Front: "Wombat poop is cube-shaped."
+          Back: "Wombats produce 80-100 cube-shaped poops per night. Scientists discovered their intestines have varying elasticity that creates the unique shape."
+        
+        - History:
+          Front: "Oxford University is older than the Aztec Empire."
+          Back: "Teaching began at Oxford in 1096, while the Aztec Empire was founded in 1428. Oxford was already 332 years old when the Aztecs started building Tenochtitlan."
+        
+        - Science:
+          Front: "Honey never spoils."
+          Back: "Archaeologists have found 3000-year-old honey in Egyptian tombs that was still perfectly edible. Its low moisture content and acidic pH create an environment where bacteria can't survive."
         
         Make sure to:
-        - Include surprising facts that make people go "Really?!"
+        - Front: Simple, catchy fact that hooks interest
+        - Back: Fascinating detail that expands on the fact with specific numbers, dates, or surprising context
         - Mix well-known facts with obscure but fascinating ones
-        - Create explanations that teach something interesting
         - Use specific categories from the provided list for the theme field
         - Vary the topics to cover different areas of knowledge
         """
@@ -119,18 +135,20 @@ class TriviaSetGenerator:
                                     "id": str(uuid4()),
                                     "type": "trivia_set",
                                     "data": {
-                                        "title": "Mind-Blowing Facts: True or False Challenge",
+                                        "title": f"Factoids: {theme.replace('_', ' ').title()}",
                                         "trivia": trivia_array[:10],  # Ensure exactly 10
                                         "category": "trivia_mix",
+                                        "theme": theme,  # Store the specific theme
                                         "difficulty": "varied",
                                         "total_questions": 10
                                     },
                                     "metadata": {
                                         "generated_at": datetime.utcnow().isoformat(),
                                         "generator_version": "2.0",
-                                        "question_type": "true_false"
+                                        "format": "factoid",
+                                        "theme": theme
                                     },
-                                    "tags": ["trivia_set", "flashcard", "facts"]
+                                    "tags": ["trivia_set", "flashcard", "facts", theme, "factoid"]
                                 }
                         else:
                             logger.error(f"API error: {response.status}")
@@ -144,112 +162,94 @@ class TriviaSetGenerator:
         fallback_trivia = [
             {
                 "id": 1,
+                "fact": "A shrimp's heart is located in its head.",
+                "detail": "It's in the thorax behind the rostrum, pumping hemolymph (their blood) through an open circulatory system.",
                 "content": "A shrimp's heart is located in its head.",
-                "answer": "True",
+                "answer": "It's in the thorax behind the rostrum, pumping hemolymph (their blood) through an open circulatory system.",
                 "category": "trivia_mix",
                 "difficulty": "medium",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "True! A shrimp's heart is indeed located in its head, specifically in the thorax region behind the rostrum. This is because shrimp have an open circulatory system where the heart pumps hemolymph (their version of blood) throughout their body.",
+                "challengeType": "simple-flip",
                 "theme": "animals"
             },
             {
                 "id": 2,
-                "content": "The Great Wall of China is visible from space with the naked eye.",
-                "answer": "False",
+                "content": "The Great Wall of China is NOT visible from space.",
+                "answer": "This is a common myth. The wall is too narrow and follows natural contours, making it indistinguishable from space without aid. Many astronauts have confirmed you cannot see it with the naked eye from orbit.",
                 "category": "trivia_mix",
                 "difficulty": "easy",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "False! This is a common myth. The Great Wall is not visible from space without aid. Many astronauts have confirmed this. The wall is too narrow and follows the natural contours of the landscape, making it indistinguishable from space.",
+                "challengeType": "simple-flip",
                 "theme": "famous_lies"
             },
             {
                 "id": 3,
                 "content": "Cleopatra lived closer in time to the Moon landing than to the construction of the Great Pyramid.",
-                "answer": "True",
+                "answer": "Cleopatra lived around 30 BCE, about 2,000 years before the Moon landing in 1969. The Great Pyramid was built around 2,560 BCE, which is 2,500 years before her time. She's 500 years closer to us than to the pyramids!",
                 "category": "trivia_mix",
                 "difficulty": "hard",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "True! Cleopatra lived around 30 BCE, about 2,000 years before the Moon landing in 1969. The Great Pyramid was built around 2,560 BCE, which is about 2,500 years before Cleopatra's time. She's 500 years closer to us than to the pyramids!",
+                "challengeType": "simple-flip",
                 "theme": "history"
             },
             {
                 "id": 4,
-                "content": "Bananas grow on trees.",
-                "answer": "False",
+                "content": "Bananas don't grow on trees.",
+                "answer": "Bananas grow on large herbaceous plants, not trees. What looks like a tree trunk is actually a 'pseudostem' made of tightly packed leaf bases. The banana plant is the world's largest herb!",
                 "category": "trivia_mix",
                 "difficulty": "medium",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "False! Bananas actually grow on large herbaceous plants, not trees. What looks like a tree trunk is actually a 'pseudostem' made of tightly packed leaf bases. The banana plant is the world's largest herb!",
+                "challengeType": "simple-flip",
                 "theme": "nature"
             },
             {
                 "id": 5,
                 "content": "There are more possible games of chess than atoms in the observable universe.",
-                "answer": "True",
+                "answer": "The number of possible chess games is estimated at 10^120, while atoms in the observable universe number around 10^80. This mind-boggling fact is known as the Shannon Number.",
                 "category": "trivia_mix",
                 "difficulty": "hard",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "True! The number of possible chess games is estimated at 10^120, while the number of atoms in the observable universe is estimated at 10^80. This mind-boggling fact is known as the Shannon Number.",
+                "challengeType": "simple-flip",
                 "theme": "gaming"
             },
             {
                 "id": 6,
-                "content": "Goldfish have a memory span of only 3 seconds.",
-                "answer": "False",
+                "content": "Goldfish can remember things for months, not seconds.",
+                "answer": "Studies show goldfish can remember things for at least 3 months, and some research suggests even longer. They can be trained to recognize shapes, colors, and even specific humans!",
                 "category": "trivia_mix",
                 "difficulty": "easy",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "False! Studies have shown that goldfish can remember things for at least 3 months, and some research suggests even longer. They can be trained to recognize shapes, colors, and even specific humans!",
+                "challengeType": "simple-flip",
                 "theme": "animals"
             },
             {
                 "id": 7,
                 "content": "The first computer programmer was a woman.",
-                "answer": "True",
+                "answer": "Ada Lovelace, daughter of poet Lord Byron, wrote the first algorithm in 1843 intended for Charles Babbage's Analytical Engine. She envisioned computers could do more than just calculations.",
                 "category": "trivia_mix",
                 "difficulty": "medium",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "True! Ada Lovelace, daughter of the poet Lord Byron, is considered the first computer programmer. In 1843, she wrote the first algorithm intended to be processed by Charles Babbage's Analytical Engine.",
+                "challengeType": "simple-flip",
                 "theme": "technology"
             },
             {
                 "id": 8,
-                "content": "Lightning never strikes the same place twice.",
-                "answer": "False",
+                "content": "Lightning strikes the same place multiple times.",
+                "answer": "The Empire State Building is struck by lightning about 25 times per year. Tall structures and high points are particularly prone to repeated strikes, debunking the old myth.",
                 "category": "trivia_mix",
                 "difficulty": "easy",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "False! Lightning can and often does strike the same place multiple times. The Empire State Building, for example, is struck by lightning about 25 times per year. Tall structures and high points are particularly prone to repeated strikes.",
+                "challengeType": "simple-flip",
                 "theme": "science"
             },
             {
                 "id": 9,
                 "content": "Oxford University is older than the Aztec Empire.",
-                "answer": "True",
+                "answer": "Oxford University was teaching students as early as 1096, while the Aztec Empire was founded in 1428. Oxford is over 300 years older than the Aztec Empire!",
                 "category": "trivia_mix",
                 "difficulty": "hard",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "True! Oxford University was teaching students as early as 1096, while the Aztec Empire was founded in 1428. Oxford is over 300 years older than the Aztec Empire!",
+                "challengeType": "simple-flip",
                 "theme": "history"
             },
             {
                 "id": 10,
                 "content": "Humans share 50% of their DNA with bananas.",
-                "answer": "True",
+                "answer": "All life on Earth shares a common ancestor, so many basic cellular functions are similar across species. We also share 60% with fruit flies and 96% with chimpanzees!",
                 "category": "trivia_mix",
                 "difficulty": "medium",
-                "challengeType": "true-false",
-                "challenge": "Is this statement true or false?",
-                "explanation": "True! Humans share about 50% of their DNA with bananas. This is because all life on Earth shares a common ancestor, and many basic cellular functions are similar across species. We also share 60% with fruit flies and 96% with chimpanzees!",
+                "challengeType": "simple-flip",
                 "theme": "science"
             }
         ]
@@ -258,7 +258,7 @@ class TriviaSetGenerator:
             "id": str(uuid4()),
             "type": "trivia_set",
             "data": {
-                "title": "Classic Trivia Collection",
+                "title": "Factoids: Mixed Topics",
                 "trivia": fallback_trivia,
                 "category": "trivia_mix",
                 "difficulty": "varied",
@@ -291,11 +291,11 @@ class TriviaSetGenerator:
 # Instance for use in other modules
 trivia_set_generator = TriviaSetGenerator()
 
-async def generate_and_store_trivia_set():
+async def generate_and_store_trivia_set(theme: str = None):
     """Generate a trivia set and store it"""
-    trivia_set = await trivia_set_generator.generate_trivia_set()
+    trivia_set = await trivia_set_generator.generate_trivia_set(theme)
     await trivia_set_generator.store_trivia_set(trivia_set)
-    return trivia_set["id"]
+    return trivia_set["id"], trivia_set["data"].get("theme", "mixed")
 
 async def run_trivia_set_generator():
     """Run trivia set generator continuously"""
@@ -304,11 +304,20 @@ async def run_trivia_set_generator():
     # Generate trivia sets every 40 minutes (offset from other generators)
     generation_interval = int(os.getenv('TRIVIA_SET_GENERATION_INTERVAL', '2400'))
     
+    # Track which themes we've generated to ensure variety
+    theme_index = 0
+    
     while True:
         try:
+            # Cycle through themes to ensure variety
+            theme = trivia_set_generator.categories[theme_index % len(trivia_set_generator.categories)]
+            
             # Generate and store trivia set
-            set_id = await generate_and_store_trivia_set()
-            logger.info(f"Generated trivia set: {set_id}")
+            set_id, set_theme = await generate_and_store_trivia_set(theme)
+            logger.info(f"Generated {set_theme} trivia set: {set_id}")
+            
+            # Move to next theme
+            theme_index += 1
             
             # Clear flashcard cache
             if db.redis:

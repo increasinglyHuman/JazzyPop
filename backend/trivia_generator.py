@@ -26,40 +26,69 @@ class TriviaGenerator:
             "mythology", "literature", "art", "nature", "culture"
         ]
         
-    async def generate_single_trivia(self, theme: str) -> Dict[str, Any]:
-        """Generate a single true/false trivia question"""
+    async def generate_single_trivia(self, theme: str, format: str = "true-false") -> Dict[str, Any]:
+        """Generate a single trivia item - either true/false or factoid"""
         
-        prompt = f"""Generate an interesting true/false trivia question about {theme}.
+        if format == "factoid":
+            prompt = f"""Generate a fascinating factoid about {theme}.
 
-        REQUIREMENTS:
-        1. Make it surprising or counterintuitive
-        2. Include a fascinating explanation
-        3. Mix difficulties - some obvious, some tricky
-        4. The statement should be definitively true or false
-        5. Avoid ambiguous or opinion-based statements
-        
-        Return JSON with this exact format:
-        {{
-            "content": "A statement that is either true or false",
-            "answer": "True" or "False",
-            "category": "trivia_mix",
-            "difficulty": "easy|medium|hard",
-            "challengeType": "true-false",
-            "challenge": "Is this statement true or false?",
-            "explanation": "Detailed explanation of why it's true/false with interesting context"
-        }}
-        
-        Example:
-        {{
-            "content": "A shrimp's heart is located in its head.",
-            "answer": "True",
-            "category": "trivia_mix",
-            "difficulty": "medium",
-            "challengeType": "true-false",
-            "challenge": "Is this statement true or false?",
-            "explanation": "True! A shrimp's heart is indeed located in its head, specifically in the thorax region behind the rostrum. This is because shrimp have an open circulatory system where the heart pumps hemolymph (their version of blood) throughout their body."
-        }}
-        """
+            REQUIREMENTS:
+            1. Create a simple, interesting fact as the front
+            2. Add a mind-blowing detail or twist as the back
+            3. Make it surprising and memorable
+            4. Keep both parts concise but engaging
+            5. Focus on "wow factor" - things that make people say "I never knew that!"
+            
+            Return JSON with this exact format:
+            {{
+                "content": "The simple, interesting fact",
+                "answer": "The mind-blowing detail or deeper explanation",
+                "category": "trivia_mix",
+                "difficulty": "easy|medium|hard",
+                "challengeType": "simple-flip"
+            }}
+            
+            Example:
+            {{
+                "content": "Honey never spoils.",
+                "answer": "Archaeologists have found 3000-year-old honey in Egyptian tombs that was still perfectly edible. Its low moisture content and acidic pH create an environment where bacteria can't survive.",
+                "category": "trivia_mix",
+                "difficulty": "medium",
+                "challengeType": "simple-flip"
+            }}
+            """
+        else:
+            prompt = f"""Generate an interesting true/false trivia question about {theme}.
+
+            REQUIREMENTS:
+            1. Make it surprising or counterintuitive
+            2. Include a fascinating explanation
+            3. Mix difficulties - some obvious, some tricky
+            4. The statement should be definitively true or false
+            5. Avoid ambiguous or opinion-based statements
+            
+            Return JSON with this exact format:
+            {{
+                "content": "A statement that is either true or false",
+                "answer": "True" or "False",
+                "category": "trivia_mix",
+                "difficulty": "easy|medium|hard",
+                "challengeType": "true-false",
+                "challenge": "Is this statement true or false?",
+                "explanation": "Detailed explanation of why it's true/false with interesting context"
+            }}
+            
+            Example:
+            {{
+                "content": "A shrimp's heart is located in its head.",
+                "answer": "True",
+                "category": "trivia_mix",
+                "difficulty": "medium",
+                "challengeType": "true-false",
+                "challenge": "Is this statement true or false?",
+                "explanation": "True! A shrimp's heart is indeed located in its head, specifically in the thorax region behind the rostrum. This is because shrimp have an open circulatory system where the heart pumps hemolymph (their version of blood) throughout their body."
+            }}
+            """
         
         try:
             if self.api_key and self.api_key != 'your_anthropic_api_key_here':
@@ -109,11 +138,39 @@ class TriviaGenerator:
         except Exception as e:
             logger.error(f"Failed to generate trivia: {e}")
         
-        return self.get_fallback_trivia(theme)
+        return self.get_fallback_trivia(theme, format)
     
-    def get_fallback_trivia(self, theme: str) -> Dict[str, Any]:
+    def get_fallback_trivia(self, theme: str, format: str = "true-false") -> Dict[str, Any]:
         """Fallback trivia questions"""
-        fallbacks = {
+        
+        if format == "factoid":
+            # Factoid fallbacks
+            fallbacks = {
+                "history": {
+                    "content": "Oxford University is older than the Aztec Empire.",
+                    "answer": "Teaching began at Oxford in 1096, while the Aztec Empire was founded in 1428. Oxford was already 332 years old when the Aztecs started building Tenochtitlan.",
+                    "category": "trivia_mix",
+                    "difficulty": "hard",
+                    "challengeType": "simple-flip"
+                },
+                "science": {
+                    "content": "A teaspoon of neutron star would weigh 6 billion tons.",
+                    "answer": "Neutron stars are so dense that their matter is packed tighter than an atomic nucleus. One sugar-cube-sized amount would weigh 100 million tons - as much as Mount Everest!",
+                    "category": "trivia_mix",
+                    "difficulty": "hard",
+                    "challengeType": "simple-flip"
+                },
+                "animals": {
+                    "content": "Wombat poop is cube-shaped.",
+                    "answer": "Wombats produce 80-100 cube-shaped poops per night. The cubic shape prevents them from rolling away and helps mark their territory. Scientists discovered their intestines have varying elasticity that creates the unique shape.",
+                    "category": "trivia_mix",
+                    "difficulty": "medium",
+                    "challengeType": "simple-flip"
+                }
+            }
+        else:
+            # True/false fallbacks
+            fallbacks = {
             "history": {
                 "content": "Cleopatra lived closer in time to the Moon landing than to the construction of the Great Pyramid.",
                 "answer": "True",
@@ -170,13 +227,13 @@ class TriviaGenerator:
             "tags": ["trivia", theme, "flashcard", trivia_data.get("difficulty", "medium")]
         }
     
-    async def generate_trivia_batch(self, count: int = 30) -> List[Dict[str, Any]]:
+    async def generate_trivia_batch(self, count: int = 30, format: str = "factoid") -> List[Dict[str, Any]]:
         """Generate a batch of trivia questions"""
         trivia_questions = []
         
         for i in range(count):
             category = self.categories[i % len(self.categories)]
-            trivia = await self.generate_single_trivia(category)
+            trivia = await self.generate_single_trivia(category, format=format)
             if trivia:
                 trivia_questions.append(trivia)
         
@@ -205,7 +262,8 @@ trivia_generator = TriviaGenerator()
 
 async def generate_and_store_trivia():
     """Generate a batch of trivia and store them"""
-    trivia = await trivia_generator.generate_trivia_batch(30)
+    # Generate factoids for trivia_mix (simple-flip format)
+    trivia = await trivia_generator.generate_trivia_batch(30, format="factoid")
     await trivia_generator.store_trivia(trivia)
     return len(trivia)
 

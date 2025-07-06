@@ -15,12 +15,31 @@ class FlashcardModal {
         this.isFlipped = false;
         this.flipTimer = null; // Track flip timer to prevent duplicates
         this.isTransitioning = false; // Track if we're in the middle of a transition
+        this.sessionStartTime = null; // Track session start for reward calculations
+        this.rewardsDisplay = null; // Reusable rewards display component
+        
+        // Multi-page support for knock-knock jokes and puns
+        this.currentPage = 0;
+        this.isMultiPage = false;
+        this.pageCount = 1;
+        this.jokeRatings = []; // Store ratings for jokes
+        this.giggleMeter = null;
+        
+        // Quote challenge tracking
+        this.quoteStreak = 0;
+        this.quoteChallengeResults = [];
+        
         this.init();
     }
 
     init() {
         this.createModal();
         this.attachEventListeners();
+        
+        // Initialize rewards display component
+        if (window.RewardsDisplay) {
+            this.rewardsDisplay = new window.RewardsDisplay();
+        }
     }
     
     // Generate unique IDs based on card type and index
@@ -78,13 +97,26 @@ class FlashcardModal {
                         <span class="score-value" id="scoreValue"></span>
                     </div>
                 </div>
+                
+                <!-- Cumulative streak bar for quotes -->
+                <div class="quote-streak-bar" id="quoteStreakBar" style="display: none;">
+                    <div class="streak-flames">
+                        <span class="flame-icon">🔥</span>
+                    </div>
+                    <div class="streak-progress">
+                        <div class="streak-fill" id="streakFill"></div>
+                    </div>
+                    <span class="streak-count" id="streakCount">0 / 10</span>
+                </div>
 
                 <div class="flashcard-container" id="flashcardContainer">
                     <div class="flashcard" id="flashcard">
                         <div class="flashcard-front">
                             <div class="card-category" id="cardCategory">Trivia</div>
                             <div class="card-content" id="cardContent">Loading...</div>
-                            <div class="flip-hint">Read carefully, then tap to test yourself</div>
+                            <button class="flip-icon-button" aria-label="Flip card">
+                                <img src="./src/images/navIcons/flipCardFlipperIcon.svg" alt="Flip" class="flip-icon">
+                            </button>
                         </div>
                         <div class="flashcard-back">
                             <div class="card-challenge flashcard-challenge-container">
@@ -100,10 +132,28 @@ class FlashcardModal {
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Multi-page content for jokes -->
+                    <div class="joke-page-container" id="jokePageContainer" style="display: none;">
+                        <div class="joke-bot-container">
+                            <img class="joke-bot-image" id="jokeBotImage" src="" alt="Comedy Bot">
+                        </div>
+                        <div class="joke-content" id="jokeContent">
+                            <div class="joke-text" id="jokeText"></div>
+                        </div>
+                        <div class="joke-nav">
+                            <button class="joke-nav-btn" id="jokeNextBtn">
+                                <span class="nav-icon">▶</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Giggle meter container -->
+                    <div class="giggle-meter-container" id="giggleMeterContainer" style="display: none;"></div>
                 </div>
 
                 <div class="flashcard-footer">
-                        <div class="streak-indicator" id="streakIndicator" style="display: none;">
+                    <div class="streak-indicator" id="streakIndicator" style="display: none;">
                         <span class="streak-icon">🔥</span>
                         <span class="streak-text">Streak: <span id="streakValue">0</span></span>
                     </div>
@@ -135,9 +185,39 @@ class FlashcardModal {
         // USER INTERACTION 1: Click card to flip from front to back
         const flashcardContainer = this.modal.querySelector('#flashcardContainer');
         flashcardContainer.addEventListener('click', (e) => {
-            // Check if the click was on the flashcard or its children
+            // Check if the click was on the flashcard front or flip button
+            const flipButton = e.target.closest('.flip-icon-button');
+            const flashcardFront = e.target.closest('.flashcard-front');
             const flashcard = e.target.closest('#flashcard');
-            if (flashcard && !e.target.closest('.flashcard-check-answer-btn')) {
+            
+            // For factoids (simple-flip), flip button on back should advance to next card
+            if (flipButton && this.isFlipped && this.currentCard.challengeType === 'simple-flip') {
+                console.log('Flip button clicked on factoid back');
+                console.log('Current wonder rating:', this.currentCard.wonderRating);
+                
+                // For now, just advance to next card without requiring rating
+                this.nextCard();
+                return;
+                
+                /* TODO: Re-enable rating requirement later
+                // Check if Wonder Meter has been rated
+                if (this.currentCard.wonderRating !== undefined) {
+                    this.nextCard();
+                } else {
+                    // Prompt to rate first
+                    const wonderContainer = document.getElementById('wonderMeterInline');
+                    if (wonderContainer) {
+                        wonderContainer.style.animation = 'pulse 0.5s ease 2';
+                        setTimeout(() => {
+                            wonderContainer.style.animation = '';
+                        }, 1000);
+                    }
+                }
+                */
+            }
+            
+            // Only flip if clicking the flip button or the card front (not back)
+            if ((flipButton || flashcardFront) && flashcard && !this.isFlipped) {
                 this.flipCard();
             }
         });
@@ -155,7 +235,10 @@ class FlashcardModal {
         // USER INTERACTION 3: After seeing feedback, click continue for next card
         const continueBtn = this.modal.querySelector('.flashcard-continue-btn');
         continueBtn.addEventListener('click', () => this.nextCard());
-
+        
+        // Joke navigation button for multi-page content
+        const jokeNextBtn = this.modal.querySelector('#jokeNextBtn');
+        jokeNextBtn.addEventListener('click', () => this.nextJokePage());
 
         // Keyboard support for accessibility
         document.addEventListener('keydown', (e) => {
@@ -189,14 +272,19 @@ class FlashcardModal {
     }
 
     async open(config) {
-        // console.log('Opening flashcard modal with config:', config);
+        console.log('Opening flashcard modal with config:', config);
+        
+        // Record session start time
+        this.sessionStartTime = Date.now();
         
         // Check if user has enough energy (1 per card)
         if (window.economyManager) {
             const economyState = window.economyManager.getDisplayState();
+            console.log('Economy state:', economyState);
             const requiredEnergy = 1; // 1 energy per flashcard session
             
             if (economyState.energy < requiredEnergy) {
+                console.log('Insufficient energy:', economyState.energy, '<', requiredEnergy);
                 // Show insufficient energy message
                 if (window.alertModal) {
                     window.alertModal.show({
@@ -205,25 +293,37 @@ class FlashcardModal {
                         message: `You need ${requiredEnergy} energy to practice flashcards. You have ${economyState.energy} energy.`,
                         primaryButton: 'OK'
                     });
+                } else {
+                    console.error('AlertModal not available to show energy warning');
                 }
                 return;
             }
             
             // Deduct energy cost
-            const energyResult = await window.economyManager.spendEnergy(requiredEnergy, 'flashcard_start');
-            if (!energyResult.success) {
-                console.error('Failed to deduct energy:', energyResult);
+            console.log('Attempting to spend energy...');
+            try {
+                const energyResult = await window.economyManager.spendEnergy(requiredEnergy, 'flashcard_start');
+                console.log('Energy spend result:', energyResult);
+                if (!energyResult.success) {
+                    console.error('Failed to deduct energy:', energyResult);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error spending energy:', error);
                 return;
             }
         }
         
         // Try to fetch dynamic cards first
+        console.log('Fetching cards...');
         this.cards = await this.fetchCards(config);
+        console.log('Cards from fetch:', this.cards);
         
         if (!this.cards || this.cards.length === 0) {
-            // console.log('No cards from API, generating dynamic content...');
+            console.log('No cards from API, generating dynamic content...');
             // Generate dynamic cards instead of using static data
             this.cards = await this.generateDynamicCards(config);
+            console.log('Cards from generation:', this.cards);
         }
 
         if (!this.cards || this.cards.length === 0) {
@@ -235,9 +335,24 @@ class FlashcardModal {
         this.score = 0;
         this.streak = 0;
         this.isFlipped = false;
+        this.currentPage = 0;
+        this.jokeRatings = [];
+        this.quoteStreak = 0;
+        this.quoteChallengeResults = [];
 
+        console.log('About to show modal...');
         // Show modal
         this.modal.classList.add('active');
+        console.log('Modal should now be visible');
+        console.log('Modal element:', this.modal);
+        console.log('Modal classList:', this.modal.classList);
+        console.log('Modal computed style display:', window.getComputedStyle(this.modal).display);
+        console.log('Modal computed style visibility:', window.getComputedStyle(this.modal).visibility);
+        console.log('Modal parent:', this.modal.parentElement);
+        console.log('Modal z-index:', window.getComputedStyle(this.modal).zIndex);
+        console.log('Modal position:', window.getComputedStyle(this.modal).position);
+        console.log('Modal dimensions:', this.modal.offsetWidth, 'x', this.modal.offsetHeight);
+        console.log('Modal opacity:', window.getComputedStyle(this.modal).opacity);
         document.body.style.overflow = 'hidden';
 
         // Update total cards
@@ -253,8 +368,10 @@ class FlashcardModal {
             
             // Get user ID from localStorage if available
             const userId = localStorage.getItem('userId');
+            // For trivia_mix, ensure we get 10 factoids
             const requestBody = {
-                ...config,
+                category: config.category || 'trivia_mix',
+                count: config.count || 10,  // Default to 10 cards
                 user_id: userId // Will be null for anonymous users
             };
             
@@ -269,6 +386,62 @@ class FlashcardModal {
             }
 
             const data = await response.json();
+            
+            // Transform API response to match our expected format
+            if (data.cards && Array.isArray(data.cards)) {
+                return data.cards.map(card => {
+                    // Handle joke formats from Haiku API
+                    if (card.type === 'joke' && card.category === 'knock_knock') {
+                        return {
+                            id: card.id,
+                            category: 'Knock Knock 🚪',
+                            type: 'knock-knock',
+                            content: card.content, // "Knock knock."
+                            setupLine: card.whosThere, // "Dishes"
+                            whosThereWho: card.whosThereWho, // "Dishes who?"
+                            punchLine: card.punchline,
+                            difficulty: card.difficulty || 'easy'
+                        };
+                    } else if (card.type === 'pun' || card.category === 'bad_puns') {
+                        return {
+                            id: card.id,
+                            category: 'Punz 😅',
+                            type: 'pun',
+                            content: card.content, // Full setup question
+                            setupLine: card.content, // Same as content for puns
+                            setupQuery: card.setup_query,
+                            punchLine: card.punchline,
+                            hint: card.hint, // Could be useful for UI
+                            theme: card.theme, // Could be useful for theming
+                            difficulty: card.difficulty || 'easy'
+                        };
+                    } else if (card.type === 'quote' || card.category === 'famous_quotes') {
+                        return {
+                            id: card.id,
+                            category: 'Famous Quote',
+                            type: 'quote',
+                            content: card.content,
+                            author: card.author,
+                            source: card.source,
+                            challenge: card.challenge,
+                            answer: card.answer,
+                            challengeType: card.challengeType,
+                            year: card.year,
+                            theme: card.theme,
+                            difficulty: card.difficulty || 'easy'
+                        };
+                    } else if (card.type === 'trivia' || card.challengeType === 'simple-flip') {
+                        // Preserve theme for factoids
+                        return {
+                            ...card,
+                            theme: card.theme || card.data?.theme
+                        };
+                    }
+                    // Return other card types as-is
+                    return card;
+                });
+            }
+            
             return data.cards;
         } catch (error) {
             console.error('Error fetching flashcards:', error);
@@ -407,30 +580,68 @@ class FlashcardModal {
     }
     
     createPunCard(index, theme) {
-        // Dynamic pun generation placeholder
+        // Sample puns by theme - in production these would come from Haiku API
+        const puns = {
+            animals: [
+                { setup: "Why don't oysters share?", punch: "Because they're shellfish!" },
+                { setup: "What do you call a bear with no teeth?", punch: "A gummy bear!" },
+                { setup: "Why don't eggs tell jokes?", punch: "They'd crack up!" }
+            ],
+            food: [
+                { setup: "Why did the cookie go to the doctor?", punch: "Because it felt crumbly!" },
+                { setup: "What do you call cheese that isn't yours?", punch: "Nacho cheese!" },
+                { setup: "Why did the tomato turn red?", punch: "Because it saw the salad dressing!" }
+            ],
+            technology: [
+                { setup: "Why do programmers prefer dark mode?", punch: "Because light attracts bugs!" },
+                { setup: "Why was the computer cold?", punch: "It left its Windows open!" },
+                { setup: "What's a computer's favorite snack?", punch: "Microchips!" }
+            ],
+            default: [
+                { setup: "I used to hate facial hair...", punch: "But then it grew on me!" },
+                { setup: "I'm reading a book about anti-gravity...", punch: "It's impossible to put down!" },
+                { setup: "Time flies like an arrow...", punch: "Fruit flies like a banana!" }
+            ]
+        };
+        
+        const themePuns = puns[theme] || puns.default;
+        const pun = themePuns[index % themePuns.length];
+        
         return {
             id: `pun-dynamic-${index}`,
             category: 'Bad Pun 😅',
-            content: `Why did the ${theme} cross the road? To get to the punny side!`,
-            challengeType: 'multiple-choice',
-            challenge: 'What makes this a pun?',
-            options: ['Word play', 'Rhyme', 'Alliteration', 'Metaphor'],
-            answer: 'Word play',
-            difficulty: 'easy',
-            type: 'pun'
+            type: 'pun',
+            setupLine: pun.setup,
+            setupQuery: pun.setup.includes('?') ? pun.setup.split('?')[0] + '?' : 'why?',
+            punchLine: pun.punch,
+            difficulty: 'easy'
         };
     }
     
     createKnockKnockCard(index) {
+        // Sample knock-knock jokes - in production these would come from Haiku API
+        const jokes = [
+            { setup: 'Lettuce', punch: "Lettuce in, it's cold out here!" },
+            { setup: 'Orange', punch: "Orange you glad I didn't say banana?" },
+            { setup: 'Boo', punch: "Don't cry, it's just a joke!" },
+            { setup: 'Cash', punch: "No thanks, I prefer peanuts!" },
+            { setup: 'Olive', punch: "Olive you and I miss you!" },
+            { setup: 'Tank', punch: "You're welcome!" },
+            { setup: 'Donut', punch: "Donut forget to smile today!" },
+            { setup: 'Who', punch: "Who's there? Wait, that's my line!" },
+            { setup: 'Howard', punch: "Howard you like to hear another joke?" },
+            { setup: 'Dewey', punch: "Dewey have to use a knock-knock joke?" }
+        ];
+        
+        const joke = jokes[index % jokes.length];
+        
         return {
             id: `knock-dynamic-${index}`,
             category: 'Knock Knock 🚪',
-            content: `Knock knock. Who's there? Dynamic. Dynamic who? Dynamic content is here to stay!`,
-            challengeType: 'fill-blank',
-            challenge: `Knock knock. Who's there? Dynamic. Dynamic who? Dynamic _____ is here to stay!`,
-            answer: 'content',
-            difficulty: 'easy',
-            type: 'joke'
+            type: 'knock-knock',
+            setupLine: joke.setup,
+            punchLine: joke.punch,
+            difficulty: 'easy'
         };
     }
     
@@ -448,6 +659,11 @@ class FlashcardModal {
     }
 
     getDefaultCards() {
+        // This method is no longer used - we use getCardsByCategory instead
+        return this.getCardsByCategory('trivia_mix');
+    }
+    
+    getDefaultCards_OLD() {
         const cards = [
             // Famous Quotes with different challenge types
             {
@@ -539,15 +755,14 @@ class FlashcardModal {
                 difficulty: 'easy',
                 type: 'trivia'
             },
-            // Fun Facts
+            // Fun Facts - Simple flip format
             {
                 id: 'fact-1',
-                category: 'Fun Fact',
-                content: 'A group of flamingos is called a "flamboyance"!',
-                challengeType: 'multiple-choice',
-                challenge: 'What is a group of flamingos called?',
-                options: ['flock', 'flamboyance', 'flutter', 'flame'],
-                answer: 'flamboyance',
+                category: 'Amazing Fact 🌟',
+                content: 'A group of flamingos is called a "flamboyance".',
+                challengeType: 'simple-flip',
+                challenge: 'Even cooler:',
+                answer: 'Flamingos are pink because of their diet! Baby flamingos are born gray. A flock can have thousands of birds, and they stand on one leg to conserve body heat.',
                 difficulty: 'medium',
                 type: 'factoid'
             },
@@ -582,80 +797,6 @@ class FlashcardModal {
                 answer: 'The early bird catches the worm',
                 difficulty: 'medium',
                 type: 'phrase'
-            },
-            // Bad Puns (groan-worthy!)
-            {
-                id: 'pun-1',
-                category: 'Bad Pun 😅',
-                content: 'I used to hate facial hair, but then it grew on me.',
-                challengeType: 'fill-blank',
-                challenge: 'I used to hate facial hair, but then it _____ on me.',
-                answer: 'grew',
-                difficulty: 'easy',
-                type: 'pun'
-            },
-            {
-                id: 'pun-2',
-                category: 'Bad Pun 😅',
-                content: 'Time flies like an arrow. Fruit flies like a banana.',
-                challengeType: 'true-false',
-                challenge: 'True or False: This pun plays with the word "flies"',
-                answer: 'True',
-                difficulty: 'medium',
-                type: 'pun'
-            },
-            {
-                id: 'pun-3',
-                category: 'Bad Pun 😅',
-                content: 'I\'m reading a book about anti-gravity. It\'s impossible to put down!',
-                challengeType: 'fill-blank',
-                challenge: 'I\'m reading a book about anti-gravity. It\'s impossible to put _____!',
-                answer: 'down',
-                difficulty: 'easy',
-                type: 'pun'
-            },
-            {
-                id: 'pun-4',
-                category: 'Bad Pun 😅',
-                content: 'Why don\'t scientists trust atoms? Because they make up everything!',
-                challengeType: 'multiple-choice',
-                challenge: 'Why don\'t scientists trust atoms?',
-                options: ['They\'re too small', 'They make up everything', 'They\'re unstable', 'They\'re negative'],
-                answer: 'They make up everything',
-                difficulty: 'easy',
-                type: 'pun'
-            },
-            {
-                id: 'pun-5',
-                category: 'Bad Pun 😅',
-                content: 'I used to be a banker, but I lost interest.',
-                challengeType: 'fill-blank',
-                challenge: 'I used to be a banker, but I lost _____.',
-                answer: 'interest',
-                difficulty: 'medium',
-                type: 'pun'
-            },
-            // Knock Knock Jokes
-            {
-                id: 'knock-1',
-                category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce in, it\'s cold out here!',
-                challengeType: 'fill-blank',
-                challenge: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce _____, it\'s cold out here!',
-                answer: 'in',
-                difficulty: 'easy',
-                type: 'joke'
-            },
-            {
-                id: 'knock-2',
-                category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Boo. Boo who? Don\'t cry, it\'s just a joke!',
-                challengeType: 'multiple-choice',
-                challenge: 'Complete the joke: "Boo who?"',
-                options: ['Don\'t cry, it\'s just a joke!', 'Boo to you too!', 'I\'m a ghost!', 'Halloween is here!'],
-                answer: 'Don\'t cry, it\'s just a joke!',
-                difficulty: 'easy',
-                type: 'joke'
             }
         ];
         
@@ -727,88 +868,73 @@ class FlashcardModal {
                 difficulty: 'medium',
                 type: 'quote'
             },
-            // Bad Puns
+            // Punz
             {
                 id: 'pun-1',
-                category: 'Bad Pun 😅',
-                content: 'I used to hate facial hair, but then it grew on me.',
-                challengeType: 'fill-blank',
-                challenge: 'I used to hate facial hair, but then it _____ on me.',
-                answer: 'grew',
-                difficulty: 'easy',
-                type: 'pun'
+                category: 'Punz 😅',
+                type: 'pun',
+                setupLine: 'I used to hate facial hair...',
+                punchLine: 'But then it grew on me!',
+                difficulty: 'easy'
             },
             {
                 id: 'pun-2',
-                category: 'Bad Pun 😅',
-                content: 'Time flies like an arrow. Fruit flies like a banana.',
-                challengeType: 'true-false',
-                challenge: 'True or False: This pun plays with the word "flies"',
-                answer: 'True',
-                difficulty: 'medium',
-                type: 'pun'
+                category: 'Punz 😅',
+                type: 'pun',
+                setupLine: 'Time flies like an arrow...',
+                punchLine: 'Fruit flies like a banana!',
+                difficulty: 'medium'
             },
             {
                 id: 'pun-3',
-                category: 'Bad Pun 😅',
-                content: 'I\'m reading a book about anti-gravity. It\'s impossible to put down!',
-                challengeType: 'fill-blank',
-                challenge: 'I\'m reading a book about anti-gravity. It\'s impossible to put _____!',
-                answer: 'down',
-                difficulty: 'easy',
-                type: 'pun'
+                category: 'Punz 😅',
+                type: 'pun',
+                setupLine: "I'm reading a book about anti-gravity...",
+                punchLine: "It's impossible to put down!",
+                difficulty: 'easy'
             },
             {
                 id: 'pun-4',
-                category: 'Bad Pun 😅',
-                content: 'Why don\'t scientists trust atoms? Because they make up everything!',
-                challengeType: 'multiple-choice',
-                challenge: 'Why don\'t scientists trust atoms?',
-                options: ['They\'re too small', 'They make up everything', 'They\'re unstable', 'They\'re negative'],
-                answer: 'They make up everything',
-                difficulty: 'easy',
-                type: 'pun'
+                category: 'Punz 😅',
+                type: 'pun',
+                setupLine: "Why don't scientists trust atoms?",
+                setupQuery: "Why don't scientists trust atoms?",
+                punchLine: 'Because they make up everything!',
+                difficulty: 'easy'
             },
             {
                 id: 'pun-5',
-                category: 'Bad Pun 😅',
-                content: 'I used to be a banker, but I lost interest.',
-                challengeType: 'fill-blank',
-                challenge: 'I used to be a banker, but I lost _____.',
-                answer: 'interest',
-                difficulty: 'medium',
-                type: 'pun'
+                category: 'Punz 😅',
+                type: 'pun',
+                setupLine: 'I used to be a banker...',
+                punchLine: 'But I lost interest!',
+                difficulty: 'medium'
             },
             // Knock Knock Jokes
             {
                 id: 'knock-1',
                 category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce in, it\'s cold out here!',
-                challengeType: 'fill-blank',
-                challenge: 'Knock knock. Who\'s there? Lettuce. Lettuce who? Lettuce _____, it\'s cold out here!',
-                answer: 'in',
-                difficulty: 'easy',
-                type: 'joke'
+                type: 'knock-knock',
+                setupLine: 'Lettuce',
+                punchLine: "Lettuce in, it's cold out here!",
+                difficulty: 'easy'
             },
             {
                 id: 'knock-2',
                 category: 'Knock Knock 🚪',
-                content: 'Knock knock. Who\'s there? Boo. Boo who? Don\'t cry, it\'s just a joke!',
-                challengeType: 'multiple-choice',
-                challenge: 'Complete the joke: "Boo who?"',
-                options: ['Don\'t cry, it\'s just a joke!', 'Boo to you too!', 'I\'m a ghost!', 'Halloween is here!'],
-                answer: 'Don\'t cry, it\'s just a joke!',
-                difficulty: 'easy',
-                type: 'joke'
+                type: 'knock-knock',
+                setupLine: 'Boo',
+                punchLine: "Don't cry, it's just a joke!",
+                difficulty: 'easy'
             },
-            // Science Facts
+            // Science Facts - Simple flip format
             {
                 id: 'science-1',
-                category: 'Science Fact',
-                content: 'Jupiter is the largest planet in our solar system. It\'s so big that all other planets could fit inside it!',
-                challengeType: 'fill-blank',
-                challenge: '_____ is the largest planet in our solar system.',
-                answer: 'Jupiter',
+                category: 'Amazing Fact 🌟',
+                content: 'Jupiter is the largest planet in our solar system.',
+                challengeType: 'simple-flip',
+                challenge: 'Mind-blowing detail:',
+                answer: 'It\'s so massive that all other planets could fit inside it with room to spare! It also has 79 known moons and a storm (the Great Red Spot) that\'s been raging for over 350 years.',
                 difficulty: 'easy',
                 type: 'factoid'
             },
@@ -833,15 +959,14 @@ class FlashcardModal {
                 difficulty: 'easy',
                 type: 'trivia'
             },
-            // Fun Facts
+            // Fun Facts - Simple flip format
             {
                 id: 'fact-1',
-                category: 'Fun Fact',
-                content: 'A group of flamingos is called a "flamboyance"!',
-                challengeType: 'multiple-choice',
-                challenge: 'What is a group of flamingos called?',
-                options: ['flock', 'flamboyance', 'flutter', 'flame'],
-                answer: 'flamboyance',
+                category: 'Amazing Fact 🌟',
+                content: 'A group of flamingos is called a "flamboyance".',
+                challengeType: 'simple-flip',
+                challenge: 'Even cooler:',
+                answer: 'Flamingos are pink because of their diet! Baby flamingos are born gray. A flock can have thousands of birds, and they stand on one leg to conserve body heat.',
                 difficulty: 'medium',
                 type: 'factoid'
             },
@@ -883,7 +1008,7 @@ class FlashcardModal {
         const categoryMap = {
             'bad_puns': 'pun',
             'famous_quotes': 'quote',
-            'knock_knock': 'joke',
+            'knock_knock': 'knock-knock',
             'trivia_mix': ['factoid', 'trivia', 'phrase']
         };
         
@@ -918,6 +1043,17 @@ class FlashcardModal {
 
         this.currentCard = this.cards[this.currentIndex];
         this.userAnswer = null;
+        
+        // DEBUG: Log the current card structure
+        console.log('Current card structure:', this.currentCard);
+        console.log('Card type:', this.currentCard.type);
+        console.log('Challenge type:', this.currentCard.challengeType);
+        console.log('Content:', this.currentCard.content);
+        console.log('Answer/Detail:', this.currentCard.answer || this.currentCard.detail);
+        
+        // Check if this is a joke card
+        this.isMultiPage = (this.currentCard.type === 'knock-knock' || this.currentCard.type === 'pun');
+        this.currentPage = 0;
 
         // Only reset flip state if we're not in a transition
         if (!this.isTransitioning) {
@@ -926,17 +1062,70 @@ class FlashcardModal {
             flashcard.classList.remove('flipped');
         }
         
+        // Show/hide quote streak bar and regular streak indicator
+        const quoteStreakBar = document.getElementById('quoteStreakBar');
+        const regularStreakIndicator = document.getElementById('streakIndicator');
+        const flashcardScore = this.modal.querySelector('.flashcard-score');
+        const isQuoteSession = this.currentCard && this.currentCard.type === 'quote';
+        
+        // Debug logging
+        console.log('Current card type:', this.currentCard?.type);
+        console.log('Is quote session:', isQuoteSession);
+        
+        if (isQuoteSession) {
+            quoteStreakBar.style.display = 'flex';
+            regularStreakIndicator.style.display = 'none'; // Hide regular streak for quotes
+            if (flashcardScore) {
+                // Force hide the entire score section with important
+                flashcardScore.style.cssText = 'display: none !important;';
+            }
+            this.updateQuoteStreak();
+        } else {
+            quoteStreakBar.style.display = 'none';
+            if (flashcardScore) {
+                // Remove the forced hiding
+                flashcardScore.style.cssText = '';
+                flashcardScore.style.display = 'flex';
+            }
+            // Update score display for non-quote cards
+            const scoreValueEl = document.getElementById('scoreValue');
+            if (scoreValueEl) {
+                scoreValueEl.textContent = this.score || 0;
+            }
+            // Show regular streak for other card types if there's a streak
+            if (this.streak > 0) {
+                regularStreakIndicator.style.display = 'flex';
+                document.getElementById('streakValue').textContent = this.streak;
+            }
+        }
+        
+        // If it's a multi-page joke, load differently
+        if (this.isMultiPage) {
+            this.loadJokePage();
+            return;
+        }
+        
         // Apply special class for word-order challenges
         if (this.currentCard.challengeType === 'word-order') {
             flashcard.classList.add('word-order-mode');
         } else {
             flashcard.classList.remove('word-order-mode');
         }
+        
+        // Add data attribute for simple-flip cards
+        if (this.currentCard.challengeType === 'simple-flip') {
+            flashcard.setAttribute('data-challenge-type', 'simple-flip');
+            flashcard.classList.add('simple-flip');
+        } else {
+            flashcard.removeAttribute('data-challenge-type');
+            flashcard.classList.remove('simple-flip');
+        }
 
         // Update progress
         document.getElementById('currentCard').textContent = this.currentIndex + 1;
         const progress = ((this.currentIndex + 1) / this.cards.length) * 100;
         document.getElementById('progressFill').style.width = `${progress}%`;
+        console.log(`Progress: Card ${this.currentIndex + 1} of ${this.cards.length} = ${progress}%`);
 
         // Apply card type themes
         const flashcardFront = flashcard.querySelector('.flashcard-front');
@@ -962,11 +1151,77 @@ class FlashcardModal {
         }
         
         // Update front of card
-        categoryEl.textContent = this.currentCard.category;
+        // Transform category display for factoids
+        let displayCategory = this.currentCard.category;
+        let categoryIcon = null;
         
-        // Display content with author if it's a quote
+        if (this.currentCard.type === 'factoid' || this.currentCard.challengeType === 'simple-flip') {
+            // Extract theme from card data
+            const theme = this.currentCard.theme || this.currentCard.data?.theme;
+            if (theme) {
+                // Map theme to icon filename
+                const iconMap = {
+                    'science': 'science.svg',
+                    'history': 'history.svg',
+                    'geography': 'geography.svg',
+                    'pop_culture': 'pop_culture.svg',
+                    'technology': 'technology.svg',
+                    'nature': 'nature.svg',
+                    'sports': 'sports.svg',
+                    'literature': 'literature.svg',
+                    'music': 'music.svg',
+                    'food_cuisine': 'food_cuisine.svg',
+                    'film': 'film.svg',
+                    'gaming': 'gaming.svg',
+                    'art': 'art.svg',
+                    'mythology': 'mythology.svg',
+                    'space': 'space.svg',
+                    'animals': 'animals.svg',
+                    'inventions': 'inventions.svg',
+                    'internet_culture': 'internet_culture.svg',
+                    'fashion_design': 'fashion_design.svg',
+                    'ancient_architecture': 'ancient_architecture.svg',
+                    'archaeology': 'archaology.svg',
+                    'dinosaurs': 'dinosaurs.png',
+                    'wicca': 'wicca.svg',
+                    'famous_lies': 'famous_lies.svg',
+                    'scandal_mischief': 'scandal_mischief.svg',
+                    'fame_glory': 'fame_glory.svg',
+                    'horror_films': 'horrorz_films.svg',
+                    'language_evolution': 'language_evolution.svg',
+                    'jokes': 'jokes.svg'
+                };
+                
+                if (iconMap[theme]) {
+                    categoryIcon = `./src/images/categories/${iconMap[theme]}`;
+                    displayCategory = theme.replace(/_/g, ' ').split(' ').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ');
+                }
+            } else {
+                displayCategory = 'Factoid 🤯';
+            }
+        }
+        
+        // Update category display
+        categoryEl.textContent = displayCategory;
+        
+        // Display content with hero icon for factoids
         const contentEl = document.getElementById('cardContent');
-        if (this.currentCard.type === 'quote' && this.currentCard.author) {
+        if (categoryIcon && (this.currentCard.type === 'factoid' || this.currentCard.challengeType === 'simple-flip')) {
+            // Move category below hero image
+            categoryEl.style.order = '2';
+            contentEl.style.order = '1';
+            contentEl.innerHTML = `
+                <div class="factoid-hero-display">
+                    <img src="${categoryIcon}" class="category-hero-icon" alt="${displayCategory}">
+                    <div class="card-category">${displayCategory}</div>
+                    <div class="factoid-text">${this.currentCard.content}</div>
+                </div>
+            `;
+            // Hide the original category element since we're including it in the content
+            categoryEl.style.display = 'none';
+        } else if (this.currentCard.type === 'quote' && this.currentCard.author) {
             contentEl.innerHTML = `
                 <div class="quote-display">
                     <div class="quote-text">${this.currentCard.content}</div>
@@ -974,6 +1229,10 @@ class FlashcardModal {
                 </div>
             `;
         } else {
+            // Restore normal layout for non-factoid cards
+            categoryEl.style.order = '';
+            contentEl.style.order = '';
+            categoryEl.style.display = '';
             contentEl.innerHTML = `<div class="content-display">${this.currentCard.content}</div>`;
         }
 
@@ -983,12 +1242,7 @@ class FlashcardModal {
         // Assign dynamic IDs to elements AFTER setupChallenge creates them
         this.assignDynamicIds();
 
-        // Update streak display
-        if (this.streak > 0) {
-            const streakIndicator = document.getElementById('streakIndicator');
-            streakIndicator.style.display = 'flex';
-            document.getElementById('streakValue').textContent = this.streak;
-        }
+        // Streak display is now handled in the Show/hide quote streak bar section above
 
         // CRITICAL: Reset UI elements - ensure challenge is visible
         const feedbackEl = this.getElement('feedback');
@@ -997,14 +1251,23 @@ class FlashcardModal {
         const challengeEl = this.getElement('challenge');
         const checkBtn = this.getElement('checkBtn');
         
-        // Force challenge and button visible with inline styles AND higher z-index than animations
-        if (challengeEl) {
-            challengeEl.style.cssText = 'display: block !important; opacity: 1 !important; visibility: visible !important; position: relative !important; z-index: 10000 !important;';
-            // console.log('Force showing challenge on load for:', this.getUniqueId('challenge'));
-        }
-        if (checkBtn) {
-            checkBtn.style.cssText = 'display: block !important; opacity: 1 !important; visibility: visible !important; margin: 20px auto; position: relative !important; z-index: 10000 !important;';
-            // console.log('Force showing check button on load for:', this.getUniqueId('checkBtn'));
+        // Force challenge and button visible - but not for simple-flip cards
+        if (this.currentCard.challengeType !== 'simple-flip') {
+            if (challengeEl) {
+                challengeEl.style.cssText = 'display: block !important; opacity: 1 !important; visibility: visible !important; position: relative !important; z-index: 10000 !important;';
+                // console.log('Force showing challenge on load for:', this.getUniqueId('challenge'));
+            }
+            if (checkBtn) {
+                checkBtn.style.cssText = 'display: block !important; opacity: 1 !important; visibility: visible !important; margin: 20px auto; position: relative !important; z-index: 10000 !important;';
+                // console.log('Force showing check button on load for:', this.getUniqueId('checkBtn'));
+            }
+        } else {
+            // For simple-flip, ensure the challenge container is visible but without aggressive styling
+            if (challengeEl) {
+                challengeEl.style.display = 'block';
+                challengeEl.style.opacity = '1';
+                challengeEl.style.visibility = 'visible';
+            }
         }
         
         // REMOVED MONITORING - just rely on the forced visibility styles above
@@ -1034,6 +1297,7 @@ class FlashcardModal {
                 input.className = 'fill-blank-input';
                 input.placeholder = 'Type your answer...';
                 input.autocomplete = 'off';
+                input.value = ''; // Ensure value is empty
                 
                 // Set styles directly on the element (not via innerHTML)
                 input.style.display = 'block';
@@ -1052,6 +1316,15 @@ class FlashcardModal {
                 
                 // Append to container
                 inputEl.appendChild(input);
+                
+                // Add Enter key listener for quick submit
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.checkAnswer();
+                    }
+                });
+                
                 // console.log('✅ Input created with createElement and direct style properties');
                 // Force input visible and monitor what happens to it
                 setTimeout(() => {
@@ -1134,6 +1407,15 @@ class FlashcardModal {
                 
                 // Append to container
                 inputEl.appendChild(authorInput);
+                
+                // Add Enter key listener for quick submit
+                authorInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.checkAnswer();
+                    }
+                });
+                
                 // Extra insurance - set styles after DOM update
                 setTimeout(() => {
                     const input = document.getElementById(authorInputId);
@@ -1208,6 +1490,72 @@ class FlashcardModal {
                 `;
                 // Add drag and drop or click functionality
                 setTimeout(() => this.setupWordOrder(), 0);
+                break;
+                
+            case 'simple-flip':
+                // For factoids - show the detail with hero image on back too
+                const theme = this.currentCard.theme || this.currentCard.data?.theme;
+                let backIcon = null;
+                
+                if (theme) {
+                    const iconMap = {
+                        'science': 'science.svg',
+                        'history': 'history.svg',
+                        'geography': 'geography.svg',
+                        'pop_culture': 'pop_culture.svg',
+                        'technology': 'technology.svg',
+                        'nature': 'nature.svg',
+                        'sports': 'sports.svg',
+                        'literature': 'literature.svg',
+                        'music': 'music.svg',
+                        'food_cuisine': 'food_cuisine.svg',
+                        'film': 'film.svg',
+                        'gaming': 'gaming.svg',
+                        'art': 'art.svg',
+                        'mythology': 'mythology.svg',
+                        'space': 'space.svg',
+                        'animals': 'animals.svg',
+                        'inventions': 'inventions.svg',
+                        'internet_culture': 'internet_culture.svg',
+                        'fashion_design': 'fashion_design.svg',
+                        'ancient_architecture': 'ancient_architecture.svg',
+                        'archaeology': 'archaology.svg',
+                        'dinosaurs': 'dinosaurs.png',
+                        'wicca': 'wicca.svg',
+                        'famous_lies': 'famous_lies.svg',
+                        'scandal_mischief': 'scandal_mischief.svg',
+                        'fame_glory': 'fame_glory.svg',
+                        'horror_films': 'horrorz_films.svg',
+                        'language_evolution': 'language_evolution.svg',
+                        'jokes': 'jokes.svg'
+                    };
+                    
+                    if (iconMap[theme]) {
+                        backIcon = `./src/images/categories/${iconMap[theme]}`;
+                    }
+                }
+                
+                // For factoids, clear the challenge area entirely
+                inputEl.innerHTML = '';
+                questionEl.innerHTML = '';
+                
+                // Hide all challenge-related UI
+                const challengeContainer = this.modal.querySelector('.flashcard-challenge-container');
+                if (challengeContainer) {
+                    challengeContainer.style.display = 'none';
+                }
+                
+                // Hide the check answer button for simple flip cards
+                const checkBtn = this.modal.querySelector('.flashcard-check-answer-btn');
+                if (checkBtn) {
+                    checkBtn.style.display = 'none';
+                }
+                
+                // Hide feedback and continue elements
+                const feedbackEl = this.modal.querySelector('.flashcard-answer-feedback');
+                const continueBtn = this.modal.querySelector('.flashcard-continue-btn');
+                if (feedbackEl) feedbackEl.style.display = 'none';
+                if (continueBtn) continueBtn.style.display = 'none';
                 break;
         }
     }
@@ -1286,6 +1634,72 @@ class FlashcardModal {
             backEl.style.opacity = '1';
             backEl.style.visibility = 'visible';
             backEl.style.display = 'flex';
+            
+            // For simple-flip cards, replace the entire back content
+            if (this.currentCard.challengeType === 'simple-flip') {
+                // Small delay to ensure flip has started
+                setTimeout(() => {
+                    console.log('Replacing back content for simple-flip card');
+                    const theme = this.currentCard.theme || this.currentCard.data?.theme || 'science';
+                const iconMap = {
+                    'science': 'science.svg',
+                    'history': 'history.svg',
+                    'geography': 'geography.svg',
+                    'pop_culture': 'pop_culture.svg',
+                    'technology': 'technology.svg',
+                    'nature': 'nature.svg',
+                    'sports': 'sports.svg',
+                    'literature': 'literature.svg',
+                    'music': 'music.svg',
+                    'food_cuisine': 'food_cuisine.svg',
+                    'film': 'film.svg',
+                    'gaming': 'gaming.svg',
+                    'art': 'art.svg',
+                    'mythology': 'mythology.svg',
+                    'space': 'space.svg',
+                    'animals': 'animals.svg',
+                    'inventions': 'inventions.svg',
+                    'internet_culture': 'internet_culture.svg',
+                    'fashion_design': 'fashion_design.svg',
+                    'ancient_architecture': 'ancient_architecture.svg',
+                    'archaeology': 'archaology.svg',
+                    'dinosaurs': 'dinosaurs.png',
+                    'wicca': 'wicca.svg',
+                    'famous_lies': 'famous_lies.svg',
+                    'scandal_mischief': 'scandal_mischief.svg',
+                    'fame_glory': 'fame_glory.svg',
+                    'horror_films': 'horrorz_films.svg',
+                    'language_evolution': 'language_evolution.svg',
+                    'jokes': 'jokes.svg'
+                };
+                
+                const iconFile = iconMap[theme] || 'science.svg';
+                
+                backEl.innerHTML = `
+                    <div class="factoid-back-wrapper">
+                        <div class="factoid-back-display">
+                            <img src="./src/images/categories/${iconFile}" class="category-hero-icon-back" alt="${theme}">
+                            <div class="factoid-detail-label">Mind-Blowing Detail</div>
+                            <div class="factoid-twist">
+                                ${this.currentCard.answer || this.currentCard.detail || 'No additional detail available'}
+                            </div>
+                        </div>
+                        <div class="wonder-meter-container" id="wonderMeterInline"></div>
+                    </div>
+                    <button class="flip-icon-button" aria-label="Next card">
+                        <img src="./src/images/navIcons/flipCardFlipperIcon.svg" alt="Next" class="flip-icon">
+                    </button>
+                `;
+                
+                // Show Wonder Meter after a longer delay to ensure DOM is ready
+                setTimeout(() => {
+                    console.log('About to show Wonder Meter...');
+                    const container = document.getElementById('wonderMeterInline');
+                    console.log('Container check before calling showWonderMeterInline:', !!container);
+                    this.showWonderMeterInline();
+                }, 800);
+                }, 100); // Close the setTimeout for replacing content
+            }
         }
 
         // STEP 5: Hide skip button when card is flipped (can't skip challenges)
@@ -1295,12 +1709,14 @@ class FlashcardModal {
         }
         
         // STEP 6: CRITICAL BUG FIX - Force challenge to stay visible
-        // Something is hiding the challenge div after flip
-        const challengeDiv = this.getElement('challenge');
-        if (challengeDiv) {
-            // Use setAttribute to make it harder to override
-            challengeDiv.setAttribute('style', 'display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 1000 !important;');
-            // console.log('Forcing challenge visible after flip:', this.getUniqueId('challenge'));
+        // Something is hiding the challenge div after flip - but not for simple-flip
+        if (this.currentCard.challengeType !== 'simple-flip') {
+            const challengeDiv = this.getElement('challenge');
+            if (challengeDiv) {
+                // Use setAttribute to make it harder to override
+                challengeDiv.setAttribute('style', 'display: block !important; opacity: 1 !important; visibility: visible !important; z-index: 1000 !important;');
+                // console.log('Forcing challenge visible after flip:', this.getUniqueId('challenge'));
+            }
         }
         
         const checkBtn = this.getElement('checkBtn');
@@ -1515,6 +1931,11 @@ class FlashcardModal {
                 // Exact match required for word order
                 isCorrect = userAnswer === this.currentCard.answer;
                 break;
+                
+            case 'simple-flip':
+                // Simple flip cards are always "correct" - they're just informational
+                isCorrect = true;
+                break;
         }
         
         // Pass result to handler for feedback display
@@ -1530,6 +1951,18 @@ class FlashcardModal {
             // CORRECT ANSWER PATH
             this.score++;
             this.streak++;
+            
+            // Track quote streak separately
+            if (this.currentCard.type === 'quote') {
+                this.quoteStreak++;
+                this.quoteChallengeResults.push({
+                    cardId: this.currentCard.id,
+                    correct: true,
+                    challengeType: this.currentCard.challengeType
+                });
+                this.updateQuoteStreak();
+            }
+            
             this.showFeedback('correct');
             
             // Award hearts/diamonds based on streak
@@ -1537,6 +1970,18 @@ class FlashcardModal {
         } else {
             // INCORRECT ANSWER PATH
             this.streak = 0;
+            
+            // Reset quote streak on miss
+            if (this.currentCard.type === 'quote') {
+                this.quoteStreak = 0;
+                this.quoteChallengeResults.push({
+                    cardId: this.currentCard.id,
+                    correct: false,
+                    challengeType: this.currentCard.challengeType
+                });
+                this.updateQuoteStreak();
+            }
+            
             this.showFeedback('incorrect');
         }
 
@@ -1646,6 +2091,53 @@ class FlashcardModal {
         }, 1500);
     }
 
+    showWonderMeterInline() {
+        console.log('showWonderMeterInline called');
+        
+        // Create Wonder Meter instance
+        if (!this.wonderMeter) {
+            console.log('Creating new WonderMeter instance');
+            this.wonderMeter = new WonderMeter();
+        }
+        
+        // Create and show the meter inline - use the correct container ID
+        const container = document.getElementById('wonderMeterInline');
+        console.log('Wonder Meter container found:', !!container);
+        
+        if (container) {
+            // Clear any existing content
+            container.innerHTML = '';
+            
+            const meterElement = this.wonderMeter.create((rating) => {
+                // Store the rating
+                this.currentCard.wonderRating = rating;
+                console.log('Wonder rating:', rating);
+                
+                // Enable flip button to advance
+                // Don't remove meter - let user see their rating
+                
+                // Optional: Show a quick "Rated!" feedback
+                const feedback = document.createElement('div');
+                feedback.className = 'rating-feedback';
+                feedback.textContent = '✓ Rated!';
+                feedback.style.cssText = 'color: #58cc02; font-weight: bold; margin-top: 10px; animation: fadeIn 0.3s ease;';
+                container.appendChild(feedback);
+            });
+            
+            console.log('Meter element created:', !!meterElement);
+            
+            // Add to the container
+            container.appendChild(meterElement);
+            
+            // Force visibility
+            container.style.display = 'flex';
+            container.style.opacity = '1';
+            container.style.visibility = 'visible';
+        } else {
+            console.warn('Wonder Meter container not found');
+        }
+    }
+    
     async awardRewards() {
         // Use EconomyManager to handle flashcard completion
         if (window.economyManager) {
@@ -1653,7 +2145,8 @@ class FlashcardModal {
                 correct: true,
                 streak: this.streak,
                 cardType: this.currentCard?.type || 'flashcard',
-                category: this.currentCard?.category || 'general'
+                category: this.currentCard?.category || 'general',
+                wonderRating: this.currentCard?.wonderRating // Include wonder rating for factoids
             };
             
             // Process the flashcard completion through EconomyManager
@@ -1676,22 +2169,26 @@ class FlashcardModal {
     
     async awardCompletionBonus() {
         const stackSize = this.cards.length;
-        const percentage = Math.round((this.score / this.cards.length) * 100);
+        const isFactoidSession = this.cards.some(card => card.challengeType === 'simple-flip');
         
-        // Only award completion bonus for good performance
-        if (percentage >= 50 && window.economyManager) {
-            // Let the backend calculate the completion bonus based on performance
+        // For factoids, always award completion bonus
+        if (window.economyManager) {
+            // Let the backend calculate the completion bonus
             const completionData = {
                 cardsCompleted: stackSize,
-                correctAnswers: this.score,
-                percentage: percentage,
-                finalStreak: this.streak
+                correctAnswers: isFactoidSession ? stackSize : this.score, // Factoids count as all correct
+                percentage: isFactoidSession ? 100 : Math.round((this.score / this.cards.length) * 100),
+                finalStreak: this.streak,
+                cardType: isFactoidSession ? 'factoid' : 'quiz'
             };
             
             // Process completion bonus through EconomyManager
             const result = await window.economyManager.processFlashcardComplete({
-                ...completionData,
-                isCompletionBonus: true
+                category: this.cards[0]?.theme || 'general',
+                cardType: isFactoidSession ? 'factoid' : 'flashcard',
+                correctCount: isFactoidSession ? stackSize : this.score,
+                totalCards: stackSize,
+                practiceTime: Date.now() - (this.sessionStartTime || Date.now())
             });
             
             if (result.rewards) {
@@ -1703,20 +2200,17 @@ class FlashcardModal {
                     }
                 }));
                 
-                // Also show the legacy completion bonus popup for now
-                let message = '';
-                if (result.rewards.hearts > 0) message += `+${result.rewards.hearts} ❤️ `;
-                if (result.rewards.diamonds > 0) message += `+${result.rewards.diamonds} 💎 `;
-                if (result.rewards.xp > 0) message += `+${result.rewards.xp} XP `;
-                message += 'Completion Bonus!';
-                
-                this.showCompletionBonus(
-                    result.rewards.hearts || 0,
-                    result.rewards.diamonds || 0,
-                    message
-                );
+                // Return the rewards for the slot animation
+                return result.rewards;
             }
         }
+        
+        // Default rewards if economy manager not available
+        return {
+            hearts: 2,
+            diamonds: 1,
+            energy: 5
+        };
     }
     
     showCompletionBonus(hearts, diamonds, message) {
@@ -1868,6 +2362,45 @@ class FlashcardModal {
             existingOverlay.remove();
         }
         
+        // Clean up factoid backs to prevent them showing under next card
+        const flashcard = document.getElementById('flashcard');
+        if (flashcard) {
+            // Hide current card briefly during transition
+            flashcard.style.opacity = '0';
+            flashcard.style.transition = 'opacity 0.2s ease';
+            
+            setTimeout(() => {
+                // Reset card state
+                flashcard.classList.remove('flipped');
+                this.isFlipped = false;
+                
+                // Clear the back content
+                const backEl = flashcard.querySelector('.flashcard-back');
+                if (backEl) {
+                    backEl.innerHTML = '<div class="card-challenge flashcard-challenge-container"></div>';
+                    // Also clear any inline styles
+                    backEl.style.cssText = '';
+                }
+                
+                // Clear front content to prevent overlap
+                const frontEl = flashcard.querySelector('.flashcard-front');
+                if (frontEl) {
+                    const contentEl = frontEl.querySelector('.card-content');
+                    if (contentEl) contentEl.innerHTML = 'Loading...';
+                }
+                
+                // Show card again
+                flashcard.style.opacity = '1';
+                
+                // Continue with loading next card
+                this.continueToNextCard();
+            }, 200);
+        } else {
+            this.continueToNextCard();
+        }
+    }
+    
+    continueToNextCard() {
         // Disconnect visibility observer
         if (this.visibilityObserver) {
             this.visibilityObserver.disconnect();
@@ -1888,40 +2421,323 @@ class FlashcardModal {
             return;
         }
         
-        // Don't flip here - flipCardToFront already handles the flip
-        // Just load the next card
+        // Load the next card
         this.loadCard();
     }
+    
+    // Multi-page joke methods
+    loadJokePage() {
+        const container = document.getElementById('jokePageContainer');
+        const flashcard = document.getElementById('flashcard');
+        const botImage = document.getElementById('jokeBotImage');
+        const jokeText = document.getElementById('jokeText');
+        
+        // Hide regular flashcard, show joke page
+        flashcard.style.display = 'none';
+        container.style.display = 'block';
+        
+        // Reset page to 0 if this is the first time loading this joke
+        if (this.currentPage === undefined || this.currentPage < 0) {
+            this.currentPage = 0;
+        }
+        
+        // Load content based on current page
+        const pageContent = this.getJokePageContent();
+        
+        // Update bot image with fade effect
+        botImage.style.opacity = '0';
+        botImage.src = pageContent.botImage;
+        setTimeout(() => {
+            botImage.style.opacity = '1';
+        }, 50);
+        
+        // Update text with animation
+        jokeText.style.opacity = '0';
+        jokeText.textContent = pageContent.text;
+        
+        // Apply special styling based on content type
+        jokeText.className = 'joke-text';
+        if (pageContent.textClass) {
+            jokeText.classList.add(pageContent.textClass);
+        }
+        
+        // Apply speaker positioning to the container
+        container.className = 'joke-page-container'; // Reset classes
+        if (pageContent.speaker === 'left') {
+            container.classList.add('speaker-left');
+        } else if (pageContent.speaker === 'right') {
+            container.classList.add('speaker-right');
+        }
+        
+        setTimeout(() => {
+            jokeText.style.opacity = '1';
+        }, 100);
+        
+        // Play sound if available
+        if (pageContent.sound && window.soundManager) {
+            window.soundManager.play(pageContent.sound);
+        }
+    }
+    
+    getJokePageContent() {
+        const card = this.currentCard;
+        
+        if (card.type === 'knock-knock') {
+            const pages = [
+                {
+                    text: 'Knock knock!',
+                    botImage: './src/images/signbots/signbot-excited.svg',
+                    sound: 'knock',
+                    textClass: 'knock-knock',
+                    speaker: 'left'
+                },
+                {
+                    text: "Who's there?",
+                    botImage: './src/images/signbots/signbot-thinking.svg',
+                    sound: 'whos_there',
+                    textClass: 'whos-there',
+                    speaker: 'right'
+                },
+                {
+                    text: card.setupLine || 'Orange',
+                    botImage: './src/images/signbots/signbot-excited.svg',
+                    sound: null,
+                    speaker: 'left'
+                },
+                {
+                    text: `${card.setupLine || 'Orange'} who?`,
+                    botImage: './src/images/signbots/signbot-thinking.svg',
+                    sound: 'wa_wa_who',
+                    textClass: 'whos-there',
+                    speaker: 'right'
+                },
+                {
+                    text: card.punchLine || "Orange you glad I didn't say banana?",
+                    botImage: './src/images/signbots/signbot-happy.svg',
+                    sound: 'rimshot',
+                    textClass: 'punchline',
+                    speaker: 'left'
+                }
+            ];
+            
+            return pages[this.currentPage] || pages[0];
+        } else if (card.type === 'pun') {
+            // Build the proper response - always repeat the full question
+            let naiveResponse = "I don't know...";
+            if (card.setupLine) {
+                // Always repeat the full question after "I don't know"
+                naiveResponse = `I don't know, ${card.setupLine.toLowerCase()}`;
+            }
+            
+            const pages = [
+                {
+                    text: card.setupLine || "Why don't scientists trust atoms?",
+                    botImage: './src/images/signbots/signbot-happy.svg',
+                    sound: 'drum_roll',
+                    speaker: 'left'
+                },
+                {
+                    text: naiveResponse,
+                    botImage: './src/images/signbots/signbot-thinking.svg',
+                    sound: 'whos_there',
+                    textClass: 'whos-there',
+                    speaker: 'right'
+                },
+                {
+                    text: card.punchLine || "Because they make up everything!",
+                    botImage: './src/images/signbots/signbot-happy.svg',
+                    sound: Math.random() > 0.5 ? 'rimshot' : 'sad_trombone',
+                    textClass: 'punchline',
+                    speaker: 'left'
+                }
+            ];
+            
+            return pages[this.currentPage] || pages[0];
+        }
+        
+        // Default for other types
+        return {
+            text: this.currentCard.content,
+            botImage: './src/images/signbots/signbot-standard.svg',
+            sound: null
+        };
+    }
+    
+    nextJokePage() {
+        const card = this.currentCard;
+        const maxPages = card.type === 'knock-knock' ? 5 : (card.type === 'pun' ? 3 : 1);
+        
+        this.currentPage++;
+        
+        if (this.currentPage >= maxPages) {
+            // Show giggle meter after last page
+            this.showGiggleMeter();
+        } else {
+            // Load next page
+            this.loadJokePage();
+        }
+    }
+    
+    showGiggleMeter() {
+        const container = document.getElementById('giggleMeterContainer');
+        const jokeContainer = document.getElementById('jokePageContainer');
+        
+        // Hide joke page
+        jokeContainer.style.display = 'none';
+        container.style.display = 'block';
+        
+        // Create giggle meter if not exists
+        if (!this.giggleMeter) {
+            this.giggleMeter = new GiggleMeter();
+        }
+        
+        // Clear container and add meter
+        container.innerHTML = '';
+        this.giggleMeter.create(container, {
+            onRatingChange: (value) => {
+                // Store rating
+                this.jokeRatings.push({
+                    cardId: this.currentCard.id,
+                    rating: value,
+                    stars: this.giggleMeter.getRating()
+                });
+            }
+        });
+        
+        // Add continue button
+        const continueBtn = document.createElement('button');
+        continueBtn.className = 'joke-continue-btn';
+        continueBtn.textContent = 'Next Joke';
+        continueBtn.onclick = () => this.nextJoke();
+        container.appendChild(continueBtn);
+    }
+    
+    nextJoke() {
+        // Reset for next joke
+        this.currentPage = 0;
+        
+        // Hide giggle meter
+        const giggleContainer = document.getElementById('giggleMeterContainer');
+        giggleContainer.style.display = 'none';
+        
+        // Hide joke page container
+        const jokeContainer = document.getElementById('jokePageContainer');
+        jokeContainer.style.display = 'none';
+        
+        // Show regular flashcard again
+        const flashcard = document.getElementById('flashcard');
+        flashcard.style.display = 'block';
+        
+        // Move to next card
+        this.nextCard();
+    }
+    
+    updateQuoteStreak() {
+        const streakCount = document.getElementById('streakCount');
+        const streakFill = document.getElementById('streakFill');
+        
+        if (streakCount) {
+            streakCount.textContent = `${this.quoteStreak} / ${this.cards.length}`;
+        }
+        
+        if (streakFill) {
+            const percentage = (this.quoteStreak / this.cards.length) * 100;
+            streakFill.style.width = `${percentage}%`;
+            
+            // Add visual effects based on streak
+            if (this.quoteStreak >= 5) {
+                streakFill.style.background = 'linear-gradient(90deg, #ff4500 0%, #ffd700 100%)';
+            } else if (this.quoteStreak >= 3) {
+                streakFill.style.background = 'linear-gradient(90deg, #ff6b6b 0%, #ffa500 100%)';
+            } else {
+                streakFill.style.background = '#ff6b6b';
+            }
+        }
+    }
 
-    showResults() {
+    async showResults() {
         const flashcardContainer = document.getElementById('flashcardContainer');
-        const percentage = Math.round((this.score / this.cards.length) * 100);
         
-        // Award completion bonus hearts
-        this.awardCompletionBonus();
+        // Check if this was a factoid session
+        const isFactoidSession = this.cards.some(card => card.challengeType === 'simple-flip');
         
-        flashcardContainer.innerHTML = `
-            <div class="results-screen">
-                <h2>Great Practice!</h2>
-                <div class="results-stats">
-                    <div class="result-stat">
-                        <span class="stat-value">${this.score}/${this.cards.length}</span>
-                        <span class="stat-label">Correct</span>
+        // For joke sessions, show joke ratings summary
+        if (this.jokeRatings.length > 0) {
+            this.showJokeResults();
+            return;
+        }
+        
+        // Award completion rewards
+        const rewards = await this.awardCompletionBonus();
+        
+        if (isFactoidSession) {
+            // Factoid-specific results screen
+            flashcardContainer.innerHTML = `
+                <div class="results-screen factoid-results">
+                    <h2>Great Work!</h2>
+                    <div class="results-stats">
+                        <div class="result-stat">
+                            <span class="stat-value">${this.cards.length}</span>
+                            <span class="stat-label">Facts Studied</span>
+                        </div>
                     </div>
-                    <div class="result-stat">
-                        <span class="stat-value">${percentage}%</span>
-                        <span class="stat-label">Accuracy</span>
+                    
+                    <!-- Rewards Bar with Slot Animation -->
+                    <div class="rewards-bar-container">
+                        <div class="rewards-bar" id="rewardsBar">
+                            <!-- Slots will be added here -->
+                        </div>
+                    </div>
+                    
+                    <div class="results-actions">
+                        <button class="btn-primary" onclick="window.flashcardModal.close()">Done</button>
                     </div>
                 </div>
-                <div class="results-message">
-                    ${this.getResultMessage(percentage)}
+            `;
+            
+            // Use RewardsDisplay component to animate rewards
+            // INTEGRATION GUIDE: This is how to show rewards in any modal:
+            // 1. Initialize this.rewardsDisplay = new RewardsDisplay() in your constructor
+            // 2. Create a container with id="rewardsBar" in your HTML
+            // 3. Call this.rewardsDisplay.show(rewards, container, options)
+            // The rewards object comes from EconomyManager (coins, xp, gems, etc.)
+            if (this.rewardsDisplay && rewards) {
+                const rewardsContainer = document.getElementById('rewardsBar');
+                if (rewardsContainer) {
+                    setTimeout(() => {
+                        this.rewardsDisplay.show(rewards, rewardsContainer, { 
+                            size: 'medium',  // Options: 'small', 'medium', 'large'
+                            theme: 'dark'    // Options: 'dark', 'light'
+                        });
+                    }, 300); // Delay for visual flow
+                }
+            }
+        } else {
+            // Regular quiz results screen
+            const percentage = Math.round((this.score / this.cards.length) * 100);
+            flashcardContainer.innerHTML = `
+                <div class="results-screen">
+                    <h2>Great Practice!</h2>
+                    <div class="results-stats">
+                        <div class="result-stat">
+                            <span class="stat-value">${this.score}/${this.cards.length}</span>
+                            <span class="stat-label">Correct</span>
+                        </div>
+                        <div class="result-stat">
+                            <span class="stat-value">${percentage}%</span>
+                            <span class="stat-label">Accuracy</span>
+                        </div>
+                    </div>
+                    <div class="results-message">
+                        ${this.getResultMessage(percentage)}
+                    </div>
+                    <div class="results-actions">
+                        <button class="btn-primary" onclick="window.flashcardModal.close()">Done</button>
+                        <button class="btn-secondary" onclick="window.flashcardModal.restart()">Practice Again</button>
+                    </div>
                 </div>
-                <div class="results-actions">
-                    <button class="btn-primary" onclick="window.flashcardModal.close()">Done</button>
-                    <button class="btn-secondary" onclick="window.flashcardModal.restart()">Practice Again</button>
-                </div>
-            </div>
-        `;
+            `;
+        }
 
         // Hide footer elements
         document.querySelector('.flashcard-footer').style.display = 'none';
@@ -1938,6 +2754,87 @@ class FlashcardModal {
             return "💪 Nice try! You're learning!";
         } else {
             return "🌱 Keep practicing, you'll get there!";
+        }
+    }
+    
+    
+    showJokeResults() {
+        const flashcardContainer = document.getElementById('flashcardContainer');
+        
+        // Calculate average rating
+        const avgRating = this.jokeRatings.reduce((sum, r) => sum + r.rating, 0) / this.jokeRatings.length;
+        const avgStars = Math.round(avgRating / 20); // Convert 0-100 to 0-5 stars
+        
+        // Award points based on participation and ratings
+        this.awardJokeCompletionBonus(avgRating);
+        
+        flashcardContainer.innerHTML = `
+            <div class="results-screen joke-results">
+                <h2>Comedy Session Complete!</h2>
+                <div class="joke-stats">
+                    <div class="result-stat">
+                        <span class="stat-value">${this.jokeRatings.length}</span>
+                        <span class="stat-label">Jokes Rated</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="stat-value">${'⭐'.repeat(avgStars)}</span>
+                        <span class="stat-label">Average Rating</span>
+                    </div>
+                </div>
+                <div class="results-message">
+                    ${this.getJokeResultMessage(avgRating)}
+                </div>
+                <div class="joke-comparison">
+                    <p>Your ratings vs AI predictions:</p>
+                    <div class="comparison-chart">
+                        <!-- This would show a comparison chart in production -->
+                        <p>Thanks for helping train our comedy AI!</p>
+                    </div>
+                </div>
+                <div class="results-actions">
+                    <button class="btn-primary" onclick="window.flashcardModal.close()">Done</button>
+                    <button class="btn-secondary" onclick="window.flashcardModal.restart()">More Jokes!</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    getJokeResultMessage(avgRating) {
+        if (avgRating >= 80) {
+            return "🤣 You found these hilarious! Great sense of humor!";
+        } else if (avgRating >= 60) {
+            return "😄 You enjoyed most of these! Nice giggle session!";
+        } else if (avgRating >= 40) {
+            return "😊 Some hits, some misses - that's comedy!";
+        } else if (avgRating >= 20) {
+            return "😐 Tough crowd! We'll find funnier jokes next time!";
+        } else {
+            return "😑 Not your style? Let's try different jokes!";
+        }
+    }
+    
+    async awardJokeCompletionBonus(avgRating) {
+        if (window.economyManager) {
+            // Calculate rewards based on participation and ratings
+            const baseXP = 20;
+            const ratingBonus = Math.floor(avgRating / 10); // 0-10 bonus XP
+            const totalXP = baseXP + ratingBonus;
+            
+            const result = await window.economyManager.processFlashcardComplete({
+                correct: true, // Always reward participation
+                cardType: 'joke',
+                bonusXP: totalXP,
+                isCompletionBonus: true
+            });
+            
+            if (result.rewards) {
+                window.dispatchEvent(new CustomEvent('rewards:earned', {
+                    detail: {
+                        rewards: result.rewards,
+                        bonuses: ['Comedy Critic Bonus!']
+                    }
+                }));
+            }
         }
     }
 

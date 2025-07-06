@@ -16,7 +16,9 @@ build/
 # Other
 .alm-quiz-deploy
 .claude
+.vscode
 jazzyPopArchives
+JazzyPopArchitecture_specs
 kawaii-quiz-backend
 
 # Data files
@@ -57,3 +59,6 @@ logs/
 # Coverage
 coverage/
 .nyc_output/
+
+# Shell scripts (deployment/utility)
+*.sh

@@ -13,6 +13,7 @@ class CardManager {
         this.websocket = null;
         this.practiceCardsAdded = false;
         this.practiceCards = []; // Store practice cards separately
+        this.cardCreationCount = 0; // Track cards for selective badge display
         this.init();
     }
 
@@ -30,6 +31,7 @@ class CardManager {
         // Listen for economy updates to refresh affordability
         window.addEventListener('economyUpdated', () => this.updateAffordability());
         window.addEventListener('statsUpdated', () => this.updateAffordability());
+        window.addEventListener('eventsUpdated', () => this.refreshCards());
         
         // Check for expired cards every minute
         setInterval(() => this.removeExpiredCards(), 60000);
@@ -89,11 +91,11 @@ class CardManager {
         // Initial load
         await this.fetchCards();
         
-        // Periodic sync every 30 seconds (backup for WebSocket)
+        // Periodic sync every 2 minutes (reduced from 30 seconds)
         this.updateInterval = setInterval(() => {
             // console.log('Periodic card sync...');
             this.fetchCards();
-        }, 30000);
+        }, 120000);
     }
 
     async fetchCards() {
@@ -124,25 +126,27 @@ class CardManager {
                 cards = data.cards;
             } else if (Array.isArray(data)) {
                 // New format from quiz/sets - transform quiz sets into card format
-                cards = data.map(quiz => ({
-                    id: quiz.id,
-                    type: 'quiz_tease',
-                    template: 'quiz_preview',
-                    priority: 10,
-                    data: {
-                        quiz_id: quiz.id,
-                        title: quiz.data.title,
-                        description: quiz.data.questions?.[0]?.question || 'Test your knowledge!',
-                        category: quiz.data.category,
-                        difficulty: quiz.data.difficulty || 'medium',
-                        mode: quiz.mode || 'poqpoq',
-                        cta: 'Play Now!'
-                    },
-                    // Pass economics data from quiz set if available
-                    economics: quiz.economics || quiz.data?.economics || null,
-                    // Store the full quiz data for direct use
-                    quizData: quiz
-                }));
+                cards = data.map(quiz => {
+                    return {
+                        id: quiz.id,
+                        type: 'quiz_tease',
+                        template: 'quiz_preview',
+                        priority: 10,
+                        data: {
+                            quiz_id: quiz.id,
+                            title: quiz.data.title,
+                            description: quiz.data.questions?.[0]?.question || 'Test your knowledge!',
+                            category: quiz.data.category,
+                            difficulty: quiz.data.difficulty || 'medium',
+                            mode: quiz.mode || 'poqpoq',
+                            cta: 'Play Now!'
+                        },
+                        // Pass economics data from quiz set if available
+                        economics: quiz.economics || quiz.data?.economics || null,
+                        // Store the full quiz data for direct use
+                        quizData: quiz
+                    };
+                });
             } else {
                 console.error('Unexpected response format:', data);
                 cards = [];
@@ -280,8 +284,17 @@ class CardManager {
             if (this.cards.has(cardData.id)) {
                 // Update existing card
                 const existingData = this.cardData.get(cardData.id);
-                if (JSON.stringify(existingData) !== JSON.stringify(cardData)) {
-                    // console.log('Updating card:', cardData.id);
+                // Skip update if data hasn't changed (ignore timestamps and other volatile fields)
+                const existingCore = { ...existingData };
+                const newCore = { ...cardData };
+                // Remove fields that change frequently but don't affect display
+                delete existingCore.lastUpdated;
+                delete existingCore.timestamp;
+                delete newCore.lastUpdated;
+                delete newCore.timestamp;
+                
+                if (JSON.stringify(existingCore) !== JSON.stringify(newCore)) {
+                    console.log('Card data changed, updating:', cardData.id);
                     this.updateCard(cardData.id, cardData);
                 }
             } else {
@@ -304,7 +317,6 @@ class CardManager {
         
         // Create card config from backend data
         const cardConfig = this.createCardConfig(cardData);
-        // console.log('Card config created:', cardConfig);
         
         // Create card instance - using enhanced version with economy display
         const card = new GenericCardEnhanced({
@@ -465,7 +477,6 @@ class CardManager {
     }
 
     createCardConfig(cardData) {
-        // console.log('Creating card config for:', cardData);
         
         // Handle quiz_preview template cards from backend
         if (cardData.template === 'quiz_preview' && cardData.type === 'quiz_tease') {
@@ -507,29 +518,8 @@ class CardManager {
                 badges.unshift(modeBadge); // Add at beginning
             }
             
-            // Check for special event modifiers
+            // Events are now displayed in the event dots, not on cards
             const events = [];
-            const currentHour = new Date().getHours();
-            
-            // Power Hour (4-6 PM)
-            if (currentHour >= 16 && currentHour < 18) {
-                events.push({
-                    type: 'power-hour',
-                    label: 'POWER HOUR',
-                    name: 'Power Hour',
-                    costModifier: { type: 'percentage', value: 0.5 }
-                });
-            }
-            
-            // Learning Party (weekends)
-            const dayOfWeek = new Date().getDay();
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-                events.push({
-                    type: 'learning-party', 
-                    label: 'WEEKEND BOOST',
-                    name: 'Weekend Learning Party'
-                });
-            }
             
             return {
                 id: cardData.id,
@@ -537,24 +527,8 @@ class CardManager {
                 theme: theme,
                 layout: 'vertical',
                 events: events,
-                // Trust backend economics data instead of hardcoding
+                // Trust backend economics data
                 economics: cardData.economics || data.economics || null,
-                /* COMMENTED OUT - letting backend handle economics
-                economics: {
-                    cost: {
-                        energy: 10,  // Quiz costs 10 energy
-                        minHearts: 0 // No minimum hearts required
-                    },
-                    rewards: {
-                        xp: { min: 10, max: 100 },
-                        gems: { min: 0, max: 3 },
-                        // Only show mystery box on hard/expert difficulty
-                        ...(data.difficulty === 'hard' || data.difficulty === 'expert' 
-                            ? { rare: '🎁 Mystery Box (1% chance)' } 
-                            : {})
-                    }
-                },
-                */
                 data: {
                     header: {
                         icon: categoryIcon,
@@ -622,18 +596,8 @@ class CardManager {
         
         // Handle flashcard practice cards
         if (cardData.type === 'practice' || cardData.type === 'flashcard') {
+            // Events are now displayed in the event dots, not on cards
             const practiceEvents = [];
-            
-            // First practice of the day bonus
-            const lastPractice = localStorage.getItem('lastPracticeDate');
-            const today = new Date().toDateString();
-            if (lastPractice !== today) {
-                practiceEvents.push({
-                    type: 'limited',
-                    label: 'FIRST PRACTICE',
-                    name: 'Daily First Practice Bonus'
-                });
-            }
             
             return {
                 id: cardData.id,
@@ -672,6 +636,7 @@ class CardManager {
                 },
                 component: 'FlashcardModal',
                 componentConfig: {
+                    cardId: cardData.id,
                     category: cardData.data?.category,
                     cardType: cardData.data?.cardType
                 }
@@ -772,15 +737,27 @@ class CardManager {
 
     updateCard(cardId, updates) {
         const card = this.cards.get(cardId);
-        if (!card) return;
+        if (!card || !card.element) return;
         
         // Update stored data
         const currentData = this.cardData.get(cardId);
         const newData = { ...currentData, ...updates };
         this.cardData.set(cardId, newData);
         
-        // Update card display
-        card.update(updates);
+        // Re-create card with updated data
+        const config = this.createCardConfig(newData);
+        const newCard = new GenericCardEnhanced({
+            ...config,
+            onAction: (detail) => this.handleCardAction(detail)
+        });
+        const newElement = newCard.render();
+        
+        // Replace old element with new one
+        card.element.replaceWith(newElement);
+        
+        // Update references
+        newCard.element = newElement;
+        this.cards.set(cardId, newCard);
     }
 
     removeCard(cardId) {
@@ -823,30 +800,31 @@ class CardManager {
     }
     
     updateAffordability() {
+        // Skip if no cards are loaded yet
+        if (this.cards.size === 0) {
+            // Skip early economy updates before cards are loaded
+            return;
+        }
+        
         // Update the visual state of all cards based on current economy
         this.cards.forEach((card, id) => {
             if (card.element && card.economics) {
-                const canAfford = card.checkAffordability();
-                const economicsEl = card.element.querySelector('.card-economics');
-                const actionBtn = card.element.querySelector('.primary-action');
-                
-                if (economicsEl) {
-                    if (canAfford) {
-                        economicsEl.classList.remove('insufficient');
-                    } else {
-                        economicsEl.classList.add('insufficient');
-                    }
-                }
-                
-                // Update button state
-                if (actionBtn) {
-                    if (canAfford) {
-                        actionBtn.classList.remove('disabled');
-                        actionBtn.removeAttribute('disabled');
-                    } else {
-                        actionBtn.classList.add('disabled');
-                        actionBtn.setAttribute('disabled', 'true');
-                    }
+                // Simply re-render the entire card to update affordability
+                const cardData = this.cardData.get(id);
+                if (cardData) {
+                    const config = this.createCardConfig(cardData);
+                    const newCard = new GenericCardEnhanced({
+                        ...config,
+                        onAction: (detail) => this.handleCardAction(detail)
+                    });
+                    const newElement = newCard.render();
+                    
+                    // Replace old element with new one
+                    card.element.replaceWith(newElement);
+                    
+                    // Update references
+                    newCard.element = newElement;
+                    this.cards.set(id, newCard);
                 }
             }
         });
@@ -865,6 +843,31 @@ class CardManager {
         });
         
         sorted.forEach(element => this.container.appendChild(element));
+    }
+    
+    refreshCards() {
+        // Re-render all cards to show updated events
+        this.cards.forEach((card, id) => {
+            const cardData = this.cardData.get(id);
+            if (cardData && card.element) {
+                // Update events on the card data
+                const config = this.createCardConfig(cardData);
+                
+                // Create new card with updated events
+                const newCard = new GenericCardEnhanced({
+                    ...config,
+                    onAction: (detail) => this.handleCardAction(detail)
+                });
+                const newElement = newCard.render();
+                
+                // Replace old element with new one
+                card.element.replaceWith(newElement);
+                
+                // Update references
+                newCard.element = newElement;
+                this.cards.set(id, newCard);
+            }
+        });
     }
 
     handleCardAction(detail) {
@@ -965,7 +968,9 @@ class CardManager {
                 }
                 break;
             case 'FlashcardModal':
+                console.log('Attempting to launch FlashcardModal, checking window.flashcardModal:', window.flashcardModal);
                 if (window.flashcardModal) {
+                    console.log('FlashcardModal found, calling open with config:', config);
                     window.flashcardModal.open(config);
                 } else {
                     console.error('Flashcard modal not initialized');
@@ -1123,22 +1128,26 @@ class CardManager {
             {
                 category: 'bad_puns',
                 title: 'Bad Pun Practice',
-                description: 'Groan-worthy wordplay to test your pun tolerance! Can you survive the eye-rolls?'
+                description: 'Groan-worthy wordplay to test your pun tolerance! Can you survive the eye-rolls?',
+                cardCount: 10
             },
             {
                 category: 'famous_quotes',
                 title: 'Famous Quotes Challenge',
-                description: 'Who said what? Test your knowledge of memorable words from history!'
+                description: 'Who said what? Test your knowledge of memorable words from history!',
+                cardCount: 10
             },
             {
                 category: 'knock_knock',
                 title: 'Knock Knock Jokes',
-                description: 'Classic door-based comedy! Perfect for earning hearts while groaning.'
+                description: 'Classic door-based comedy! Perfect for earning hearts while groaning.',
+                cardCount: 10
             },
             {
                 category: 'trivia_mix',
-                title: 'Trivia Mix',
-                description: 'Random facts and knowledge to keep your brain sharp!'
+                title: 'Factoids',
+                description: 'Mind-blowing facts with surprising details!',
+                cardCount: 10
             }
         ];
         
@@ -1162,7 +1171,7 @@ class CardManager {
                 category: practice.category,
                 title: practice.title,
                 description: practice.description,
-                cardCount: Math.floor(Math.random() * 6) + 10, // 10-15 cards
+                cardCount: practice.cardCount || 10,
                 time: `${Math.floor(Math.random() * 3) + 3} min` // 3-5 minutes
             }
         };

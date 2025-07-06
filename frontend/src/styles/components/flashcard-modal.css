@@ -5,15 +5,21 @@
 
 /* Modal base */
 .flashcard-modal {
-    position: fixed;
+    position: fixed !important;
     inset: 0;
-    z-index: var(--z-modal, 1000);
+    z-index: var(--z-modal, 1000) !important;
     display: none;
     pointer-events: none;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .flashcard-modal.active {
-    display: block;
+    display: block !important;
     pointer-events: auto;
 }
 
@@ -120,7 +126,7 @@
         radial-gradient(circle at 80% 50%, rgba(28, 176, 246, 0.05) 0%, transparent 50%);
     position: relative;
     min-height: 500px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .flashcard {
@@ -133,10 +139,31 @@
     margin: 0 auto;
     transform-style: preserve-3d;
     transition: transform 0.6s;
+    z-index: 1;
+}
+
+.flashcard.simple-flip {
+    overflow: visible !important;
+    height: 580px;
 }
 
 .flashcard.flipped {
     transform: rotateY(180deg);
+}
+
+/* Override for simple-flip - no 3D rotation needed */
+.flashcard.simple-flip.flipped {
+    transform: none !important;
+}
+
+/* Hide emojis during transition to prevent flash */
+.flashcard.simple-flip .emoji {
+    opacity: 0;
+    transition: opacity 0.3s ease 0.3s;
+}
+
+.flashcard.simple-flip.flipped .emoji {
+    opacity: 1;
 }
 
 .flashcard-front,
@@ -150,11 +177,23 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     padding: 30px;
     text-align: center;
     box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.05);
-    transition: opacity 0.6s ease, visibility 0.6s ease;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    overflow: hidden;
+}
+
+/* Allow proper layout for simple-flip backs */
+.flashcard.simple-flip .flashcard-back {
+    overflow-y: auto;
+    overflow-x: hidden;
+    justify-content: flex-start;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
 }
 
 .flashcard-front {
@@ -164,8 +203,6 @@
     position: absolute;
     overflow: hidden;
     z-index: 2;
-    opacity: 1;
-    visibility: visible;
     backface-visibility: hidden;
 }
 
@@ -182,29 +219,251 @@
 
 .flashcard-back {
     /* Softer gradient for back */
-    background: linear-gradient(145deg, #1a2332, #2d3b4d) !important;
-    color: white !important;
+    background: linear-gradient(145deg, #1a2332, #2d3b4d);
+    color: white;
     border: 2px solid rgba(88, 204, 2, 0.3);
     position: absolute;
-    top: 0 !important;
-    left: 0 !important;
-    overflow: visible !important;
-    z-index: 1;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotateY(180deg);
+    backface-visibility: hidden;
+    border-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    text-align: center;
+}
+
+/* Special handling for simple-flip backs */
+.flashcard.simple-flip .flashcard-back {
+    transform: none;
+    backface-visibility: visible;
     opacity: 0;
     visibility: hidden;
-    transform: rotateY(180deg);
+    z-index: 1;
 }
 
-/* Force all back content to be visible */
-.flashcard-back * {
-    color: white !important;
-    opacity: 1 !important;
-}
-
-.flashcard.flipped .flashcard-back {
+.flashcard.simple-flip.flipped .flashcard-back {
     opacity: 1 !important;
     visibility: visible !important;
+    z-index: 10;
+}
+
+/* Hide front when simple-flip is flipped */
+.flashcard.simple-flip.flipped .flashcard-front {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    z-index: 1;
+}
+
+/* Ensure front is on top when not flipped */
+.flashcard.simple-flip:not(.flipped) .flashcard-front {
+    z-index: 10;
+}
+
+/* Simple flip state */
+.flashcard.flipped .flashcard-back {
     z-index: 2;
+}
+
+/* Ensure simple-flip back is visible when flipped */
+.flashcard.simple-flip.flipped .flashcard-back {
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 9999 !important;
+    position: absolute !important;
+    transform: rotateY(0deg) !important; /* Override the 180deg rotation */
+    backface-visibility: visible !important;
+}
+
+/* Nuclear option - force ALL back content visible for simple-flip */
+.flashcard.simple-flip.flipped .flashcard-back,
+.flashcard.simple-flip.flipped .flashcard-back * {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+.flashcard.simple-flip.flipped .flashcard-back .simple-flip-container,
+.flashcard.simple-flip.flipped .flashcard-back .factoid-back-display {
+    display: flex !important;
+}
+
+/* Force factoid back content to stay visible when flipped */
+.flashcard.flipped .simple-flip-container,
+.flashcard.flipped .factoid-back-display,
+.flashcard.flipped .factoid-twist,
+.flashcard.flipped .wonder-meter-container {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    animation: none !important;
+    transition: none !important;
+    position: relative !important;
+    z-index: 100 !important;
+}
+
+/* Ensure factoid backs are hidden when NOT flipped */
+.flashcard.simple-flip:not(.flipped) .factoid-back-display,
+.flashcard.simple-flip:not(.flipped) .factoid-detail-label,
+.flashcard.simple-flip:not(.flipped) .category-hero-icon-back,
+.flashcard.simple-flip:not(.flipped) .wonder-meter-container {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* Wonder Meter container on factoid backs - ultra compact */
+#wonderMeterInline {
+    position: relative;
+    width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+/* Make Wonder Meter content ultra compact */
+#wonderMeterInline .wonder-meter-content {
+    padding: 0 !important;
+    background: transparent !important;
+    width: 100%;
+}
+
+/* Hide the label - we don't need it */
+#wonderMeterInline .wonder-meter-label {
+    display: none !important;
+}
+
+/* Make slider container flat */
+#wonderMeterInline .wonder-meter-slider-container {
+    padding: 0 !important;
+    width: 100%;
+    position: relative;
+}
+
+/* Ensure slider track is visible */
+#wonderMeterInline .slider-track {
+    background: rgba(255, 255, 255, 0.2) !important;
+    height: 8px !important;
+}
+
+#wonderMeterInline .slider-fill {
+    background: #58cc02 !important;
+    height: 8px !important;
+}
+
+/* Make the slider thumb bigger */
+#wonderMeterInline .wonder-slider::-webkit-slider-thumb {
+    width: 20px !important;
+    height: 20px !important;
+    margin-top: -8px !important;
+    transform: translateY(-2px) !important;
+}
+
+#wonderMeterInline .wonder-slider::-moz-range-thumb {
+    width: 20px !important;
+    height: 20px !important;
+    border: none !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Simple flex layout for Wonder Meter */
+#wonderMeterInline .wonder-meter-slider-container {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 40px !important;
+    gap: 0 !important;
+}
+
+/* Hide the emoji track wrapper */
+#wonderMeterInline .emoji-track {
+    display: none !important;
+}
+
+/* Add emojis directly as pseudo elements */
+#wonderMeterInline .slider-container {
+    flex: 1 !important;
+    position: relative !important;
+    margin: 0 30px !important;
+}
+
+/* Move the actual slider up */
+#wonderMeterInline .wonder-slider {
+    position: relative !important;
+    top: -2px !important;
+}
+
+#wonderMeterInline .slider-container::before {
+    content: "🤔" !important;
+    position: absolute !important;
+    left: -25px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 24px !important;
+    z-index: 10 !important;
+}
+
+#wonderMeterInline .slider-container::after {
+    content: "😎" !important;
+    position: absolute !important;
+    right: -30px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 24px !important;
+    z-index: 10 !important;
+}
+
+#wonderMeterInline .emoji-marker .emoji {
+    font-size: 24px !important;
+}
+
+/* Hide emoji labels */
+#wonderMeterInline .emoji-label {
+    display: none !important;
+}
+
+/* Hide current rating display */
+#wonderMeterInline .current-rating {
+    display: none !important;
+}
+
+/* Hide the continue button - we use flip icon instead */
+#wonderMeterInline .wonder-meter-continue {
+    display: none !important;
+}
+
+/* Ensure Wonder Meter is visible on flipped factoids */
+.flashcard.simple-flip.flipped #wonderMeterInline {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Hide challenge container completely for simple-flip cards */
+.flashcard.simple-flip .flashcard-challenge-container,
+.flashcard.simple-flip .flashcard-answer-feedback,
+.flashcard.simple-flip .flashcard-continue-btn,
+.flashcard.simple-flip .flashcard-check-answer-btn {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+/* Make sure the challenge input shows for simple-flip */
+.flashcard.flipped .challenge-input {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative !important;
+    z-index: 50 !important;
 }
 
 .flashcard-back::before {
@@ -218,8 +477,8 @@
 }
 
 @keyframes pulse {
-    0%, 100% { transform: scale(0.8); opacity: 0; }
-    50% { transform: scale(1.2); opacity: 1; }
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 .card-category {
@@ -228,33 +487,102 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--primary);
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     padding: 6px 16px;
     background: rgba(88, 204, 2, 0.1);
     border-radius: 20px;
+    position: relative;
+    z-index: 2;
 }
 
-/* Sign bot decoration */
-.flashcard-front::after,
-.flashcard-back::after {
-    content: '';
-    position: absolute;
-    bottom: -40px;
-    right: -40px;
-    width: 120px;
-    height: 120px;
-    background: url('../../images/signbots/signbot-standard.svg') no-repeat center;
-    background-size: contain;
-    opacity: 0.3;
-    transform: rotate(-15deg);
-    pointer-events: none;
+.category-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    filter: brightness(0) saturate(100%) invert(82%) sepia(21%) saturate(3018%) hue-rotate(43deg) brightness(106%) contrast(101%);
 }
 
-.flashcard-back::after {
-    left: -40px;
-    right: auto;
-    transform: rotate(15deg);
-    opacity: 0.2;
+/* Factoid hero display */
+.factoid-hero-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    position: relative;
+    margin-top: -30px;
+}
+
+.category-hero-icon {
+    width: 256px;
+    height: 256px;
+    object-fit: contain;
+    margin-top: 10px;
+    margin-bottom: -20px;
+}
+
+.factoid-text {
+    font-size: 19px;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--text-primary);
+    margin-top: 10px;
+    padding: 0 15px;
+}
+
+/* Sign bot decoration - removed for cleaner design */
+/* Ghost bots were distracting from content */
+
+/* Simple flip container for factoids */
+.simple-flip-container {
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.simple-flip-container:hover {
+    transform: scale(1.02);
+}
+
+.factoid-twist {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    padding: 15px 10px;
+    background: rgba(88, 204, 2, 0.1);
+    border-radius: 16px;
+    border: 2px solid rgba(88, 204, 2, 0.3);
+    width: calc(100% - 20px);
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+/* Custom scrollbar for factoid twist */
+.factoid-twist::-webkit-scrollbar {
+    width: 6px;
+}
+
+.factoid-twist::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+
+.factoid-twist::-webkit-scrollbar-thumb {
+    background: rgba(88, 204, 2, 0.5);
+    border-radius: 3px;
+}
+
+.factoid-twist::-webkit-scrollbar-thumb:hover {
+    background: rgba(88, 204, 2, 0.7);
+}
+
+.factoid-hint {
+    font-size: 14px;
+    color: var(--text-secondary);
+    opacity: 0.7;
+    font-style: italic;
 }
 
 .card-question {
@@ -305,6 +633,30 @@
     display: block !important;
     opacity: 1 !important;
     visibility: visible !important;
+}
+
+/* Special styling for simple-flip challenges */
+.flashcard.simple-flip .card-challenge,
+.flashcard[data-challenge-type="simple-flip"] .card-challenge {
+    display: flex !important;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Hide the challenge question for factoids */
+.flashcard.simple-flip .challenge-question {
+    display: none !important;
+}
+
+/* Make challenge input full height for factoids */
+.flashcard.simple-flip .challenge-input {
+    flex: 1;
+    display: flex !important;
+    width: 100%;
 }
 
 /* Ensure challenge stays visible when card is flipped */
@@ -1132,4 +1484,341 @@
         opacity: 1;
         transform: translate(-50%, -50%);
     }
+}
+/* Simple Flip (Factoid) Styles */
+.simple-flip-container {
+    display: flex !important;
+    flex-direction: column;
+    gap: 20px;
+    min-height: 300px;
+    padding: 10px;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.factoid-twist {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    text-align: center;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 10px;
+    width: 100%;
+    max-height: 60%;
+    overflow-y: auto;
+}
+
+/* Make factoid front text bigger */
+.flashcard-front .flashcard-content {
+    font-size: 28px \!important;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+/* Make flashcard expand to content */
+.flashcard-card {
+    min-height: 400px;
+    height: auto \!important;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Flip icon button */
+.flip-icon-button {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 8px;
+}
+
+.flip-icon-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+.flip-icon {
+    width: 100%;
+    height: 100%;
+    filter: brightness(0) invert(1); /* Make it white */
+    opacity: 0.8;
+}
+
+.flip-icon-button:hover .flip-icon {
+    opacity: 1;
+}
+
+/* Keep flip button visible on factoid backs */
+.flashcard.simple-flip.flipped .flip-icon-button {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 1000;
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+}
+
+/* Move flip button to top-right on factoid backs */
+.flashcard.simple-flip.flipped .flip-icon-button {
+    bottom: auto;
+    top: 20px;
+    right: 20px;
+}
+
+/* Factoid Results Screen */
+.factoid-results .results-stats {
+    margin-bottom: 40px;
+}
+
+/* Rewards Bar */
+.rewards-bar-container {
+    margin: 40px auto;
+    padding: 30px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 20px;
+    max-width: 500px;
+}
+
+.rewards-bar {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    min-height: 100px;
+}
+
+/* Reward Slot */
+.reward-slot {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    overflow: hidden;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Slot Reel */
+.slot-reel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.slot-reel.spinning {
+    animation: slotSpin 0.3s linear infinite;
+}
+
+.slot-reel.stopped {
+    transform: translateY(-160px); /* Show middle item */
+}
+
+/* Slot Items */
+.slot-item {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.slot-item img {
+    width: 40px;
+    height: 40px;
+    filter: brightness(0) invert(1); /* Make icons white */
+}
+
+/* Reward Value */
+.reward-value {
+    position: absolute;
+    bottom: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    font-weight: 700;
+    color: #58cc02;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.reward-value.show {
+    opacity: 1;
+}
+
+/* Slot Spin Animation */
+@keyframes slotSpin {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-400px); }
+}
+
+/* Results Actions - Right Aligned */
+.factoid-results .results-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 40px;
+    padding: 0 20px;
+}
+
+.factoid-results .btn-primary {
+    background: #58cc02;
+    color: #1a1a1a;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 24px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.factoid-results .btn-primary:hover {
+    background: #6dd30f;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(88, 204, 2, 0.3);
+}
+
+/* Remove old flip hint */
+.flip-hint {
+    display: none \!important;
+}
+
+/* Remove green background from simple-flip container */
+.simple-flip-container {
+    background: transparent \!important;
+}
+
+/* Make flashcard modal reasonable height */
+.flashcard {
+    min-height: 350px;
+    max-height: 500px;
+    height: auto;
+}
+
+.flashcard-front,
+.flashcard-back {
+    min-height: 350px;
+    max-height: 500px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+}
+
+/* Make the card content area larger */
+.card-content {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    font-size: 26px !important;
+    line-height: 1.4;
+    max-width: 90%;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+}
+
+/* Ensure factoid twist has room */
+.factoid-twist {
+    min-height: 200px;
+}
+
+/* Factoid back wrapper - fills the card */
+.factoid-back-wrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%;
+    flex: 1;
+}
+
+/* Factoid back display */
+.factoid-back-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px;
+}
+
+
+.category-hero-icon-back {
+    width: 128px;
+    height: 128px;
+    object-fit: contain;
+    margin-bottom: 2px;
+    margin-top: -20px;
+    opacity: 0.8;
+    position: relative;
+    z-index: 1;
+    display: block;
+}
+
+.factoid-detail-label {
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--primary);
+    padding: 6px 16px;
+    background: rgba(88, 204, 2, 0.1);
+    border-radius: 20px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 2;
+}
+
+.factoid-back-display .factoid-twist {
+    position: relative;
+    z-index: 2;
+    color: white !important;
+    opacity: 1 !important;
+}
+
+/* Hide check answer button for factoids */
+.flashcard-back .check-answer-btn,
+.flashcard-back .flashcard-check-answer-btn {
+    display: none \!important;
+}
+
+/* Specifically hide it for simple-flip cards */
+.flashcard.simple-flip .check-answer-btn,
+.flashcard.simple-flip .flashcard-check-answer-btn,
+.flashcard.simple-flip .answer-check {
+    display: none \!important;
+}
+
+/* Hide entire answer check section when showing factoids */
+#flashcard[data-challenge-type="simple-flip"] .answer-check,
+#flashcard[data-challenge-type="simple-flip"] .flashcard-check-answer-btn {
+    display: none \!important;
+}
+
+/* Also hide it based on card container content */
+.flashcard:has(.simple-flip-container) .answer-check {
+    display: none \!important;
 }

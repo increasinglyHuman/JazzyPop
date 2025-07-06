@@ -14,7 +14,7 @@
 - **Solution**: Added 1.2 second delay in QuizModal.js before showing feedback
 - **Impact**: Players can now see which answer was correct before bot appears
 
-### 4. Replace System Alerts with Proper UI [2 hours]
+### ✅4. Replace System Alerts with Proper UI [2 hours]
 - **Why First**: Only 4 alerts to replace
 - **Impact**: Professional polish
 - **Effort**: Create simple modal component
@@ -22,17 +22,17 @@
 ## 💰 Core Game Balance (Do This Week)
 *Essential for retention*
 
-### 14. Balance Heart/Lives Economy [2-3 hours]
+### ✅14. Balance Heart/Lives Economy [2-3 hours]
 - **Why Soon**: Players quitting from frustration
 - **Impact**: Retention critical
 - **Effort**: Tweak numbers, test balance
 
-### 15. Implement Varied Failure Penalties [2-3 hours]
+### ✅15. Implement Varied Failure Penalties [2-3 hours]
 - **Why Soon**: Makes hearts last longer
 - **Impact**: Extends play sessions
 - **Effort**: Add gem/heart penalty logic
 
-### 16. Implement Complete XP & Leveling System [1-2 days]
+### ✅16. Implement Complete XP & Leveling System [1-2 days]
 - **Why Soon**: Core progression loop
 - **Impact**: Long-term engagement
 - **Effort**: Backend + frontend work
@@ -40,7 +40,7 @@
 ## 🎨 Polish & Content (Next Sprint)
 *Important but not urgent*
 
-### 7. Standardize Card Heights for Mobile [2-3 hours]
+### ✅7. Standardize Card Heights for Mobile [2-3 hours]
 - **Impact**: Mobile experience
 - **Effort**: CSS adjustments
 
@@ -63,17 +63,7 @@
 - **Impact**: Game feel transformation
 - **Effort**: Audio architecture needed
 
-### 11. Overhaul Mindful Moments & Herding Game [1-2 weeks]
-- **Impact**: Core feature improvement
-- **Effort**: Significant development
-
-### 12. Evaluate & Adapt Games from Book [2-3 days per game]
-- **Impact**: Content variety
-- **Effort**: Per-game implementation
-
-### 10. Fix Profile System & Diversify Avatars [3-4 days]
-- **Impact**: Inclusivity & persistence
-- **Effort**: Asset creation + backend
+- 
 
 ## 💳 Monetization & Growth (Strategic Planning)
 *Revenue generation - need business decisions*
@@ -101,7 +91,7 @@
 - **Impact**: Content quality
 - **Effort**: Validation pipeline
 
-### 8. Fix Google Sign-In [2-3 hours]
+### ✅8. Fix Google Sign-In [2-3 hours]
 - **Impact**: User onboarding
 - **Effort**: Debug existing code
 

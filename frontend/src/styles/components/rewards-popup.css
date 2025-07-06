@@ -17,9 +17,9 @@
     right: 0;
     background: linear-gradient(135deg, var(--primary, #6366f1), var(--accent, #a855f7));
     color: white;
-    padding: 12px 20px;
+    padding: 24px 20px; /* Doubled padding for taller bar */
     text-align: center;
-    font-size: 14px;
+    font-size: 18px; /* Larger text */
     font-weight: 600;
     transform: translateY(-100%);
     transition: transform 0.3s ease-out;
@@ -71,7 +71,7 @@
 }
 
 .rewards-icon {
-    font-size: 18px;
+    font-size: 32px; /* Much larger icons */
     animation: celebrate 0.6s ease-out;
 }
 
@@ -88,23 +88,32 @@
 }
 
 .rewards-text {
-    font-size: 14px;
+    font-size: 18px; /* Larger text to match */
     letter-spacing: 0.3px;
+}
+
+/* Icon images in rewards bar */
+.rewards-bar img,
+.rewards-content img {
+    height: 32px;
+    width: 32px;
+    vertical-align: middle;
+    margin: 0 4px;
 }
 
 /* Mobile adjustments for rewards bar */
 @media (max-width: 480px) {
     .quiz-content .rewards-bar,
     .flashcard-modal .rewards-bar {
-        padding: 10px 16px;
-        font-size: 13px;
+        padding: 20px 16px; /* Doubled padding on mobile too */
+        font-size: 16px; /* Larger text on mobile */
     }
     
     .rewards-icon {
-        font-size: 16px;
+        font-size: 28px; /* Much larger icons on mobile */
     }
     
     .rewards-text {
-        font-size: 13px;
+        font-size: 16px; /* Larger text on mobile */
     }
 }
