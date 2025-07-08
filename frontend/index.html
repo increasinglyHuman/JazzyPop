@@ -31,7 +31,7 @@
         <link rel="stylesheet" href="./src/styles/components/dashboard.css" />
         <link
             rel="stylesheet"
-            href="./src/styles/components/profile-selector.css"
+            href="./src/styles/components/profile-selector.css?v=20250108"
         />
         <link rel="stylesheet" href="./src/styles/components/card.css?v=20250104" />
         <link rel="stylesheet" href="./src/styles/components/card-economics-new.css?v=20250104e" />
@@ -236,45 +236,130 @@
                 <div class="profile-content">
                     <!-- Profile Fields -->
                     <div class="profile-fields">
-                        <div class="field-group">
-                            <label for="userName">Your Name</label>
-                            <input
-                                type="text"
-                                id="userNameInput"
-                                placeholder="Enter your name"
-                                value="Anonymous Player"
-                                onchange="updateUserName(this.value)"
-                            />
+                        <!-- Show user info if logged in -->
+                        <div id="userInfoSection" style="display: none;">
+                            <div class="user-info-display">
+                                <h4 id="userDisplayName">Anonymous Player</h4>
+                                <p id="userEmailDisplay" class="user-email"></p>
+                                <button class="logout-btn" onclick="handleLogout()">Sign Out</button>
+                            </div>
                         </div>
 
-                        <div class="field-group">
-                            <label for="userEmail">Email (optional)</label>
-                            <input
-                                type="email"
-                                id="userEmailInput"
-                                placeholder="your@email.com"
-                                onchange="updateUserEmail(this.value)"
-                            />
-                        </div>
+                        <!-- Auth section for non-logged in users -->
+                        <div id="authSection">
+                            <!-- Message area -->
+                            <div id="authMessage" class="auth-message" style="display: none;"></div>
 
-                        <div class="divider">
-                            <span>or</span>
-                        </div>
+                            <!-- Login Form -->
+                            <div class="auth-login-section active">
+                                <h4>Sign in to save your progress</h4>
+                                <form id="loginForm" onsubmit="return false;">
+                                    <div class="field-group">
+                                        <label for="loginEmail">Email</label>
+                                        <input
+                                            type="email"
+                                            id="loginEmail"
+                                            placeholder="your@email.com"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="field-group">
+                                        <label for="loginPassword">Password</label>
+                                        <input
+                                            type="password"
+                                            id="loginPassword"
+                                            placeholder="Password"
+                                            required
+                                        />
+                                    </div>
+                                    <button type="submit" class="auth-submit-btn">Sign In</button>
+                                </form>
+                                
+                                <div class="auth-links">
+                                    <a href="#" data-auth-mode="forgot">Forgot password?</a>
+                                    <span>•</span>
+                                    <a href="#" data-auth-mode="register">Create account</a>
+                                </div>
+                            </div>
 
-                        <button
-                            class="google-signin-btn"
-                            onclick="signInWithGoogle()"
-                        >
-                            <span style="font-size: 18px; margin-right: 8px"
-                                >🇬</span
+                            <!-- Register Form -->
+                            <div class="auth-register-section">
+                                <h4>Create your JazzyPop account</h4>
+                                <form id="registerForm" onsubmit="return false;">
+                                    <div class="field-group">
+                                        <label for="registerName">Display Name</label>
+                                        <input
+                                            type="text"
+                                            id="registerName"
+                                            placeholder="Your name"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="field-group">
+                                        <label for="registerEmail">Email</label>
+                                        <input
+                                            type="email"
+                                            id="registerEmail"
+                                            placeholder="your@email.com"
+                                            required
+                                        />
+                                    </div>
+                                    <div class="field-group">
+                                        <label for="registerPassword">Password</label>
+                                        <input
+                                            type="password"
+                                            id="registerPassword"
+                                            placeholder="8+ chars, mixed case, number"
+                                            required
+                                        />
+                                        <small class="password-hint">Min 8 chars, uppercase, lowercase, number</small>
+                                    </div>
+                                    <button type="submit" class="auth-submit-btn">Create Account</button>
+                                </form>
+                                
+                                <div class="auth-links">
+                                    <a href="#" data-auth-mode="login">Already have an account?</a>
+                                </div>
+                            </div>
+
+                            <!-- Password Reset -->
+                            <div class="auth-forgot-section">
+                                <h4>Reset your password</h4>
+                                <form id="forgotForm" onsubmit="return false;">
+                                    <div class="field-group">
+                                        <label for="resetEmail">Email</label>
+                                        <input
+                                            type="email"
+                                            id="resetEmail"
+                                            placeholder="your@email.com"
+                                            required
+                                        />
+                                    </div>
+                                    <button type="submit" class="auth-submit-btn">Send Reset Email</button>
+                                </form>
+                                
+                                <div class="auth-links">
+                                    <a href="#" data-auth-mode="login">Back to sign in</a>
+                                </div>
+                            </div>
+
+                            <div class="divider">
+                                <span>or</span>
+                            </div>
+
+                            <button
+                                class="google-signin-btn"
+                                onclick="signInWithGoogle()"
                             >
-                            Sign in with Google
-                        </button>
-                        <!-- Google Sign-In Button Container -->
-                        <div
-                            id="googleSignInDiv"
-                            style="margin-top: 10px"
-                        ></div>
+                                <span style="font-size: 18px; margin-right: 8px">🇬</span>
+                                Sign in with Google
+                            </button>
+                            <!-- Google Sign-In Button Container -->
+                            <div
+                                id="googleSignInDiv"
+                                style="margin-top: 10px"
+                            ></div>
+                        </div>
                     </div>
 
                     <div class="avatar-section-label">Choose Your Avatar</div>
@@ -323,6 +408,7 @@
         <!-- External JavaScript -->
         <script src="./src/config/CardConfig.js"></script>
         <script src="./src/core/SoundManager.js"></script>
+        <script src="./src/components/AuthPanel.js"></script>
         <script src="./src/components/AlertModal.js"></script>
         <script src="./src/components/RewardsPopup.js"></script>
         <script src="./src/components/RewardsDisplay.js"></script>

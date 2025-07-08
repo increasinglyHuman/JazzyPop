@@ -278,9 +278,9 @@ class EconomyManager {
         if (typeof amount !== 'number' || isNaN(amount)) return false;
         if (amount < 0) return false;
         
-        // Resource-specific limits
+        // Resource-specific limits (matching backend)
         const maxValues = {
-            energy: 1000,
+            energy: 10000,    // Increased to match backend
             hearts: 10,
             coins: 999999,
             sapphires: 99999,
@@ -335,32 +335,68 @@ class EconomyManager {
         // Try real API first
         try {
             const apiBase = window.API_URL || 'https://p0qp0q.com';
-            const sessionId = this.storageBackend.getItem('sessionId') || this.sessionToken;
+            const sessionId = this.sessionToken; // Always use the current session token
             const userId = this.storageBackend.getItem('userId');
             
-            const response = await fetch(`${apiBase}/api/economy/process-result`, {
+            // Use appropriate endpoint based on action
+            let endpoint, body;
+            
+            if (transaction.action === 'spend' && transaction.resource === 'energy') {
+                // Use spend-energy endpoint for energy spending
+                endpoint = `${apiBase}/api/economy/spend-energy`;
+                body = {
+                    amount: transaction.amount,
+                    activity_type: transaction.context?.reason || 'unknown'
+                };
+                
+                // Only send user_id OR session_id, not both
+                if (userId) {
+                    body.user_id = userId;
+                } else {
+                    body.session_id = sessionId;
+                }
+                
+                console.log('Spend energy request body:', body);
+            } else if (transaction.context?.source === 'quiz_complete' || transaction.context?.source === 'practice_complete') {
+                // Use process-result for game completions - with correct field names
+                endpoint = `${apiBase}/api/economy/process-result`;
+                const details = transaction.context?.details || {};
+                body = {
+                    type: transaction.context.source,
+                    category: details.category || 'general',
+                    difficulty: details.difficulty || 'medium',
+                    mode: details.mode || 'normal',
+                    correct_answers: details.correctAnswers || 0,
+                    total_questions: details.totalQuestions || 1,
+                    time_spent: details.timeSpent || 0,
+                    perfect_score: details.perfectScore || false,
+                    streak: details.streak || 0
+                };
+                
+                // Only send user_id OR session_id, not both
+                if (userId) {
+                    body.user_id = userId;
+                } else {
+                    body.session_id = sessionId;
+                }
+            } else {
+                // All other transactions must go through API
+                console.error('No API endpoint for transaction type:', transaction);
+                return { success: false, error: 'Operation not supported' };
+            }
+            
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Session-ID': sessionId
                 },
-                body: JSON.stringify({
-                    type: transaction.context?.source || 'unknown',
-                    category: transaction.context?.details?.category,
-                    difficulty: transaction.context?.details?.difficulty,
-                    mode: transaction.context?.details?.mode,
-                    correct_answers: transaction.context?.details?.correctAnswers,
-                    total_questions: transaction.context?.details?.totalQuestions,
-                    time_spent: transaction.context?.details?.timeSpent,
-                    perfect_score: transaction.context?.details?.perfectScore,
-                    streak: transaction.context?.details?.streak,
-                    session_id: sessionId,
-                    user_id: userId
-                })
+                body: JSON.stringify(body)
             });
             
             if (response.ok) {
                 const data = await response.json();
+                console.log('API response for', endpoint, ':', data);
                 return {
                     success: true,
                     resources: data.new_state,
@@ -371,121 +407,9 @@ class EconomyManager {
                 };
             }
         } catch (error) {
-            console.warn('API call failed, falling back to mock:', error);
+            console.error('API call failed:', error);
+            return { success: false, error: 'Network error - please try again' };
         }
-        
-        // Fall back to mock response
-        return this.mockServerResponse(transaction);
-    }
-    
-    // TEMPORARY: Mock server responses for testing
-    async mockServerResponse(transaction) {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Get current mock state from localStorage
-        const mockState = this.getMockState();
-        
-        // Validate transaction
-        const validation = this.validateMockTransaction(transaction, mockState);
-        if (!validation.success) {
-            return { success: false, error: validation.error };
-        }
-        
-        // Apply transaction
-        const newState = this.applyMockTransaction(transaction, mockState);
-        
-        // Save new state
-        this.saveMockState(newState);
-        
-        // Return success with new values
-        return {
-            success: true,
-            resources: newState,
-            newValue: newState[transaction.resource],
-            transactionId: transaction.id,
-            serverTime: Date.now()
-        };
-    }
-    
-    getMockState() {
-        const saved = this.storageBackend.getItem('jazzypop_mock_economy');
-        if (saved) {
-            return JSON.parse(saved);
-        }
-        
-        // Initial state
-        return {
-            energy: 50,  // Start with 50 energy
-            hearts: 5,
-            gems: 20,
-            diamonds: 0,
-            crystals: 100,
-            shards: 500,
-            xp: 0,
-            level: 1,
-            streak: 0
-        };
-    }
-    
-    saveMockState(state) {
-        this.storageBackend.setItem('jazzypop_mock_economy', JSON.stringify(state));
-    }
-    
-    validateMockTransaction(transaction, state) {
-        const { action, resource, amount } = transaction;
-        
-        // Check if enough resources for spend/penalty
-        if (action === 'spend' || action === 'penalty') {
-            if (state[resource] < amount) {
-                return { success: false, error: 'Insufficient resources' };
-            }
-        }
-        
-        // Validate energy regen timing
-        if (action === 'regen' && resource === 'energy') {
-            const lastRegen = this.storageBackend.getItem('jazzypop_last_regen') || 0;
-            const timeSinceRegen = Date.now() - parseInt(lastRegen);
-            if (timeSinceRegen < 8 * 60 * 60 * 1000) { // 8 hours
-                return { success: false, error: 'Regen not available yet' };
-            }
-        }
-        
-        return { success: true };
-    }
-    
-    applyMockTransaction(transaction, state) {
-        const { action, resource, amount } = transaction;
-        const newState = { ...state };
-        
-        switch (action) {
-            case 'spend':
-            case 'penalty':
-                newState[resource] = Math.max(0, state[resource] - amount);
-                break;
-                
-            case 'earn':
-            case 'regen':
-            case 'bonus':
-                newState[resource] = state[resource] + amount;
-                break;
-        }
-        
-        // Handle XP to level conversion
-        if (resource === 'xp') {
-            const xpForNextLevel = this.calculateXPForLevel(state.level + 1);
-            if (newState.xp >= xpForNextLevel) {
-                newState.level++;
-                // Level up!
-            }
-        }
-        
-        // Track regen timing
-        if (action === 'regen' && resource === 'energy') {
-            this.storageBackend.setItem('jazzypop_last_regen', Date.now());
-        }
-        
-        return newState;
     }
     
     calculateXPForLevel(level) {
@@ -561,12 +485,16 @@ class EconomyManager {
         try {
             // Try real API first
             const apiBase = window.API_URL || 'https://p0qp0q.com';
-            const sessionId = this.storageBackend.getItem('sessionId') || this.sessionToken;
+            const sessionId = this.sessionToken; // Always use the current session token
             const userId = this.storageBackend.getItem('userId');
             
             const params = new URLSearchParams();
-            if (sessionId) params.append('session_id', sessionId);
-            if (userId) params.append('user_id', userId);
+            // Only send user_id OR session_id, not both
+            if (userId) {
+                params.append('user_id', userId);
+            } else if (sessionId) {
+                params.append('session_id', sessionId);
+            }
             
             const response = await fetch(`${apiBase}/api/economy/state?${params}`, {
                 method: 'GET',
@@ -642,10 +570,13 @@ class EconomyManager {
             'streakValue': this.displayCache.streak || 0
         };
         
+        console.log('EconomyManager.updateDisplay called with:', elements);
+        
         for (const [id, value] of Object.entries(elements)) {
             const element = document.getElementById(id);
             if (element) {
                 element.textContent = value;
+                console.log(`Updated ${id} to ${value}`);
             }
         }
         
@@ -875,15 +806,11 @@ class EconomyManager {
     }
     
     // Calculate card cost based on user level
+    // DEPRECATED: Card costs should come from backend API
     calculateCardCost(baseEnergyCost = 2) {
-        const level = this.getLevel();
-        // Low baseline cost that scales with level
-        // Level 1-5: 2 energy
-        // Level 6-10: 3 energy 
-        // Level 11-15: 4 energy
-        // Level 16-20: 5 energy
-        // etc.
-        return baseEnergyCost + Math.floor((level - 1) / 5);
+        // TODO: Replace with API call to /api/economy/card-cost
+        // For now, return fixed cost
+        return 10;
     }
     
     async spendEnergy(amount, reason) {
@@ -918,11 +845,13 @@ class EconomyManager {
         return results;
     }
     
-    // Calculate rewards based on game results
+    // DEPRECATED: Reward calculations moved to backend API
+    // This method should not be used - use processQuizComplete or processFlashcardComplete instead
     calculateRewards(gameResult) {
-        const { type, correct, difficulty, category, timeBonus, streak, mode, perfectScore } = gameResult;
-        const rewards = {};
+        console.warn('calculateRewards is deprecated - rewards should be calculated by backend');
+        return {}; // Return empty rewards since backend handles this
         
+        /* Deprecated code - kept for reference
         // Dynamic base values based on multiple factors
         const baseValues = this.getBaseRewardValues(type, difficulty, category, mode);
         
@@ -994,6 +923,7 @@ class EconomyManager {
         const finalRewards = this.applyActiveBonuses(rewards, gameResult);
         
         return finalRewards;
+        */
     }
     
     // Get base reward values based on difficulty, category, and mode
@@ -1364,60 +1294,74 @@ class EconomyManager {
         };
     }
     
-    // Check if player is well-rested (hasn't played in 4+ hours)
+    // DEPRECATED: Well-rested status should come from backend
     checkWellRested() {
-        try {
-            const lastPlayTime = this.storageBackend.getItem('lastPlayTime');
-            if (!lastPlayTime) return false;
-            
-            const timeSincePlay = Date.now() - parseInt(lastPlayTime);
-            return timeSincePlay > 4 * 60 * 60 * 1000; // 4 hours
-        } catch (e) {
-            return false;
-        }
+        // TODO: Replace with API call to /api/economy/well-rested-status
+        return false;
     }
     
-    // Main method for components to report game results
+    // Main method for components to report game results - calls API
     async processGameResult(result) {
         // Update last play time
         this.storageBackend.setItem('lastPlayTime', Date.now());
         
-        // Calculate rewards
-        const rewards = this.calculateRewards(result);
-        
-        // Process each reward through the secure system
-        const processedRewards = {};
-        const errors = [];
-        
-        for (const [resource, amount] of Object.entries(rewards)) {
-            if (typeof amount === 'number' && amount > 0) {
-                const response = await this.requestResourceChange(
-                    'earn',
-                    resource,
-                    amount,
-                    { source: result.type, details: result }
-                );
+        // Call the API directly - server calculates rewards
+        try {
+            const apiBase = window.API_URL || 'https://p0qp0q.com';
+            const sessionId = this.sessionToken; // Always use the current session token
+            const userId = this.storageBackend.getItem('userId');
+            
+            const response = await fetch(`${apiBase}/api/economy/process-result`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': sessionId
+                },
+                body: JSON.stringify({
+                    type: result.type || 'unknown',
+                    category: result.category || 'general',
+                    difficulty: result.difficulty || 'medium',
+                    mode: result.mode || 'normal',
+                    correct_answers: result.correct ? 1 : 0,
+                    total_questions: 1,
+                    time_spent: result.timeSpent || 0,
+                    perfect_score: result.perfectScore || false,
+                    streak: result.streak || 0,
+                    session_id: sessionId,
+                    user_id: userId
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
                 
-                if (response.success) {
-                    processedRewards[resource] = amount;
-                } else {
-                    errors.push({ resource, error: response.error });
+                // Update local cache with new state
+                if (data.new_state) {
+                    Object.assign(this.displayCache, data.new_state);
+                    this.updateDisplay();
+                    this.saveToStorage();
                 }
+                
+                // Show rewards popup if we got rewards
+                if (data.rewards && Object.keys(data.rewards).length > 0) {
+                    this.showRewardsPopup(data.rewards, {});
+                }
+                
+                return {
+                    success: true,
+                    rewards: data.rewards,
+                    new_state: data.new_state,
+                    level_up: data.level_up,
+                    displayCache: this.displayCache
+                };
+            } else {
+                const errorData = await response.json();
+                return { success: false, error: errorData.error || 'API error' };
             }
+        } catch (error) {
+            console.error('Game result API error:', error);
+            return { success: false, error: 'Network error - please try again' };
         }
-        
-        // Show rewards popup if successful and has rewards
-        if (errors.length === 0 && Object.keys(processedRewards).length > 0) {
-            this.showRewardsPopup(processedRewards, rewards.appliedBonuses);
-        }
-        
-        return {
-            success: errors.length === 0,
-            rewards: processedRewards,
-            errors,
-            displayCache: this.displayCache,
-            wellRested: rewards.wellRestedBonus || false
-        };
     }
     
     // Specific method for quiz completion
@@ -1429,7 +1373,7 @@ class EconomyManager {
             return { success: false, error: 'Quiz not completed' };
         }
         
-        // Build game result object
+        // Build game result object with ALL the data needed for the API
         const gameResult = {
             type: 'quiz_complete',
             correct: correctAnswers === totalQuestions,
@@ -1438,36 +1382,124 @@ class EconomyManager {
             mode: mode || 'normal',
             streak: streak || 0,
             perfectScore: correctAnswers === totalQuestions,
-            timeBonus: mode === 'speed' && timeSpent < 20 // Fast completion in speed mode
+            timeBonus: mode === 'speed' && timeSpent < 20, // Fast completion in speed mode
+            // Include all the API fields
+            correctAnswers: correctAnswers,
+            totalQuestions: totalQuestions,
+            timeSpent: timeSpent || 0
         };
         
-        // Handle quiz failure (lose a heart for failing entire quiz)
-        if (correctAnswers < Math.floor(totalQuestions * 0.5)) { // Less than 50% correct
-            const heartResult = await this.deductHeart();
-            if (!heartResult.success) {
-                return { success: false, error: 'No hearts remaining', needsHearts: true };
+        // Call the API directly with the proper format
+        try {
+            const apiBase = window.API_URL || 'https://p0qp0q.com';
+            const sessionId = this.sessionToken; // Always use the current session token
+            const userId = this.storageBackend.getItem('userId');
+            
+            const response = await fetch(`${apiBase}/api/economy/process-result`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': sessionId
+                },
+                body: JSON.stringify({
+                    type: 'quiz_complete',
+                    category: category || 'general',
+                    difficulty: difficulty || 'medium',
+                    mode: mode || 'normal',
+                    correct_answers: correctAnswers,
+                    total_questions: totalQuestions,
+                    time_spent: timeSpent || 0,
+                    perfect_score: correctAnswers === totalQuestions,
+                    streak: streak || 0,
+                    // Only send user_id OR session_id, not both
+                    ...(userId ? { user_id: userId } : { session_id: sessionId })
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Update local cache with new state
+                if (data.new_state) {
+                    Object.assign(this.displayCache, data.new_state);
+                    this.updateDisplay();
+                    this.saveToStorage();
+                }
+                
+                return {
+                    success: true,
+                    rewards: data.rewards,
+                    new_state: data.new_state,
+                    level_up: data.level_up,
+                    displayCache: this.displayCache
+                };
+            } else {
+                const errorData = await response.json();
+                return { success: false, error: errorData.error || 'API error' };
             }
+        } catch (error) {
+            console.error('Quiz completion API error:', error);
+            // Fall back to mock if API fails
+            return this.processGameResult(gameResult);
         }
-        
-        return this.processGameResult(gameResult);
     }
     
     // Specific method for flashcard practice
     async processFlashcardComplete(flashcardData) {
         const { category, cardType, correctCount, totalCards, practiceTime } = flashcardData;
         
-        const gameResult = {
-            type: 'practice_complete',
-            correct: correctCount === totalCards,
-            difficulty: 'easy', // Practice is always easy
-            category: category || cardType || 'general',
-            mode: 'normal',
-            streak: 0, // No streaks for practice
-            perfectScore: correctCount === totalCards,
-            isFactoid: cardType === 'factoid' // Special handling for factoids
-        };
-        
-        return this.processGameResult(gameResult);
+        // Call the API directly for practice completion
+        try {
+            const apiBase = window.API_URL || 'https://p0qp0q.com';
+            const sessionId = this.sessionToken; // Always use the current session token
+            const userId = this.storageBackend.getItem('userId');
+            
+            const response = await fetch(`${apiBase}/api/economy/process-result`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': sessionId
+                },
+                body: JSON.stringify({
+                    type: 'practice_complete',
+                    category: category || cardType || 'general',
+                    difficulty: 'easy', // Practice is always easy
+                    mode: 'normal',
+                    correct_answers: correctCount || 0,
+                    total_questions: totalCards || 1,
+                    time_spent: practiceTime || 0,
+                    perfect_score: correctCount === totalCards,
+                    streak: 0, // No streaks for practice
+                    // Only send user_id OR session_id, not both
+                    ...(userId ? { user_id: userId } : { session_id: sessionId })
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Update local cache with new state
+                if (data.new_state) {
+                    Object.assign(this.displayCache, data.new_state);
+                    this.updateDisplay();
+                    this.saveToStorage();
+                }
+                
+                return {
+                    success: true,
+                    rewards: data.rewards,
+                    new_state: data.new_state,
+                    level_up: data.level_up,
+                    displayCache: this.displayCache
+                };
+            } else {
+                const errorData = await response.json();
+                return { success: false, error: errorData.error || 'API error' };
+            }
+        } catch (error) {
+            console.error('Flashcard completion API error:', error);
+            return { success: false, error: 'Network error - please try again' };
+        }
     }
     
     // Check if user can afford an action

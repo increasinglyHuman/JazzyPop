@@ -8,11 +8,14 @@ from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import json
-from uuid import UUID
+import logging
+from uuid import UUID, uuid4
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 class Database:
     def __init__(self):
@@ -96,14 +99,19 @@ class Database:
     async def get_economy_state(self, user_id: Optional[UUID], session_id: Optional[str]) -> Dict[str, Any]:
         """Get economy state for user or session"""
         async with self.pool.acquire() as conn:
-            if user_id:
+            # Check if user_id is actually a valid UUID (not None or empty string)
+            if user_id and isinstance(user_id, UUID):
                 # Get from user_progress
                 row = await conn.fetchrow("""
                     SELECT stats FROM user_progress WHERE user_id = $1
                 """, user_id)
                 
                 if row and row['stats']:
-                    economy = row['stats'].get('economy', {})
+                    # Handle both dict and JSON string
+                    stats = row['stats']
+                    if isinstance(stats, str):
+                        stats = json.loads(stats)
+                    economy = stats.get('economy', {})
                     return {
                         "energy": economy.get("energy", 100),
                         "hearts": economy.get("hearts", 5),
@@ -117,14 +125,20 @@ class Database:
                         "level": economy.get("level", 1),
                         "streak": economy.get("streak", 0)
                     }
-            elif session_id:
+            
+            # Fall back to session if no valid user_id
+            if session_id:
                 # Get from sessions table
                 row = await conn.fetchrow("""
                     SELECT data FROM sessions WHERE id = $1
                 """, session_id)
                 
                 if row and row['data']:
-                    economy = row['data'].get('economy', {})
+                    # Handle both dict and JSON string
+                    data = row['data']
+                    if isinstance(data, str):
+                        data = json.loads(data)
+                    economy = data.get('economy', {})
                     return {
                         "energy": economy.get("energy", 100),
                         "hearts": economy.get("hearts", 5),
@@ -157,16 +171,42 @@ class Database:
     async def save_economy_state(self, user_id: Optional[UUID], session_id: Optional[str], state: Dict[str, Any]):
         """Save economy state for user or session"""
         async with self.pool.acquire() as conn:
-            if user_id:
-                # Update user_progress
-                await conn.execute("""
-                    INSERT INTO user_progress (user_id, stats, updated_at)
-                    VALUES ($1, jsonb_build_object('economy', $2::jsonb), NOW())
-                    ON CONFLICT (user_id) DO UPDATE
-                    SET stats = user_progress.stats || jsonb_build_object('economy', $2::jsonb),
-                        updated_at = NOW()
-                """, user_id, json.dumps(state))
-            elif session_id:
+            # Check if user_id is actually a valid UUID (not None or empty string)
+            if user_id and isinstance(user_id, UUID):
+                # First check if user exists in database
+                user_exists = await conn.fetchval(
+                    "SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)", 
+                    user_id
+                )
+                
+                if user_exists:
+                    # Check if user_progress exists
+                    existing = await conn.fetchval(
+                        "SELECT EXISTS(SELECT 1 FROM user_progress WHERE user_id = $1)",
+                        user_id
+                    )
+                    
+                    if existing:
+                        # Update existing user_progress
+                        await conn.execute("""
+                            UPDATE user_progress 
+                            SET stats = COALESCE(stats, '{}'::jsonb) || jsonb_build_object('economy', $2::jsonb),
+                                updated_at = NOW()
+                            WHERE user_id = $1
+                        """, user_id, json.dumps(state))
+                    else:
+                        # Create new user_progress
+                        await conn.execute("""
+                            INSERT INTO user_progress (user_id, stats, updated_at)
+                            VALUES ($1, jsonb_build_object('economy', $2::jsonb), NOW())
+                        """, user_id, json.dumps(state))
+                    return  # Successfully saved to user_progress
+                else:
+                    # User doesn't exist, log warning and fall back to session
+                    logger.warning(f"User ID {user_id} not found in database, falling back to session storage")
+            
+            # Fall back to session storage
+            if session_id:
                 # Update session
                 await conn.execute("""
                     INSERT INTO sessions (id, data, created_at)
@@ -174,21 +214,51 @@ class Database:
                     ON CONFLICT (id) DO UPDATE
                     SET data = sessions.data || jsonb_build_object('economy', $2::jsonb)
                 """, session_id, json.dumps(state))
+            else:
+                # No valid storage method available
+                logger.warning("No valid storage method available - neither valid user_id nor session_id provided")
 
     async def submit_answer(self, user_id: Optional[UUID], quiz_id: UUID, answer_id: str, 
-                          time_taken: float, mode: str, session_id: Optional[str] = None) -> Dict[str, Any]:
+                          time_taken: float, mode: str, session_id: Optional[str] = None,
+                          question_index: Optional[int] = None) -> Dict[str, Any]:
         """Submit a quiz answer and update scores"""
         async with self.transaction() as conn:
             # Get quiz data to check answer
-            quiz_query = "SELECT data FROM content WHERE id = $1 AND type = 'quiz'"
-            quiz_data = await conn.fetchval(quiz_query, quiz_id)
+            quiz_query = "SELECT id, type, data, metadata FROM content WHERE id = $1"
+            quiz_row = await conn.fetchrow(quiz_query, quiz_id)
             
-            if not quiz_data:
+            if not quiz_row:
                 raise ValueError("Quiz not found")
+            
+            quiz_data = quiz_row['data']
+            quiz_metadata = quiz_row['metadata'] or {}
+            
+            # Parse quiz_data if it's a string
+            if isinstance(quiz_data, str):
+                quiz_data = json.loads(quiz_data)
+            if isinstance(quiz_metadata, str):
+                quiz_metadata = json.loads(quiz_metadata)
+            
+            # Determine if this is a quiz or quiz_set
+            content_type = quiz_row.get('type', 'quiz')
+            question_data = quiz_data
+            category = quiz_metadata.get('category', quiz_data.get('category', 'unknown'))
+            difficulty = quiz_metadata.get('difficulty', quiz_data.get('difficulty', 'medium'))
+            
+            # If it's a quiz_set and question_index provided, get specific question
+            if content_type == 'quiz_set' and question_index is not None:
+                questions = quiz_data.get('questions', [])
+                if 0 <= question_index < len(questions):
+                    question_data = questions[question_index]
+                else:
+                    raise ValueError(f"Invalid question index: {question_index}")
             
             # Check if answer is correct
             correct = False
-            for answer in quiz_data.get("answers", []):
+            correct_answer_id = None
+            for answer in question_data.get("answers", []):
+                if answer.get("correct", False):
+                    correct_answer_id = answer["id"]
                 if answer["id"] == answer_id and answer.get("correct", False):
                     correct = True
                     break
@@ -202,7 +272,7 @@ class Database:
                 elif time_taken < 10:
                     base_score += 25
             
-            # Record the event
+            # Record the event with enhanced tracking
             event_query = """
                 INSERT INTO events (source, type, user_id, session_id, content_id, payload, context)
                 VALUES ('user', 'quiz_answered', $1, $2, $3, $4, $5)
@@ -212,12 +282,22 @@ class Database:
             payload = {
                 "answer_id": answer_id,
                 "correct": correct,
+                "correct_answer_id": correct_answer_id,
                 "time_taken": time_taken,
                 "score": base_score,
-                "mode": mode
+                "mode": mode,
+                "question_index": question_index,
+                "question_text": question_data.get("question", ""),
+                "category": category,
+                "difficulty": difficulty
             }
             
-            context = {"mode": mode}
+            context = {
+                "mode": mode,
+                "content_type": content_type,
+                "category": category,
+                "difficulty": difficulty
+            }
             
             event_id = await conn.fetchval(
                 event_query, user_id, session_id, quiz_id, 
@@ -248,8 +328,13 @@ class Database:
         
         if progress:
             # Update existing progress
+            # Handle both dict and JSON string
             stats = progress["stats"]
+            if isinstance(stats, str):
+                stats = json.loads(stats)
             streak_data = progress["streak_data"]
+            if isinstance(streak_data, str):
+                streak_data = json.loads(streak_data)
             
             stats["total_quizzes"] = stats.get("total_quizzes", 0) + 1
             if correct:
@@ -533,6 +618,600 @@ class Database:
             'factoid': 'Factoid 🤯'
         }
         return category_map.get(content_type, 'Trivia')
+    
+    # ========== QUEST SYSTEM ==========
+    
+    async def get_user_quests(self, user_id: UUID) -> Dict[str, Any]:
+        """Get all quests for a user"""
+        async with self.pool.acquire() as conn:
+            stats = await conn.fetchval(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            if not stats:
+                return {"active": [], "completed": [], "chains": {}}
+            
+            # Handle both dict and JSON string
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            
+            return stats.get("quests", {"active": [], "completed": [], "chains": {}})
+    
+    async def update_quest_progress(self, user_id: UUID, quest_type: str, progress: int = 1) -> List[Dict]:
+        """Update quest progress and check for completions"""
+        completed_quests = []
+        
+        async with self.transaction() as conn:
+            # Get current stats
+            row = await conn.fetchrow(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            
+            if not row:
+                return completed_quests
+            
+            # Handle both dict and JSON string
+            stats = row['stats'] or {}
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            quests = stats.get('quests', {'active': [], 'completed': [], 'chains': {}})
+            
+            # Update matching quests
+            for quest in quests.get('active', []):
+                if quest.get('type') == quest_type:
+                    quest['progress'] = quest.get('progress', 0) + progress
+                    
+                    # Check completion
+                    if quest['progress'] >= quest.get('target', 1):
+                        quest['completed_at'] = datetime.utcnow().isoformat()
+                        completed_quests.append(quest)
+                        
+                        # Move to completed
+                        quests['completed'].append(quest['quest_id'])
+                        
+                        # Award rewards
+                        if 'rewards' in quest:
+                            await self._award_quest_rewards(conn, user_id, quest['rewards'])
+            
+            # Remove completed quests from active
+            quests['active'] = [q for q in quests['active'] 
+                               if q['quest_id'] not in [c['quest_id'] for c in completed_quests]]
+            
+            # Update stats
+            stats['quests'] = quests
+            await conn.execute(
+                "UPDATE user_progress SET stats = $1 WHERE user_id = $2",
+                json.dumps(stats), user_id
+            )
+        
+        return completed_quests
+    
+    async def add_quest(self, user_id: UUID, quest_data: Dict[str, Any]):
+        """Add a new quest for a user"""
+        async with self.transaction() as conn:
+            row = await conn.fetchrow(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            
+            stats = row['stats'] if row else {}
+            # Handle both dict and JSON string
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            quests = stats.get('quests', {'active': [], 'completed': [], 'chains': {}})
+            
+            # Add quest ID and timestamp
+            quest_data['quest_id'] = quest_data.get('quest_id', f"quest_{uuid4().hex[:8]}")
+            quest_data['started_at'] = datetime.utcnow().isoformat()
+            quest_data['progress'] = 0
+            
+            quests['active'].append(quest_data)
+            stats['quests'] = quests
+            
+            # Check if user_progress exists for this user
+            existing = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM user_progress WHERE user_id = $1)",
+                user_id
+            )
+            
+            if existing:
+                # Update existing record
+                await conn.execute("""
+                    UPDATE user_progress 
+                    SET stats = $2, updated_at = NOW()
+                    WHERE user_id = $1
+                """, user_id, json.dumps(stats))
+            else:
+                # Insert new record
+                await conn.execute("""
+                    INSERT INTO user_progress (user_id, stats, updated_at)
+                    VALUES ($1, $2, NOW())
+                """, user_id, json.dumps(stats))
+    
+    async def _award_quest_rewards(self, conn, user_id: UUID, rewards: Dict[str, Any]):
+        """Award quest completion rewards"""
+        # Get current economy
+        row = await conn.fetchrow(
+            "SELECT stats FROM user_progress WHERE user_id = $1",
+            user_id
+        )
+        stats = row['stats'] if row else {}
+        # Handle both dict and JSON string
+        if isinstance(stats, str):
+            stats = json.loads(stats)
+        economy = stats.get('economy', {})
+        
+        # Apply rewards
+        for key, value in rewards.items():
+            if key in economy:
+                economy[key] = economy.get(key, 0) + value
+        
+        stats['economy'] = economy
+        await conn.execute(
+            "UPDATE user_progress SET stats = $1 WHERE user_id = $2",
+            json.dumps(stats), user_id
+        )
+    
+    # ========== ACHIEVEMENTS & BADGES ==========
+    
+    async def unlock_achievement(self, user_id: UUID, achievement_id: str, metadata: Dict = None):
+        """Unlock an achievement for a user"""
+        async with self.transaction() as conn:
+            # Get current achievements
+            achievements = await conn.fetchval(
+                "SELECT achievements FROM user_progress WHERE user_id = $1",
+                user_id
+            ) or []
+            
+            # Handle both dict/list and JSON string
+            if isinstance(achievements, str):
+                achievements = json.loads(achievements)
+            
+            # Check if already unlocked
+            if any(a.get('id') == achievement_id for a in achievements):
+                return False
+            
+            # Add achievement
+            achievement = {
+                'id': achievement_id,
+                'unlocked_at': datetime.utcnow().isoformat(),
+                'metadata': metadata or {}
+            }
+            achievements.append(achievement)
+            
+            # Update database
+            await conn.execute("""
+                UPDATE user_progress 
+                SET achievements = $1::jsonb 
+                WHERE user_id = $2
+            """, json.dumps(achievements), user_id)
+            
+            return True
+    
+    async def get_user_badges(self, user_id: UUID) -> List[Dict]:
+        """Get all badges for a user"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            
+            if not row or not row['stats']:
+                return []
+            
+            # Handle both dict and JSON string
+            stats = row['stats']
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            
+            return stats.get('badges', [])
+    
+    async def award_badge(self, user_id: UUID, badge_id: str, tier: str = "bronze"):
+        """Award a badge to a user"""
+        async with self.transaction() as conn:
+            row = await conn.fetchrow(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            
+            stats = row['stats'] if row else {}
+            # Handle both dict and JSON string
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            badges = stats.get('badges', [])
+            
+            # Check if badge already exists
+            existing = next((b for b in badges if b['id'] == badge_id), None)
+            
+            if existing:
+                # Update tier if higher
+                tier_order = {'bronze': 1, 'silver': 2, 'gold': 3, 'platinum': 4}
+                if tier_order.get(tier, 0) > tier_order.get(existing['tier'], 0):
+                    existing['tier'] = tier
+                    existing['upgraded_at'] = datetime.utcnow().isoformat()
+            else:
+                # New badge
+                badge = {
+                    'id': badge_id,
+                    'tier': tier,
+                    'earned_at': datetime.utcnow().isoformat()
+                }
+                badges.append(badge)
+            
+            stats['badges'] = badges
+            
+            # Check if user_progress exists for this user
+            existing = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM user_progress WHERE user_id = $1)",
+                user_id
+            )
+            
+            if existing:
+                # Update existing record
+                await conn.execute("""
+                    UPDATE user_progress 
+                    SET stats = $2, updated_at = NOW()
+                    WHERE user_id = $1
+                """, user_id, json.dumps(stats))
+            else:
+                # Insert new record
+                await conn.execute("""
+                    INSERT INTO user_progress (user_id, stats, updated_at)
+                    VALUES ($1, $2, NOW())
+                """, user_id, json.dumps(stats))
+    
+    # ========== ASSETS & PETS ==========
+    
+    async def get_user_assets(self, user_id: UUID) -> Dict[str, Any]:
+        """Get all assets for a user"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            
+            if not row or not row['stats']:
+                return {'pets': [], 'cosmetics': {}, 'inventory': []}
+            
+            # Handle both dict and JSON string
+            stats = row['stats']
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            
+            return stats.get('assets', {'pets': [], 'cosmetics': {}, 'inventory': []})
+    
+    async def add_pet(self, user_id: UUID, pet_data: Dict[str, Any]):
+        """Add a pet to user's collection"""
+        async with self.transaction() as conn:
+            row = await conn.fetchrow(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            
+            stats = row['stats'] if row else {}
+            # Handle both dict and JSON string
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            assets = stats.get('assets', {'pets': [], 'cosmetics': {}, 'inventory': []})
+            
+            # Add pet
+            pet_data['id'] = pet_data.get('id', f"pet_{uuid4().hex[:8]}")
+            pet_data['acquired_at'] = datetime.utcnow().isoformat()
+            pet_data['level'] = 1
+            pet_data['experience'] = 0
+            
+            assets['pets'].append(pet_data)
+            stats['assets'] = assets
+            
+            # Check if user_progress exists for this user
+            existing = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM user_progress WHERE user_id = $1)",
+                user_id
+            )
+            
+            if existing:
+                # Update existing record
+                await conn.execute("""
+                    UPDATE user_progress 
+                    SET stats = $2, updated_at = NOW()
+                    WHERE user_id = $1
+                """, user_id, json.dumps(stats))
+            else:
+                # Insert new record
+                await conn.execute("""
+                    INSERT INTO user_progress (user_id, stats, updated_at)
+                    VALUES ($1, $2, NOW())
+                """, user_id, json.dumps(stats))
+            
+            return pet_data['id']
+    
+    async def equip_asset(self, user_id: UUID, asset_type: str, asset_id: str):
+        """Equip/unequip an asset"""
+        async with self.transaction() as conn:
+            row = await conn.fetchrow(
+                "SELECT stats FROM user_progress WHERE user_id = $1",
+                user_id
+            )
+            
+            stats = row['stats'] if row else {}
+            # Handle both dict and JSON string
+            if isinstance(stats, str):
+                stats = json.loads(stats)
+            assets = stats.get('assets', {'pets': [], 'cosmetics': {}, 'inventory': []})
+            
+            if asset_type == 'pet':
+                # Unequip all pets first
+                for pet in assets['pets']:
+                    pet['equipped'] = False
+                
+                # Equip selected pet
+                pet = next((p for p in assets['pets'] if p['id'] == asset_id), None)
+                if pet:
+                    pet['equipped'] = True
+            
+            elif asset_type in ['avatar_frame', 'theme']:
+                if 'equipped' not in assets['cosmetics']:
+                    assets['cosmetics']['equipped'] = {}
+                assets['cosmetics']['equipped'][asset_type] = asset_id
+            
+            stats['assets'] = assets
+            await conn.execute(
+                "UPDATE user_progress SET stats = $1 WHERE user_id = $2",
+                json.dumps(stats), user_id
+            )
+    
+    # ========== ANALYTICS ==========
+    
+    async def get_quiz_analytics(self, quiz_id: UUID) -> Dict[str, Any]:
+        """Get performance analytics for a specific quiz"""
+        async with self.pool.acquire() as conn:
+            # Get overall stats
+            stats = await conn.fetchrow("""
+                SELECT 
+                    COUNT(*) as total_attempts,
+                    COUNT(DISTINCT COALESCE(user_id::text, session_id)) as unique_players,
+                    SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END) as correct_answers,
+                    AVG((payload->>'time_taken')::float) as avg_time,
+                    AVG((payload->>'score')::int) as avg_score
+                FROM events
+                WHERE type = 'quiz_answered' AND content_id = $1
+            """, quiz_id)
+            
+            # Get per-answer breakdown
+            answer_stats = await conn.fetch("""
+                SELECT 
+                    payload->>'answer_id' as answer_id,
+                    COUNT(*) as times_selected,
+                    SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END) as times_correct
+                FROM events
+                WHERE type = 'quiz_answered' AND content_id = $1
+                GROUP BY payload->>'answer_id'
+            """, quiz_id)
+            
+            return {
+                "quiz_id": str(quiz_id),
+                "total_attempts": stats['total_attempts'],
+                "unique_players": stats['unique_players'],
+                "success_rate": float(stats['correct_answers']) / stats['total_attempts'] if stats['total_attempts'] > 0 else 0,
+                "avg_time_seconds": float(stats['avg_time']) if stats['avg_time'] else 0,
+                "avg_score": float(stats['avg_score']) if stats['avg_score'] else 0,
+                "answer_distribution": [
+                    {
+                        "answer_id": row['answer_id'],
+                        "times_selected": row['times_selected'],
+                        "selection_rate": float(row['times_selected']) / stats['total_attempts'] if stats['total_attempts'] > 0 else 0
+                    }
+                    for row in answer_stats
+                ]
+            }
+    
+    async def get_category_analytics(self, category: str, user_id: Optional[UUID] = None) -> Dict[str, Any]:
+        """Get performance analytics for a category, optionally filtered by user"""
+        async with self.pool.acquire() as conn:
+            user_filter = "AND user_id = $2" if user_id else ""
+            params = [category, user_id] if user_id else [category]
+            
+            stats = await conn.fetchrow(f"""
+                SELECT 
+                    COUNT(*) as total_attempts,
+                    SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END) as correct_answers,
+                    COUNT(DISTINCT content_id) as unique_quizzes,
+                    AVG((payload->>'time_taken')::float) as avg_time,
+                    AVG(CASE WHEN (payload->>'correct')::boolean THEN (payload->>'time_taken')::float END) as avg_correct_time
+                FROM events
+                WHERE type = 'quiz_answered' 
+                AND payload->>'category' = $1
+                {user_filter}
+            """, *params)
+            
+            # Get difficulty breakdown
+            difficulty_stats = await conn.fetch(f"""
+                SELECT 
+                    payload->>'difficulty' as difficulty,
+                    COUNT(*) as attempts,
+                    SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END) as correct
+                FROM events
+                WHERE type = 'quiz_answered' 
+                AND payload->>'category' = $1
+                {user_filter}
+                GROUP BY payload->>'difficulty'
+            """, *params)
+            
+            return {
+                "category": category,
+                "user_id": str(user_id) if user_id else None,
+                "total_attempts": stats['total_attempts'],
+                "success_rate": float(stats['correct_answers']) / stats['total_attempts'] if stats['total_attempts'] > 0 else 0,
+                "unique_quizzes_attempted": stats['unique_quizzes'],
+                "avg_time_seconds": float(stats['avg_time']) if stats['avg_time'] else 0,
+                "avg_correct_answer_time": float(stats['avg_correct_time']) if stats['avg_correct_time'] else 0,
+                "difficulty_breakdown": [
+                    {
+                        "difficulty": row['difficulty'] or 'unknown',
+                        "attempts": row['attempts'],
+                        "success_rate": float(row['correct']) / row['attempts'] if row['attempts'] > 0 else 0
+                    }
+                    for row in difficulty_stats
+                ]
+            }
+    
+    async def get_user_strengths_weaknesses(self, user_id: UUID, min_attempts: int = 5) -> Dict[str, Any]:
+        """Analyze user's strengths and weaknesses by category"""
+        async with self.pool.acquire() as conn:
+            # Get category performance
+            category_stats = await conn.fetch("""
+                SELECT 
+                    payload->>'category' as category,
+                    COUNT(*) as attempts,
+                    SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END) as correct,
+                    AVG((payload->>'time_taken')::float) as avg_time
+                FROM events
+                WHERE type = 'quiz_answered' 
+                AND user_id = $1
+                AND payload->>'category' IS NOT NULL
+                GROUP BY payload->>'category'
+                HAVING COUNT(*) >= $2
+                ORDER BY (SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END)::float / COUNT(*)) DESC
+            """, user_id, min_attempts)
+            
+            if not category_stats:
+                return {"user_id": str(user_id), "strengths": [], "weaknesses": [], "overall_stats": {}}
+            
+            # Calculate overall stats
+            total_attempts = sum(row['attempts'] for row in category_stats)
+            total_correct = sum(row['correct'] for row in category_stats)
+            
+            categories = []
+            for row in category_stats:
+                success_rate = float(row['correct']) / row['attempts']
+                categories.append({
+                    "category": row['category'],
+                    "attempts": row['attempts'],
+                    "success_rate": success_rate,
+                    "avg_time": float(row['avg_time']) if row['avg_time'] else 0
+                })
+            
+            # Sort by success rate
+            categories.sort(key=lambda x: x['success_rate'], reverse=True)
+            
+            # Identify strengths and weaknesses
+            avg_success_rate = float(total_correct) / total_attempts
+            strengths = [cat for cat in categories if cat['success_rate'] > avg_success_rate + 0.1][:3]
+            weaknesses = [cat for cat in categories if cat['success_rate'] < avg_success_rate - 0.1][-3:]
+            
+            return {
+                "user_id": str(user_id),
+                "overall_stats": {
+                    "total_attempts": total_attempts,
+                    "overall_success_rate": avg_success_rate,
+                    "categories_attempted": len(categories)
+                },
+                "strengths": strengths,
+                "weaknesses": weaknesses,
+                "all_categories": categories
+            }
+    
+    async def get_global_insights(self) -> Dict[str, Any]:
+        """Get global platform insights"""
+        async with self.pool.acquire() as conn:
+            # Overall platform stats
+            overall = await conn.fetchrow("""
+                SELECT 
+                    COUNT(DISTINCT COALESCE(user_id::text, session_id)) as total_players,
+                    COUNT(*) as total_answers,
+                    COUNT(DISTINCT content_id) as unique_quizzes_played,
+                    SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END) as total_correct
+                FROM events
+                WHERE type = 'quiz_answered'
+            """)
+            
+            # Category popularity and performance
+            category_stats = await conn.fetch("""
+                SELECT 
+                    payload->>'category' as category,
+                    COUNT(*) as attempts,
+                    COUNT(DISTINCT COALESCE(user_id::text, session_id)) as players,
+                    SUM(CASE WHEN (payload->>'correct')::boolean THEN 1 ELSE 0 END) as correct,
+                    AVG((payload->>'time_taken')::float) as avg_time
+                FROM events
+                WHERE type = 'quiz_answered'
+                AND payload->>'category' IS NOT NULL
+                GROUP BY payload->>'category'
+                ORDER BY attempts DESC
+                LIMIT 10
+            """)
+            
+            # Time-based patterns (last 7 days)
+            daily_stats = await conn.fetch("""
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(DISTINCT COALESCE(user_id::text, session_id)) as active_players,
+                    COUNT(*) as total_answers
+                FROM events
+                WHERE type = 'quiz_answered'
+                AND created_at >= CURRENT_DATE - INTERVAL '7 days'
+                GROUP BY DATE(created_at)
+                ORDER BY date DESC
+            """)
+            
+            return {
+                "overall": {
+                    "total_players": overall['total_players'],
+                    "total_answers": overall['total_answers'],
+                    "unique_quizzes_played": overall['unique_quizzes_played'],
+                    "global_success_rate": float(overall['total_correct']) / overall['total_answers'] if overall['total_answers'] > 0 else 0
+                },
+                "category_rankings": [
+                    {
+                        "category": row['category'],
+                        "popularity_rank": idx + 1,
+                        "total_attempts": row['attempts'],
+                        "unique_players": row['players'],
+                        "success_rate": float(row['correct']) / row['attempts'] if row['attempts'] > 0 else 0,
+                        "avg_time": float(row['avg_time']) if row['avg_time'] else 0
+                    }
+                    for idx, row in enumerate(category_stats)
+                ],
+                "daily_activity": [
+                    {
+                        "date": str(row['date']),
+                        "active_players": row['active_players'],
+                        "total_answers": row['total_answers']
+                    }
+                    for row in daily_stats
+                ],
+                "insights": self._generate_insights(category_stats, overall)
+            }
+    
+    def _generate_insights(self, category_stats: List[Any], overall: Any) -> List[str]:
+        """Generate human-readable insights from data"""
+        insights = []
+        
+        if category_stats:
+            # Find easiest and hardest categories
+            sorted_by_success = sorted(category_stats, key=lambda x: float(x['correct']) / x['attempts'] if x['attempts'] > 0 else 0)
+            
+            if len(sorted_by_success) >= 2:
+                easiest = sorted_by_success[-1]
+                hardest = sorted_by_success[0]
+                
+                easiest_rate = float(easiest['correct']) / easiest['attempts'] * 100
+                hardest_rate = float(hardest['correct']) / hardest['attempts'] * 100
+                
+                insights.append(f"Players excel at {easiest['category']} ({easiest_rate:.0f}% success rate)")
+                insights.append(f"Players struggle most with {hardest['category']} ({hardest_rate:.0f}% success rate)")
+            
+            # Most popular category
+            most_popular = category_stats[0]
+            insights.append(f"{most_popular['category']} is the most popular category with {most_popular['attempts']} attempts")
+            
+            # Speed comparison
+            fastest = min(category_stats, key=lambda x: x['avg_time'] if x['avg_time'] else float('inf'))
+            if fastest['avg_time']:
+                insights.append(f"Players answer {fastest['category']} questions fastest (avg {fastest['avg_time']:.1f}s)")
+        
+        return insights
 
 # Global database instance
 db = Database()

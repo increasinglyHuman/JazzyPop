@@ -11,14 +11,14 @@
     --gold: #ffc800;
     --purple: #ce82ff;
     --blue: #1890ff;
-    
+
     --bg-dark: #131f24;
     --bg-card: #1f2c34;
     --bg-elevated: #2b3d48;
     --text-primary: #ffffff;
     --text-secondary: #afafaf;
     --border: rgba(255, 255, 255, 0.1);
-    
+
     --radius: 16px;
     --transition: all 0.2s ease;
 }
@@ -38,7 +38,8 @@ html {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        sans-serif;
     background: var(--bg-dark);
     color: var(--text-primary);
     min-height: 100vh;
@@ -357,7 +358,8 @@ body {
 
 /* New Card Animation */
 @keyframes newCardPulse {
-    0%, 100% {
+    0%,
+    100% {
         box-shadow: 0 4px 20px rgba(88, 204, 2, 0.3);
     }
     50% {

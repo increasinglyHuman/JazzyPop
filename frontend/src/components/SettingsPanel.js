@@ -19,7 +19,7 @@ class SettingsPanel {
             hapticEnabled: true,
             animations: true,
             language: 'en',
-            notifications: true
+            notifications: false  // Changed to false - user must opt-in
         };
         
         const saved = localStorage.getItem('appSettings');
@@ -210,7 +210,7 @@ class SettingsPanel {
                 const setting = e.target.dataset.setting;
                 this.settings[setting] = e.target.checked;
                 this.saveSettings();
-                this.applySetting(setting, e.target.checked);
+                this.applySetting(setting, e.target.checked, true); // true = user action
             });
         });
         
@@ -303,7 +303,7 @@ class SettingsPanel {
         document.documentElement.style.setProperty('--base-font-size', sizes[size]);
     }
 
-    applySetting(setting, value) {
+    applySetting(setting, value, isUserAction = false) {
         switch(setting) {
             case 'animations':
                 document.documentElement.classList.toggle('no-animations', !value);
@@ -318,7 +318,8 @@ class SettingsPanel {
                 break;
             case 'notifications':
                 // Handle notification permissions
-                if (value && 'Notification' in window) {
+                // Only request permission if this is from a user action (not initialization)
+                if (value && isUserAction && 'Notification' in window) {
                     Notification.requestPermission();
                 }
                 break;

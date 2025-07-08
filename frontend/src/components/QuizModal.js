@@ -15,6 +15,9 @@ class QuizModal {
         this.mode = 'poqpoq'; // Default mode
         this.score = 0;
         this.correctAnswers = 0;
+        this.rewardsDisplay = null; // Reusable rewards display component
+        this.quizStartTime = null; // Track quiz start time
+        this.timeSpent = 0; // Total time spent on quiz
         this.init();
     }
 
@@ -25,6 +28,11 @@ class QuizModal {
         
         // Create modal structure
         this.createModal();
+        
+        // Initialize rewards display component
+        if (window.RewardsDisplay) {
+            this.rewardsDisplay = new window.RewardsDisplay();
+        }
         
         // Listen for mode changes
         window.addEventListener('modeChanged', (e) => {
@@ -111,6 +119,10 @@ class QuizModal {
         // Show modal
         this.modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        
+        // Track quiz start time
+        this.quizStartTime = Date.now();
+        this.timeSpent = 0;
         
         // Set mode from config if provided
         if (config.mode) {
@@ -246,6 +258,7 @@ class QuizModal {
         }
         
         const currentQ = questions[this.currentQuestionIndex];
+        this.currentQuestion = currentQ; // Store for answer tracking
         
         // Get mode-specific question text
         let questionText = currentQ.question;
@@ -845,10 +858,16 @@ class QuizModal {
         const totalQuestions = this.currentQuizSet.data.questions.length;
         const percentage = Math.round((this.correctAnswers / totalQuestions) * 100);
         
+        // Calculate time spent
+        if (this.quizStartTime) {
+            this.timeSpent = Math.floor((Date.now() - this.quizStartTime) / 1000); // in seconds
+        }
+        
         // Stop any timers
         this.stopSpeedTimer();
         
         // Process quiz completion through EconomyManager
+        let economyResult = null;
         if (window.economyManager) {
             const quizData = {
                 quizId: this.currentQuizSet.id,
@@ -861,9 +880,9 @@ class QuizModal {
                 streak: 0 // TODO: Get actual streak from economy manager
             };
             
-            const result = await window.economyManager.processQuizComplete(quizData);
+            economyResult = await window.economyManager.processQuizComplete(quizData);
             
-            if (!result.success && result.needsHearts) {
+            if (!economyResult.success && economyResult.needsHearts) {
                 // Show no hearts message
                 document.getElementById('questionText').textContent = 'No Hearts!';
                 document.getElementById('answersContainer').innerHTML = `
@@ -899,7 +918,32 @@ class QuizModal {
             <div class="result-message">
                 ${percentage >= 80 ? '🏆 Excellent!' : percentage >= 60 ? '👍 Good job!' : '💪 Keep practicing!'}
             </div>
+            <!-- Rewards display container -->
+            <div id="quizRewardsBar" class="rewards-bar-container" style="margin-top: 20px; min-height: 80px;"></div>
         `;
+        
+        // Display rewards using RewardsDisplay component
+        console.log('Quiz complete - economyResult:', economyResult);
+        if (this.rewardsDisplay && economyResult && economyResult.rewards) {
+            console.log('Displaying rewards:', economyResult.rewards);
+            const rewardsContainer = document.getElementById('quizRewardsBar');
+            if (rewardsContainer) {
+                setTimeout(() => {
+                    this.rewardsDisplay.show(economyResult.rewards, rewardsContainer, {
+                        size: 'medium',
+                        theme: 'dark'
+                    });
+                }, 300); // Delay for visual flow
+            } else {
+                console.error('Rewards container not found');
+            }
+        } else {
+            console.log('Cannot display rewards - missing components:', {
+                hasRewardsDisplay: !!this.rewardsDisplay,
+                hasEconomyResult: !!economyResult,
+                hasRewards: !!(economyResult && economyResult.rewards)
+            });
+        }
         
         // Change button to "Close"
         const submitBtn = document.getElementById('submitBtn');

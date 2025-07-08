@@ -95,6 +95,15 @@ function init() {
         updateDashboardDisplay(window.economyManager.getDisplayState());
     }
     
+    // Initialize auth panel
+    if (!window.authPanel) {
+        window.authPanel = new AuthPanel();
+        window.authPanel.init();
+    }
+    
+    // Check authentication status
+    checkAuthStatus();
+    
     // Prevent mobile zoom
     preventMobileZoom();
     
@@ -254,15 +263,22 @@ function populateAvatarRow() {
 
 // Open avatar selector
 function openAvatarSelector() {
-    const overlay = document.getElementById('avatarSelectorOverlay');
-    if (!overlay) {
-        console.error('Avatar selector overlay not found!');
-        return;
-    }
-    overlay.classList.add('active');
-    // Update input fields with current values
-    document.getElementById('userNameInput').value = userName;
-    document.getElementById('userEmailInput').value = userEmail;
+    // Add a small delay to ensure DOM is ready
+    setTimeout(() => {
+        const overlay = document.getElementById('avatarSelectorOverlay');
+        if (!overlay) {
+            console.error('Avatar selector overlay not found! Elements in DOM:', {
+                overlay: document.getElementById('avatarSelectorOverlay'),
+                body: document.body ? 'exists' : 'missing'
+            });
+            return;
+        }
+        overlay.classList.add('active');
+    // Update input fields with current values (if they exist)
+    const nameInput = document.getElementById('userNameInput');
+    const emailInput = document.getElementById('userEmailInput');
+    if (nameInput) nameInput.value = userName;
+    if (emailInput) emailInput.value = userEmail;
     
     // Only populate if not already populated
     const row = document.getElementById('avatarRow');
@@ -282,6 +298,7 @@ function openAvatarSelector() {
     
     // Set up keyboard scrolling
     setupKeyboardScroll();
+    }, 100); // End of setTimeout
 }
 
 // Set up keyboard scrolling for avatar selector
@@ -777,6 +794,8 @@ async function setupPushNotifications(detail) {
         // can throw in insecure contexts
         let permission;
         try {
+            // This should only be checked inside a user gesture
+            // If we're not in a user gesture, skip the check
             permission = Notification.permission;
         } catch (e) {
             // Silently fail in insecure contexts
@@ -1035,12 +1054,65 @@ async function launchQuiz(config) {
     }
 }
 
+// Check authentication status
+function checkAuthStatus() {
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const userId = localStorage.getItem('userId');
+    
+    const authSection = document.getElementById('authSection');
+    const userInfoSection = document.getElementById('userInfoSection');
+    
+    if (isAuthenticated && userId) {
+        // User is logged in
+        if (authSection) authSection.style.display = 'none';
+        if (userInfoSection) userInfoSection.style.display = 'block';
+        
+        // Update display
+        const displayName = localStorage.getItem('displayName') || 'Anonymous Player';
+        const email = localStorage.getItem('userEmail') || '';
+        
+        const nameDisplay = document.getElementById('userDisplayName');
+        const emailDisplay = document.getElementById('userEmailDisplay');
+        
+        if (nameDisplay) nameDisplay.textContent = displayName;
+        if (emailDisplay) emailDisplay.textContent = email;
+    } else {
+        // User is not logged in
+        if (authSection) authSection.style.display = 'block';
+        if (userInfoSection) userInfoSection.style.display = 'none';
+    }
+}
+
+// Handle logout
+function handleLogout() {
+    // Clear auth data
+    localStorage.removeItem('userId');
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('displayName');
+    localStorage.removeItem('avatarId');
+    
+    // Reset to session-based economy
+    if (window.economyManager) {
+        window.economyManager.setUserId(null);
+    }
+    
+    // Update UI
+    checkAuthStatus();
+    
+    // Show message
+    if (window.authPanel) {
+        window.authPanel.showMessage('You have been signed out', 'info');
+    }
+}
+
 // Make functions available globally
 window.openAvatarSelector = openAvatarSelector;
 window.closeAvatarSelector = closeAvatarSelector;
 window.updateUserName = updateUserName;
 window.updateUserEmail = updateUserEmail;
 window.signInWithGoogle = signInWithGoogle;
+window.handleLogout = handleLogout;
+window.checkAuthStatus = checkAuthStatus;
 window.toggleFullscreen = toggleFullscreen;
 window.scrollAvatars = scrollAvatars;
 window.launchQuiz = launchQuiz;
@@ -1274,6 +1346,14 @@ function updateDashboardDisplay(economyData) {
 
 // Sync dashboard with backend
 async function syncDashboard() {
+    // Don't sync if a modal is open (game in progress)
+    if (document.querySelector('.quiz-modal.active') || 
+        document.querySelector('.flashcard-modal.active') ||
+        document.querySelector('.herding-modal.active')) {
+        console.log('Skipping sync - game in progress');
+        return;
+    }
+    
     try {
         // Get session ID from EconomyManager
         const sessionId = window.economyManager?.sessionToken || localStorage.getItem('session_id');
@@ -1281,29 +1361,44 @@ async function syncDashboard() {
         
         // Build query params
         const params = new URLSearchParams();
-        if (userId) params.append('user_id', userId);
-        if (sessionId) params.append('session_id', sessionId);
+        // Only send user_id OR session_id, not both
+        if (userId) {
+            params.append('user_id', userId);
+        } else if (sessionId) {
+            params.append('session_id', sessionId);
+        }
+        
+        console.log('Dashboard sync params:', {userId, sessionId});
+        
+        // Fetch from backend - TODO: Update to correct endpoint when available
+        const apiBase = window.API_URL || 'https://p0qp0q.com';
         
         // Fetch from backend
-        const apiBase = window.API_URL || 'https://p0qp0q.com';
         const response = await fetch(`${apiBase}/api/economy/state?${params}`);
         
         if (response.ok) {
             const data = await response.json();
             
+            // The API returns {state: {...}} so we need to extract the state
+            const economyState = data.state || data;
+            
             // Update EconomyManager cache
             if (window.economyManager) {
-                window.economyManager.displayCache = { ...window.economyManager.displayCache, ...data };
+                window.economyManager.displayCache = { ...window.economyManager.displayCache, ...economyState };
             }
             
             // Update dashboard display
-            updateDashboardDisplay(data);
+            updateDashboardDisplay(economyState);
             
             // Dispatch event for other components
-            window.dispatchEvent(new CustomEvent('economyUpdated', { detail: data }));
+            window.dispatchEvent(new CustomEvent('economyUpdated', { detail: economyState }));
+        } else {
+            console.error('Failed to sync dashboard:', response.status, response.statusText);
         }
     } catch (error) {
         console.error('Dashboard sync error:', error);
+        const apiUrl = window.API_URL || 'https://p0qp0q.com';
+        console.error('Sync URL was:', `${apiUrl}/api/economy/state?${params.toString()}`);
     }
 }
 

@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 # Import our modules
 from database import db
 from audio_service import audio_service
+from auth_utils import hash_password, verify_password, validate_password_strength, validate_email_format, generate_username_from_email
 
 logger = logging.getLogger(__name__)
 
@@ -42,11 +43,22 @@ Welcome to the JazzyPop API! This backend powers an engaging quiz and learning p
 * 👤 **User Profiles** - Track progress and achievements
 * 🏆 **Leaderboards** - Compete with other players
 * 🔊 **Audio Support** - Text-to-speech for quiz questions
+* 🎮 **Quest System** - Sequential and daily quests
+* 🏅 **Achievements & Badges** - Unlock rewards and show off accomplishments
+* 🐾 **Pets & Assets** - Collect and customize with virtual companions
 
 ### Getting Started:
 1. Check the `/api/health` endpoint to verify the API is running
 2. Use `/api/content/quiz/sets` to fetch quiz content
 3. Track game results with `/api/economy/process-result`
+
+### Test User:
+For testing endpoints that require a user ID, you can use:
+- **User ID**: `550e8400-e29b-41d4-a716-446655440000`
+- **Username**: `test_user`
+- **Email**: `test@jazzypop.com`
+
+This test user comes pre-loaded with sample data including quests, badges, and a pet!
 
 ### Authentication:
 Currently, the API uses session-based identification. Full authentication is coming soon.
@@ -60,7 +72,15 @@ Currently, the API uses session-based identification. Full authentication is com
         {"name": "Users", "description": "User profile and progress tracking"},
         {"name": "Leaderboard", "description": "Competition and ranking endpoints"},
         {"name": "Audio", "description": "Text-to-speech and audio services"},
-        {"name": "Content", "description": "General content delivery endpoints"}
+        {"name": "Content", "description": "General content delivery endpoints"},
+        {"name": "Feedback", "description": "Player feedback and content rating"},
+        {"name": "Validation", "description": "Content validation system"},
+        {"name": "Quests", "description": "Quest system and progression"},
+        {"name": "Achievements", "description": "Achievement tracking and unlocks"},
+        {"name": "Badges", "description": "Badge collection and tiers"},
+        {"name": "Assets", "description": "User assets, pets, and cosmetics"},
+        {"name": "Analytics", "description": "Performance analytics and insights"},
+        {"name": "Authentication", "description": "User authentication and login"}
     ],
     contact={
         "name": "JazzyPop Support",
@@ -134,11 +154,6 @@ class Content(ContentBase):
 
 class QuizAnswer(BaseModel):
     """Model for submitting quiz answers"""
-    quiz_id: UUID = Field(
-        ..., 
-        description="ID of the quiz being answered",
-        example="550e8400-e29b-41d4-a716-446655440000"
-    )
     answer_id: str = Field(
         ..., 
         description="Selected answer ID (a, b, c, or d)",
@@ -202,6 +217,34 @@ class UserProfile(BaseModel):
                 "email": "whiz@example.com"
             }
         }
+
+class GoogleAuthRequest(BaseModel):
+    """Google OAuth authentication request"""
+    google_id: str = Field(..., description="Google user ID")
+    email: str = Field(..., description="User email from Google")
+    name: str = Field(..., description="User's display name from Google")
+    picture: Optional[str] = Field(None, description="Profile picture URL")
+    session_id: Optional[str] = Field(None, description="Current session ID for migration")
+
+class AuthResponse(BaseModel):
+    """Authentication response"""
+    user_id: str = Field(..., description="JazzyPop user ID")
+    is_new_user: bool = Field(..., description="Whether this is a newly created user")
+    display_name: str = Field(..., description="User's display name")
+    avatar_id: str = Field(..., description="User's avatar ID")
+    migrated_data: bool = Field(..., description="Whether session data was migrated")
+
+class RegisterRequest(BaseModel):
+    """Email/password registration request"""
+    email: str = Field(..., description="User email address", example="user@example.com")
+    password: str = Field(..., description="User password (min 8 chars)", min_length=8, example="SecurePass123")
+    display_name: str = Field(..., description="Display name", example="John Doe")
+    session_id: Optional[str] = Field(None, description="Current session ID for migration")
+
+class LoginRequest(BaseModel):
+    """Email/password login request"""
+    email: str = Field(..., description="User email address", example="user@example.com")
+    password: str = Field(..., description="User password", example="SecurePass123")
 
 # Routes
 @app.get("/", tags=["Health"])
@@ -514,6 +557,324 @@ async def get_quiz_sets(
         
         return results
 
+# ========== AUTHENTICATION ENDPOINTS ==========
+
+@app.post("/api/auth/google",
+    tags=["Authentication"],
+    summary="Authenticate with Google OAuth",
+    description="Exchange Google credentials for JazzyPop user ID",
+    response_model=AuthResponse)
+async def google_auth(auth_request: GoogleAuthRequest):
+    """Handle Google OAuth authentication"""
+    import random
+    
+    try:
+        # Check if user exists by google_id or email
+        async with db.pool.acquire() as conn:
+            # First try by email (google_id column might not exist)
+            existing_user = await conn.fetchrow("""
+                SELECT id, display_name, avatar_id 
+                FROM users 
+                WHERE email = $1
+            """, auth_request.email)
+            
+            if existing_user:
+                # User exists - return their info
+                user_id = existing_user['id']
+                is_new_user = False
+                display_name = existing_user['display_name']
+                avatar_id = existing_user['avatar_id']
+            else:
+                # Create new user
+                # Generate username from email
+                username = auth_request.email.split('@')[0]
+                # Ensure username is unique
+                username_exists = await conn.fetchval(
+                    "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)",
+                    username
+                )
+                if username_exists:
+                    # Add random suffix
+                    username = f"{username}_{random.randint(1000, 9999)}"
+                
+                # Pick a random avatar if no picture
+                avatar_id = f"avatar_{random.randint(1, 10):02d}"
+                
+                # Create the user
+                user_id = await conn.fetchval("""
+                    INSERT INTO users (
+                        username, email, display_name, avatar_id, 
+                        is_anonymous, created_at
+                    )
+                    VALUES ($1, $2, $3, $4, FALSE, NOW())
+                    RETURNING id
+                """, username, auth_request.email, auth_request.name, 
+                    avatar_id)
+                
+                # Initialize user_progress
+                await conn.execute("""
+                    INSERT INTO user_progress (user_id, stats, updated_at)
+                    VALUES ($1, jsonb_build_object(
+                        'economy', jsonb_build_object(
+                            'energy', 100,
+                            'hearts', 5,
+                            'coins', 100,
+                            'sapphires', 0,
+                            'emeralds', 0,
+                            'rubies', 0,
+                            'amethysts', 0,
+                            'diamonds', 0,
+                            'xp', 0,
+                            'level', 1,
+                            'streak', 0
+                        ),
+                        'quests', jsonb_build_object(
+                            'active', '[]'::jsonb,
+                            'completed', '[]'::jsonb,
+                            'chains', '{}'::jsonb
+                        ),
+                        'badges', '[]'::jsonb,
+                        'assets', jsonb_build_object(
+                            'pets', '[]'::jsonb,
+                            'cosmetics', '{}'::jsonb,
+                            'inventory', '[]'::jsonb
+                        )
+                    ), NOW())
+                """, user_id)
+                
+                is_new_user = True
+                display_name = auth_request.name
+            
+            # Migrate session data if provided
+            migrated_data = False
+            if auth_request.session_id and is_new_user:
+                # Get session data
+                session_data = await conn.fetchrow(
+                    "SELECT data FROM sessions WHERE id = $1",
+                    auth_request.session_id
+                )
+                
+                if session_data and session_data['data']:
+                    economy = session_data['data'].get('economy', {})
+                    if economy:
+                        # Update user's economy with session data
+                        await conn.execute("""
+                            UPDATE user_progress 
+                            SET stats = jsonb_set(
+                                stats, 
+                                '{economy}', 
+                                stats->'economy' || $1::jsonb
+                            )
+                            WHERE user_id = $2
+                        """, json.dumps(economy), user_id)
+                        
+                        migrated_data = True
+                        
+                        # Mark session as migrated
+                        await conn.execute(
+                            "UPDATE sessions SET user_id = $1 WHERE id = $2",
+                            user_id, auth_request.session_id
+                        )
+            
+            return AuthResponse(
+                user_id=str(user_id),
+                is_new_user=is_new_user,
+                display_name=display_name,
+                avatar_id=avatar_id,
+                migrated_data=migrated_data
+            )
+            
+    except Exception as e:
+        logger.error(f"Google auth error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/auth/register",
+    tags=["Authentication"],
+    summary="Register with email and password",
+    description="Create a new account using email and password",
+    response_model=AuthResponse)
+async def register(register_request: RegisterRequest):
+    """Handle email/password registration"""
+    import random
+    
+    try:
+        # Validate email format
+        email_valid, email_result = validate_email_format(register_request.email)
+        if not email_valid:
+            raise HTTPException(status_code=400, detail=f"Invalid email: {email_result}")
+        
+        # Use normalized email
+        normalized_email = email_result
+        
+        # Validate password strength
+        password_valid, password_msg = validate_password_strength(register_request.password)
+        if not password_valid:
+            raise HTTPException(status_code=400, detail=password_msg)
+        
+        # Hash the password
+        password_hash = hash_password(register_request.password)
+        
+        async with db.pool.acquire() as conn:
+            # Check if email already exists
+            existing_user = await conn.fetchval(
+                "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+                normalized_email
+            )
+            
+            if existing_user:
+                raise HTTPException(status_code=409, detail="Email already registered")
+            
+            # Generate username from email
+            base_username = generate_username_from_email(normalized_email)
+            username = base_username
+            
+            # Ensure username is unique
+            counter = 1
+            while await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)",
+                username
+            ):
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            # Pick a random avatar
+            avatar_id = f"avatar_{random.randint(1, 10):02d}"
+            
+            # Create the user
+            user_id = await conn.fetchval("""
+                INSERT INTO users (
+                    username, email, password_hash, display_name, 
+                    avatar_id, is_anonymous, created_at
+                )
+                VALUES ($1, $2, $3, $4, $5, FALSE, NOW())
+                RETURNING id
+            """, username, normalized_email, password_hash, 
+                register_request.display_name, avatar_id)
+            
+            # Initialize user_progress
+            await conn.execute("""
+                INSERT INTO user_progress (user_id, stats, updated_at)
+                VALUES ($1, jsonb_build_object(
+                    'economy', jsonb_build_object(
+                        'energy', 100,
+                        'hearts', 5,
+                        'coins', 100,
+                        'sapphires', 0,
+                        'emeralds', 0,
+                        'rubies', 0,
+                        'amethysts', 0,
+                        'diamonds', 0,
+                        'xp', 0,
+                        'level', 1,
+                        'streak', 0
+                    ),
+                    'quests', jsonb_build_object(
+                        'active', '[]'::jsonb,
+                        'completed', '[]'::jsonb,
+                        'chains', '{}'::jsonb
+                    ),
+                    'badges', '[]'::jsonb,
+                    'assets', jsonb_build_object(
+                        'pets', '[]'::jsonb,
+                        'cosmetics', '{}'::jsonb,
+                        'inventory', '[]'::jsonb
+                    )
+                ), NOW())
+            """, user_id)
+            
+            # Handle session migration if provided
+            migrated_data = False
+            if register_request.session_id:
+                # Get session economy data
+                session_data = await db.get_economy_state(None, register_request.session_id)
+                if session_data:
+                    # Migrate economy data
+                    await conn.execute("""
+                        UPDATE user_progress 
+                        SET stats = jsonb_set(
+                            stats, 
+                            '{economy}', 
+                            $1::jsonb
+                        )
+                        WHERE user_id = $2
+                    """, json.dumps(session_data), user_id)
+                    
+                    migrated_data = True
+                    
+                    # Mark session as migrated
+                    await conn.execute(
+                        "UPDATE sessions SET user_id = $1 WHERE id = $2",
+                        user_id, register_request.session_id
+                    )
+            
+            return AuthResponse(
+                user_id=str(user_id),
+                is_new_user=True,
+                display_name=register_request.display_name,
+                avatar_id=avatar_id,
+                migrated_data=migrated_data
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail="Registration failed")
+
+
+@app.post("/api/auth/login",
+    tags=["Authentication"],
+    summary="Login with email and password",
+    description="Authenticate using email and password",
+    response_model=AuthResponse)
+async def login(login_request: LoginRequest):
+    """Handle email/password login"""
+    try:
+        async with db.pool.acquire() as conn:
+            # Find user by email (case-insensitive)
+            user = await conn.fetchrow("""
+                SELECT id, password_hash, display_name, avatar_id
+                FROM users 
+                WHERE LOWER(email) = LOWER($1)
+            """, login_request.email)
+            
+            if not user:
+                # Don't reveal if email exists or not
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Invalid email or password"
+                )
+            
+            # Check if user has a password (might be Google-only account)
+            if not user['password_hash']:
+                raise HTTPException(
+                    status_code=401,
+                    detail="This account uses Google login. Please sign in with Google."
+                )
+            
+            # Verify password
+            if not verify_password(login_request.password, user['password_hash']):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid email or password"
+                )
+            
+            # Login successful!
+            return AuthResponse(
+                user_id=str(user['id']),
+                is_new_user=False,
+                display_name=user['display_name'],
+                avatar_id=user['avatar_id'],
+                migrated_data=False
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
+
 
 @app.post("/api/users/profile",
     tags=["Users"],
@@ -551,6 +912,10 @@ async def get_user_progress(user_id: UUID):
 @app.get("/api/leaderboard/{period}")
 async def get_leaderboard(period: str = "daily", mode: Optional[str] = None, limit: int = 10):
     """Get leaderboard for specified period"""
+    # Accept both all-time and all_time formats
+    if period == "all-time":
+        period = "all_time"
+    
     if period not in ["daily", "weekly", "all_time"]:
         raise HTTPException(status_code=400, detail="Invalid period")
     
@@ -805,8 +1170,8 @@ class EnergySpendRequest(BaseModel):
     amount: int = Field(
         ...,
         description="Amount of energy to spend",
-        ge=1,
-        le=100,
+        ge=0,
+        le=10000,
         example=10
     )
     activity_type: str = Field(
@@ -874,45 +1239,63 @@ class EnergySpendRequest(BaseModel):
 )
 async def spend_energy(request: EnergySpendRequest):
     """Spend energy to start a game or activity"""
-    # Get current economy state
-    economy_state = await db.get_economy_state(request.user_id, request.session_id)
-    
-    # Check if user has enough energy
-    if economy_state.energy < request.amount:
+    try:
+        # Get current economy state
+        economy_state = await db.get_economy_state(request.user_id, request.session_id)
+        
+        # Check if user has enough energy
+        if economy_state['energy'] < request.amount:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "success": False,
+                    "error": "Insufficient energy",
+                    "required": request.amount,
+                    "available": economy_state['energy']
+                }
+            )
+        
+        # Deduct energy
+        economy_state['energy'] -= request.amount
+        
+        # Log the energy spend transaction
+        # TODO: Implement transaction logging
+        # await db.log_transaction(
+        #     user_id=request.user_id,
+        #     session_id=request.session_id,
+        #     transaction_type="energy_spend",
+        #     amount=-request.amount,
+        #     activity_type=request.activity_type,
+        #     metadata={
+        #         "timestamp": datetime.utcnow().isoformat(),
+        #         "remaining_energy": economy_state['energy']
+        #     }
+        # )
+        
+        # Save updated state
+        await db.save_economy_state(request.user_id, request.session_id, economy_state)
+        
+        return {
+            "success": True,
+            "remaining_energy": economy_state['energy'],
+            "new_state": economy_state
+        }
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have proper JSON format
+        raise
+    except Exception as e:
+        # Log the error for debugging
+        logger.error(f"Error in spend_energy endpoint: {str(e)}", exc_info=True)
+        
+        # Return a proper JSON error response
         raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail={
                 "success": False,
-                "error": "Insufficient energy",
-                "required": request.amount,
-                "available": economy_state.energy
+                "error": "Internal server error",
+                "message": "Failed to process energy spend request"
             }
         )
-    
-    # Deduct energy
-    economy_state.energy -= request.amount
-    
-    # Log the energy spend transaction
-    await db.log_transaction(
-        user_id=request.user_id,
-        session_id=request.session_id,
-        transaction_type="energy_spend",
-        amount=-request.amount,
-        activity_type=request.activity_type,
-        metadata={
-            "timestamp": datetime.utcnow().isoformat(),
-            "remaining_energy": economy_state.energy
-        }
-    )
-    
-    # Save updated state
-    await db.save_economy_state(request.user_id, request.session_id, economy_state)
-    
-    return {
-        "success": True,
-        "remaining_energy": economy_state.energy,
-        "new_state": economy_state.dict()
-    }
 
 @app.post("/api/economy/process-result",
     tags=["Economy"],
@@ -1295,6 +1678,298 @@ async def trigger_validation(
     
     result = await validation_service.validate_quiz_set(content_id)
     return result
+
+# ============== QUEST SYSTEM ENDPOINTS ==============
+
+@app.get("/api/quests",
+    tags=["Quests"],
+    summary="Get user's active and completed quests",
+    description="Retrieve all quest information including active quests, completed quests, and quest chains")
+async def get_user_quests(
+    user_id: Optional[UUID] = Query(None, description="User ID"),
+    session_id: Optional[str] = Query(None, description="Session ID for anonymous users")
+):
+    """Get all quests for a user"""
+    if not user_id:
+        return {"active": [], "completed": [], "chains": {}}
+    
+    quests = await db.get_user_quests(user_id)
+    return quests
+
+@app.post("/api/quests/{quest_id}/progress",
+    tags=["Quests"],
+    summary="Update quest progress",
+    description="Update progress for a specific quest and check for completion")
+async def update_quest_progress(
+    quest_id: str,
+    user_id: Optional[UUID] = Query(None, description="User ID"),
+    progress: int = Query(1, description="Progress amount to add")
+):
+    """Update quest progress"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    # Update progress (quest_id is used as quest_type for now)
+    completed = await db.update_quest_progress(user_id, quest_id, progress)
+    
+    return {
+        "success": True,
+        "completed_quests": completed,
+        "rewards_earned": [q.get("rewards", {}) for q in completed]
+    }
+
+# ============== ACHIEVEMENTS & BADGES ==============
+
+@app.get("/api/achievements",
+    tags=["Achievements"],
+    summary="Get user's achievements",
+    description="Retrieve all achievements and their unlock status")
+async def get_achievements(user_id: Optional[UUID] = Query(None)):
+    """Get all achievements for a user"""
+    # TODO: Return both unlocked and available achievements
+    return {
+        "unlocked": [],
+        "available": [],
+        "progress": {}
+    }
+
+@app.post("/api/achievements/{achievement_id}/unlock",
+    tags=["Achievements"],
+    summary="Unlock an achievement",
+    description="Manually unlock an achievement (for testing or special events)")
+async def unlock_achievement(
+    achievement_id: str,
+    user_id: Optional[UUID] = Query(None)
+):
+    """Unlock an achievement"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    unlocked = await db.unlock_achievement(user_id, achievement_id)
+    
+    return {
+        "success": unlocked,
+        "achievement_id": achievement_id,
+        "message": "Achievement unlocked!" if unlocked else "Already unlocked"
+    }
+
+@app.get("/api/badges",
+    tags=["Badges"],
+    summary="Get user's badges",
+    description="Retrieve all earned badges with their tiers")
+async def get_user_badges(user_id: Optional[UUID] = Query(None)):
+    """Get all badges for a user"""
+    if not user_id:
+        return {"badges": []}
+    
+    badges = await db.get_user_badges(user_id)
+    return {"badges": badges}
+
+@app.post("/api/badges/{badge_id}/award",
+    tags=["Badges"],
+    summary="Award a badge",
+    description="Award a badge to a user at a specific tier")
+async def award_badge(
+    badge_id: str,
+    user_id: Optional[UUID] = Query(None),
+    tier: str = Query("bronze", description="Badge tier: bronze, silver, gold, platinum")
+):
+    """Award a badge to a user"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    await db.award_badge(user_id, badge_id, tier)
+    
+    return {
+        "success": True,
+        "badge_id": badge_id,
+        "tier": tier
+    }
+
+# ============== ASSETS & PETS ==============
+
+@app.get("/api/assets",
+    tags=["Assets"],
+    summary="Get user's assets",
+    description="Retrieve all user assets including pets, cosmetics, and inventory")
+async def get_user_assets(user_id: Optional[UUID] = Query(None)):
+    """Get all assets for a user"""
+    if not user_id:
+        return {"pets": [], "cosmetics": {}, "inventory": []}
+    
+    assets = await db.get_user_assets(user_id)
+    return assets
+
+@app.post("/api/assets/pet",
+    tags=["Assets"],
+    summary="Add a pet",
+    description="Add a new pet to user's collection")
+async def add_pet(
+    user_id: Optional[UUID] = Query(None),
+    pet_type: str = Query(..., description="Type of pet"),
+    name: str = Query(..., description="Pet's name")
+):
+    """Add a pet to user's collection"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    pet_data = {
+        "type": pet_type,
+        "name": name,
+        "stats": {
+            "happiness": 100,
+            "energy": 100
+        }
+    }
+    
+    pet_id = await db.add_pet(user_id, pet_data)
+    
+    return {
+        "success": True,
+        "pet_id": pet_id,
+        "message": f"{name} has joined your family!"
+    }
+
+@app.post("/api/assets/{asset_type}/{asset_id}/equip",
+    tags=["Assets"],
+    summary="Equip an asset",
+    description="Equip or unequip an asset (pet, avatar frame, theme)")
+async def equip_asset(
+    asset_type: str,
+    asset_id: str,
+    user_id: Optional[UUID] = Query(None)
+):
+    """Equip/unequip an asset"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    if asset_type not in ["pet", "avatar_frame", "theme"]:
+        raise HTTPException(status_code=400, detail="Invalid asset type")
+    
+    await db.equip_asset(user_id, asset_type, asset_id)
+    
+    return {
+        "success": True,
+        "asset_type": asset_type,
+        "asset_id": asset_id,
+        "equipped": True
+    }
+
+# ========== ANALYTICS ENDPOINTS ==========
+
+@app.get("/api/analytics/quiz/{quiz_id}",
+    tags=["Analytics"],
+    summary="Get quiz performance analytics",
+    description="Retrieve detailed performance statistics for a specific quiz",
+    response_model=Dict[str, Any])
+async def get_quiz_analytics(quiz_id: UUID):
+    """Get performance analytics for a specific quiz"""
+    try:
+        analytics = await db.get_quiz_analytics(quiz_id)
+        return analytics
+    except Exception as e:
+        logger.error(f"Error getting quiz analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/category/{category}",
+    tags=["Analytics"],
+    summary="Get category performance analytics",
+    description="Retrieve performance statistics for a specific category, optionally filtered by user")
+async def get_category_analytics(
+    category: str,
+    user_id: Optional[UUID] = Query(None, description="Filter by specific user")
+):
+    """Get performance analytics for a category"""
+    try:
+        analytics = await db.get_category_analytics(category, user_id)
+        return analytics
+    except Exception as e:
+        logger.error(f"Error getting category analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/user/{user_id}/strengths",
+    tags=["Analytics"],
+    summary="Get user strengths and weaknesses",
+    description="Analyze a user's performance to identify their strongest and weakest categories")
+async def get_user_strengths(
+    user_id: UUID,
+    min_attempts: int = Query(5, description="Minimum attempts in a category to include it")
+):
+    """Analyze user's strengths and weaknesses"""
+    try:
+        analysis = await db.get_user_strengths_weaknesses(user_id, min_attempts)
+        return analysis
+    except Exception as e:
+        logger.error(f"Error analyzing user strengths: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/insights",
+    tags=["Analytics"],
+    summary="Get global platform insights",
+    description="Retrieve platform-wide statistics and insights about player behavior and performance")
+async def get_global_insights():
+    """Get global platform insights"""
+    try:
+        insights = await db.get_global_insights()
+        return insights
+    except Exception as e:
+        logger.error(f"Error getting global insights: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/recommendations/{user_id}",
+    tags=["Analytics"],
+    summary="Get personalized recommendations",
+    description="Get quiz recommendations based on user's performance and preferences")
+async def get_recommendations(user_id: UUID):
+    """Get personalized quiz recommendations"""
+    try:
+        # Get user's strengths and weaknesses
+        analysis = await db.get_user_strengths_weaknesses(user_id)
+        
+        recommendations = {
+            "user_id": str(user_id),
+            "recommendations": []
+        }
+        
+        # Recommend categories where they're weak but not too weak
+        if analysis.get("weaknesses"):
+            for weakness in analysis["weaknesses"]:
+                if weakness["success_rate"] > 0.3:  # Not impossibly hard
+                    recommendations["recommendations"].append({
+                        "type": "improvement",
+                        "category": weakness["category"],
+                        "reason": f"Practice {weakness['category']} to improve your {weakness['success_rate']*100:.0f}% success rate",
+                        "difficulty": "medium"
+                    })
+        
+        # Recommend categories where they excel for confidence building
+        if analysis.get("strengths"):
+            for strength in analysis["strengths"][:1]:  # Top strength
+                recommendations["recommendations"].append({
+                    "type": "confidence",
+                    "category": strength["category"],
+                    "reason": f"You excel at {strength['category']} with {strength['success_rate']*100:.0f}% success rate",
+                    "difficulty": "hard"  # Challenge them
+                })
+        
+        # Recommend new categories they haven't tried much
+        attempted_categories = {cat["category"] for cat in analysis.get("all_categories", [])}
+        all_categories = ["science", "history", "pop_culture", "sports", "geography", "technology"]
+        
+        for category in all_categories:
+            if category not in attempted_categories:
+                recommendations["recommendations"].append({
+                    "type": "exploration",
+                    "category": category,
+                    "reason": f"Try something new! You haven't explored {category} quizzes yet",
+                    "difficulty": "easy"  # Start easy
+                })
+                break
+        
+        return recommendations
+    except Exception as e:
+        logger.error(f"Error getting recommendations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # WebSocket for real-time updates
 @app.websocket("/ws")
