@@ -97,13 +97,13 @@ class Database:
             return result
     
     async def get_economy_state(self, user_id: Optional[UUID], session_id: Optional[str]) -> Dict[str, Any]:
-        """Get economy state for user or session"""
+        """Get economy state for user or session with time-based energy regeneration"""
         async with self.pool.acquire() as conn:
             # Check if user_id is actually a valid UUID (not None or empty string)
             if user_id and isinstance(user_id, UUID):
                 # Get from user_progress
                 row = await conn.fetchrow("""
-                    SELECT stats FROM user_progress WHERE user_id = $1
+                    SELECT stats, updated_at FROM user_progress WHERE user_id = $1
                 """, user_id)
                 
                 if row and row['stats']:
@@ -112,6 +112,37 @@ class Database:
                     if isinstance(stats, str):
                         stats = json.loads(stats)
                     economy = stats.get('economy', {})
+                    
+                    # Calculate energy regeneration based on time elapsed
+                    current_energy = economy.get("energy", 100)
+                    last_update = economy.get("last_energy_update")
+                    
+                    if last_update:
+                        # Parse timestamp and calculate elapsed time
+                        from datetime import datetime
+                        if isinstance(last_update, str):
+                            last_update_time = datetime.fromisoformat(last_update.replace('Z', '+00:00'))
+                        else:
+                            last_update_time = last_update
+                        
+                        elapsed_minutes = (datetime.utcnow() - last_update_time).total_seconds() / 60
+                        
+                        # Regenerate 1 energy per minute
+                        regenerated = int(elapsed_minutes)
+                        if regenerated > 0:
+                            # Calculate energy cap based on level
+                            level = economy.get("level", 1)
+                            max_energy = 100 + ((level - 1) * 10)  # 100 at level 1, +10 per level
+                            
+                            new_energy = min(current_energy + regenerated, max_energy)
+                            economy["energy"] = new_energy
+                            
+                            # Update the last_energy_update time if we regenerated
+                            economy["last_energy_update"] = datetime.utcnow().isoformat()
+                            
+                            # Save the regenerated energy back to database
+                            await self._update_energy_regeneration(conn, user_id, economy)
+                    
                     return {
                         "energy": economy.get("energy", 100),
                         "hearts": economy.get("hearts", 5),
@@ -130,7 +161,7 @@ class Database:
             if session_id:
                 # Get from sessions table
                 row = await conn.fetchrow("""
-                    SELECT data FROM sessions WHERE id = $1
+                    SELECT data, created_at FROM sessions WHERE id = $1
                 """, session_id)
                 
                 if row and row['data']:
@@ -139,6 +170,36 @@ class Database:
                     if isinstance(data, str):
                         data = json.loads(data)
                     economy = data.get('economy', {})
+                    
+                    # Calculate energy regeneration for sessions too
+                    current_energy = economy.get("energy", 100)
+                    last_update = economy.get("last_energy_update")
+                    
+                    if last_update:
+                        from datetime import datetime
+                        if isinstance(last_update, str):
+                            last_update_time = datetime.fromisoformat(last_update.replace('Z', '+00:00'))
+                        else:
+                            last_update_time = last_update
+                        
+                        elapsed_minutes = (datetime.utcnow() - last_update_time).total_seconds() / 60
+                        regenerated = int(elapsed_minutes)
+                        
+                        if regenerated > 0:
+                            level = economy.get("level", 1)
+                            max_energy = 100 + ((level - 1) * 10)
+                            new_energy = min(current_energy + regenerated, max_energy)
+                            economy["energy"] = new_energy
+                            economy["last_energy_update"] = datetime.utcnow().isoformat()
+                            
+                            # Update session with regenerated energy
+                            data['economy'] = economy
+                            await conn.execute("""
+                                UPDATE sessions 
+                                SET data = $2
+                                WHERE id = $1
+                            """, session_id, json.dumps(data))
+                    
                     return {
                         "energy": economy.get("energy", 100),
                         "hearts": economy.get("hearts", 5),
@@ -153,9 +214,12 @@ class Database:
                         "streak": economy.get("streak", 0)
                     }
             
-            # Return default state
+            # Return default state with proper energy cap
+            from datetime import datetime
+            default_level = 1
+            max_energy = 100 + ((default_level - 1) * 10)  # 100 at level 1
             return {
-                "energy": 100,
+                "energy": max_energy,
                 "hearts": 5,
                 "coins": 0,
                 "sapphires": 0,
@@ -164,12 +228,31 @@ class Database:
                 "amethysts": 0,
                 "diamonds": 0,
                 "xp": 0,
-                "level": 1,
+                "level": default_level,
                 "streak": 0
             }
     
+    async def _update_energy_regeneration(self, conn, user_id: UUID, economy: Dict[str, Any]):
+        """Helper to update energy regeneration in user_progress"""
+        await conn.execute("""
+            UPDATE user_progress 
+            SET stats = jsonb_set(
+                stats,
+                '{economy}',
+                $2::jsonb
+            ),
+            updated_at = NOW()
+            WHERE user_id = $1
+        """, user_id, json.dumps(economy))
+    
     async def save_economy_state(self, user_id: Optional[UUID], session_id: Optional[str], state: Dict[str, Any]):
         """Save economy state for user or session"""
+        from datetime import datetime
+        
+        # Ensure we track when energy was last updated
+        if "last_energy_update" not in state:
+            state["last_energy_update"] = datetime.utcnow().isoformat()
+        
         async with self.pool.acquire() as conn:
             # Check if user_id is actually a valid UUID (not None or empty string)
             if user_id and isinstance(user_id, UUID):

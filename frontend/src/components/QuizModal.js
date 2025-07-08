@@ -391,26 +391,59 @@ class QuizModal {
     }
 
     showFeedback(isCorrect) {
-        // Show feedback bot
-        const bot = document.createElement('div');
-        bot.className = isCorrect ? 'feedback-bot show success' : 'feedback-bot show';
+        // Get current question data
+        const currentQuestion = this.currentQuizSet.data.questions[this.currentQuestionIndex - 1];
         
-        const img = document.createElement('img');
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.src = isCorrect 
-            ? './src/images/checkmark-bot.svg' 
-            : './src/images/not-bot.svg';
+        // Find correct answer
+        const correctAnswer = currentQuestion.answers.find(a => a.correct);
+        const selectedAnswerData = this.selectedAnswer ? {
+            text: this.selectedAnswer.textContent,
+            id: this.selectedAnswer.dataset.answerId
+        } : null;
         
-        bot.appendChild(img);
-        this.modal.appendChild(bot);
+        // Get feedback from question data if available
+        const correctFeedback = currentQuestion.correctFeedback || correctAnswer.feedback || null;
+        const incorrectFeedback = selectedAnswerData && !isCorrect ? 
+            currentQuestion.answers.find(a => a.id === selectedAnswerData.id)?.feedback || null : null;
         
-        // Remove after animation
-        setTimeout(() => {
-            bot.classList.remove('show');
-            bot.classList.add('hide');
-            setTimeout(() => bot.remove(), 300);
-        }, 1500);
+        // Show the new feedback popup if available
+        if (window.quizFeedbackPopup) {
+            window.quizFeedbackPopup.show({
+                isCorrect,
+                selectedAnswer: selectedAnswerData,
+                correctAnswer: {
+                    text: correctAnswer.text,
+                    id: correctAnswer.id
+                },
+                correctFeedback,
+                incorrectFeedback,
+                onContinue: () => {
+                    // This will be called when user clicks continue
+                    // The next question loading is already handled by setTimeout
+                }
+            });
+        } else {
+            // Fallback to old feedback system
+            const bot = document.createElement('div');
+            bot.className = isCorrect ? 'feedback-bot show success' : 'feedback-bot show';
+            
+            const img = document.createElement('img');
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.src = isCorrect 
+                ? './src/images/checkmark-bot.svg' 
+                : './src/images/not-bot.svg';
+            
+            bot.appendChild(img);
+            this.modal.appendChild(bot);
+            
+            // Remove after animation
+            setTimeout(() => {
+                bot.classList.remove('show');
+                bot.classList.add('hide');
+                setTimeout(() => bot.remove(), 300);
+            }, 1500);
+        }
         
         // Don't deduct hearts per question - only on quiz failure
         
@@ -851,6 +884,36 @@ class QuizModal {
         // In a real app, this would trigger a cooldown period
     }
     
+    // Get category-specific bot image
+    getCategoryBotImage(category) {
+        // These are the actual sign-holding bot files that exist
+        const categoryBots = {
+            'science': './src/images/signbots/signbot-knowledge.svg',
+            'history': './src/images/signbots/signbot-history.svg', 
+            'geography': './src/images/signbots/signbot-geography.svg',
+            'literature': './src/images/signbots/signbot-books.svg',
+            'sports': './src/images/signbots/signbot-winner.svg',
+            'entertainment': './src/images/signbots/signbot-fun.svg',
+            'technology': './src/images/signbots/signbot-tech.svg',
+            'gaming': './src/images/signbots/signbot-gaming.svg',
+            'pop_culture': './src/images/signbots/signbot-trending.svg',
+            'music': './src/images/signbots/signbot-music.svg',
+            'art': './src/images/signbots/signbot-creative.svg',
+            'food': './src/images/signbots/signbot-yummy.svg',
+            'nature': './src/images/signbots/signbot-nature.svg',
+            'animals': './src/images/signbots/signbot-animals.svg',
+            'mythology': './src/images/signbots/signbot-legend.svg',
+            'space': './src/images/signbots/signbot-cosmic.svg',
+            'mathematics': './src/images/signbots/signbot-numbers.svg',
+            'language': './src/images/signbots/signbot-words.svg',
+            'famous_lies': './src/images/signbots/signbot-famous-lies.svg',
+            'general': './src/images/signbots/signbot-quiz.svg'
+        };
+        
+        // Return specific bot or default quiz bot
+        return categoryBots[category.toLowerCase()] || './src/images/signbots/signbot-quiz.svg';
+    }
+    
     // Removed showLevelUp - now handled by EconomyManager
     
     async showQuizComplete() {
@@ -902,24 +965,78 @@ class QuizModal {
             }
         }
         
-        // Update question area with results
-        document.getElementById('questionText').textContent = 'Quiz Complete!';
+        // Get category name and victory message
+        const category = this.currentQuizSet.data.category || 'General';
+        const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ');
+        
+        // Victory message variations based on score
+        const victoryMessages = {
+            perfect: [`${categoryDisplay} Mastered!`, `${categoryDisplay} Champion!`, `Perfect ${categoryDisplay} Score!`],
+            great: [`${categoryDisplay} Quiz Aced!`, `${categoryDisplay} Expert!`, `Crushed the ${categoryDisplay} Quiz!`],
+            good: [`${categoryDisplay} Quiz Complete!`, `${categoryDisplay} Knowledge Gained!`, `Nice ${categoryDisplay} Run!`],
+            needsWork: [`${categoryDisplay} Practice Complete`, `${categoryDisplay} Learning Progress`, `${categoryDisplay} Experience Gained`]
+        };
+        
+        let messageType = 'needsWork';
+        if (percentage === 100) messageType = 'perfect';
+        else if (percentage >= 80) messageType = 'great';
+        else if (percentage >= 60) messageType = 'good';
+        
+        const messages = victoryMessages[messageType];
+        const victoryMessage = messages[Math.floor(Math.random() * messages.length)];
+        
+        // Update header with larger text
+        document.getElementById('questionText').innerHTML = `<span style="font-size: 1.5em; font-weight: bold;">${victoryMessage}</span>`;
+        
+        // Hide the quiz content background gradient
+        const quizContent = this.modal.querySelector('.quiz-content');
+        if (quizContent) {
+            quizContent.style.background = 'transparent';
+        }
+        
+        // Create new layout with bot and stats box
         document.getElementById('answersContainer').innerHTML = `
-            <div class="quiz-results">
-                <div class="result-stat">
-                    <span class="stat-label">Score</span>
-                    <span class="stat-value">${this.correctAnswers}/${totalQuestions}</span>
-                </div>
-                <div class="result-stat">
-                    <span class="stat-label">Accuracy</span>
-                    <span class="stat-value">${percentage}%</span>
+            <div class="quiz-complete-layout" style="display: flex; align-items: center; gap: 20px; margin: 20px 0;">
+                <!-- Category Bot -->
+                <div class="category-bot" style="flex: 0 0 80px;">
+                    <img src="${this.getCategoryBotImage(category)}" alt="${categoryDisplay} Bot" 
+                         style="width: 80px; height: 80px; object-fit: contain;">
+                
+                <!-- Stats Box -->
+                <div class="stats-box" style="flex: 1; background: rgba(255, 255, 255, 0.1); 
+                                              border-radius: 10px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.2);">
+                    <div class="quiz-results" style="display: flex; gap: 30px; justify-content: center;">
+                        <div class="result-stat">
+                            <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7;">Score</span>
+                            <span class="stat-value" style="display: block; font-size: 1.8em; font-weight: bold;">${this.correctAnswers}/${totalQuestions}</span>
+                        </div>
+                        <div class="result-stat">
+                            <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7;">Accuracy</span>
+                            <span class="stat-value" style="display: block; font-size: 1.8em; font-weight: bold;">${percentage}%</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Rewards Summary -->
+                    ${economyResult && economyResult.rewards ? `
+                        <div class="rewards-summary" style="margin-top: 15px; padding-top: 15px; 
+                                                           border-top: 1px solid rgba(255, 255, 255, 0.2); 
+                                                           text-align: center; font-size: 0.9em;">
+                            <div style="opacity: 0.7; margin-bottom: 5px;">Rewards Earned:</div>
+                            <div style="font-weight: bold;">
+                                ${economyResult.rewards.coins ? `${economyResult.rewards.coins} Coins` : ''}
+                                ${economyResult.rewards.xp ? ` • ${economyResult.rewards.xp} XP` : ''}
+                                ${economyResult.rewards.sapphires ? ` • ${economyResult.rewards.sapphires} Sapphires` : ''}
+                                ${economyResult.rewards.emeralds ? ` • ${economyResult.rewards.emeralds} Emeralds` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
-            <div class="result-message">
-                ${percentage >= 80 ? '🏆 Excellent!' : percentage >= 60 ? '👍 Good job!' : '💪 Keep practicing!'}
-            </div>
-            <!-- Rewards display container -->
-            <div id="quizRewardsBar" class="rewards-bar-container" style="margin-top: 20px; min-height: 80px;"></div>
+            
+            <!-- Rewards display container moved to dark area -->
+            <div id="quizRewardsBar" class="rewards-bar-container" 
+                 style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+                        width: 90%; max-width: 400px; min-height: 80px; z-index: 1000;"></div>
         `;
         
         // Display rewards using RewardsDisplay component
