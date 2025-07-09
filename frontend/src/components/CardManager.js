@@ -177,10 +177,14 @@ class CardManager {
     syncCards(serverCards) {
         // console.log('Syncing cards. Current cards:', this.cards.size, 'Server cards:', serverCards.length);
         
-        // Check if quiz modal is currently open
-        const isQuizModalOpen = window.quizModal && window.quizModal.modal && window.quizModal.modal.classList.contains('active');
-        if (isQuizModalOpen) {
-            // console.log('Quiz modal is open, skipping card sync to prevent interruption');
+        // Check if any game modal is currently open
+        const gameInProgress = document.querySelector('.quiz-modal.active') || 
+                              document.querySelector('.flashcard-modal.active') ||
+                              document.querySelector('.herding-modal.active') ||
+                              document.querySelector('.factoid-modal.active');
+        
+        if (gameInProgress) {
+            console.log('Game in progress, skipping card sync');
             return;
         }
         
@@ -270,11 +274,14 @@ class CardManager {
         }
         
         const serverCardIds = new Set(serverCards.map(card => card.id));
+        const currentCardIds = new Set(this.cards.keys());
         
-        // Remove cards that no longer exist on server
-        for (const [id, _] of this.cards) {
-            if (!serverCardIds.has(id)) {
-                // console.log('Removing old card:', id);
+        // Only remove cards that are actually gone (not practice cards)
+        for (const [id, card] of this.cards) {
+            // Don't remove practice cards during sync
+            const isPracticeCard = this.practiceCards.some(pc => pc.id === id);
+            if (!serverCardIds.has(id) && !isPracticeCard) {
+                console.log('Removing old card:', id);
                 this.removeCard(id);
             }
         }
@@ -545,6 +552,17 @@ class CardManager {
                         }
                     }
                     // Removed old stats mockup - now using proper economy display
+                },
+                economics: {
+                    cost: {
+                        energy: 10,
+                        hearts: 0
+                    },
+                    rewards: {
+                        coins: 50,
+                        xp: 25,
+                        hearts: 0
+                    }
                 },
                 component: 'QuizEngine',
                 componentConfig: {

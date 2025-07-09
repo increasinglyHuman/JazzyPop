@@ -336,7 +336,8 @@ class EconomyManager {
         try {
             const apiBase = window.API_URL || 'https://p0qp0q.com';
             const sessionId = this.sessionToken; // Always use the current session token
-            const userId = this.storageBackend.getItem('userId');
+            const isAuthenticated = this.storageBackend.getItem('isAuthenticated') === 'true';
+            const userId = isAuthenticated ? this.storageBackend.getItem('userId') : null;
             
             // Use appropriate endpoint based on action
             let endpoint, body;
@@ -486,7 +487,8 @@ class EconomyManager {
             // Try real API first
             const apiBase = window.API_URL || 'https://p0qp0q.com';
             const sessionId = this.sessionToken; // Always use the current session token
-            const userId = this.storageBackend.getItem('userId');
+            const isAuthenticated = this.storageBackend.getItem('isAuthenticated') === 'true';
+            const userId = isAuthenticated ? this.storageBackend.getItem('userId') : null;
             
             const params = new URLSearchParams();
             // Only send user_id OR session_id, not both

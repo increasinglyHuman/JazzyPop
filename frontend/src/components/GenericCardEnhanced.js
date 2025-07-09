@@ -303,7 +303,6 @@ class GenericCardEnhanced {
                             data-action="${primary.action}"
                             ${!canAfford ? 'disabled' : ''}>
                         ${primary.icon || ''} ${this.getButtonText(primary.text)}
-                        <div class="encouragement-popup">${encouragement}</div>
                     </button>
                 ` : ''}
                 ${link ? `<a href="#" class="card-link" data-action="${link.action}">
@@ -597,17 +596,6 @@ class GenericCardEnhanced {
                 
                 this.handleAction(button.dataset.action);
             });
-            
-            // Add hover handlers for encouragement popup
-            const popup = button.querySelector('.encouragement-popup');
-            if (popup) {
-                button.addEventListener('mouseenter', () => {
-                    popup.classList.add('show');
-                });
-                button.addEventListener('mouseleave', () => {
-                    popup.classList.remove('show');
-                });
-            }
         });
     }
     

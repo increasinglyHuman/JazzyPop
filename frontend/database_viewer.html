@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JazzyPop Database Viewer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #58cc02;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #16213e;
+            border: none;
+            color: #ccc;
+            cursor: pointer;
+            border-radius: 5px 5px 0 0;
+            transition: all 0.3s;
+            font-size: 16px;
+        }
+
+        .tab:hover {
+            background: #1f2c4e;
+        }
+
+        .tab.active {
+            background: #58cc02;
+            color: #1a1a2e;
+            font-weight: bold;
+        }
+
+        .filters {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            color: #58cc02;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        select, input {
+            padding: 8px 12px;
+            background: #0f1624;
+            border: 1px solid #333;
+            color: #eee;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 8px 20px;
+            background: #58cc02;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #4fa802;
+            transform: translateY(-1px);
+        }
+
+        .stats {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-label {
+            color: #888;
+        }
+
+        .stat-value {
+            color: #58cc02;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .table-container {
+            background: #16213e;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #0f1624;
+            color: #58cc02;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #0f1624;
+        }
+
+        tr:hover {
+            background: #1f2c4e;
+        }
+
+        .truncate {
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .expand-btn {
+            color: #58cc02;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 12px;
+        }
+
+        .expanded {
+            white-space: normal;
+            max-width: none;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin: 2px;
+        }
+
+        .difficulty-easy {
+            background: #2ecc71;
+            color: #000;
+        }
+
+        .difficulty-medium {
+            background: #f39c12;
+            color: #000;
+        }
+
+        .difficulty-hard {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .type-tag {
+            background: #3498db;
+            color: #fff;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .error {
+            background: #e74c3c;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: #16213e;
+            margin: 50px auto;
+            padding: 30px;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            color: #888;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #fff;
+        }
+
+        .detail-row {
+            margin: 15px 0;
+            padding: 10px;
+            background: #0f1624;
+            border-radius: 5px;
+        }
+
+        .detail-label {
+            color: #58cc02;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        pre {
+            background: #0a0e1a;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JazzyPop Database Viewer</h1>
+        <p class="subtitle">Inspect and filter quiz questions and flashcard content</p>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('quiz-sets')">Quiz Sets</button>
+            <button class="tab" onclick="switchTab('quiz-questions')">Quiz Questions</button>
+            <button class="tab" onclick="switchTab('flashcards')">Flashcards</button>
+            <button class="tab" onclick="switchTab('health-check')">Health Check 🏥</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filter-group">
+                <label>Category</label>
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Type</label>
+                <select id="typeFilter">
+                    <option value="">All Types</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Difficulty</label>
+                <select id="difficultyFilter">
+                    <option value="">All Difficulties</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Search</label>
+                <input type="text" id="searchFilter" placeholder="Search content...">
+            </div>
+            <div class="filter-group">
+                <label>Show Only</label>
+                <select id="problemFilter">
+                    <option value="">All Items</option>
+                    <option value="problems">⚠️ Problem Items Only</option>
+                    <option value="missing-questions">❌ Missing Questions</option>
+                    <option value="no-explanations">📚 No Explanations</option>
+                </select>
+            </div>
+            <button onclick="applyFilters()">Apply Filters</button>
+            <button onclick="resetFilters()">Reset</button>
+            <button onclick="showAddQuestionsModal()" id="addQuestionsBtn" style="display: none; background: #2ecc71;">➕ Add Missing Questions</button>
+            <button onclick="showDuplicatesModal()" style="background: #e74c3c;">🔍 Find Duplicates</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Items:</span>
+                <span class="stat-value" id="totalCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Filtered:</span>
+                <span class="stat-value" id="filteredCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Categories:</span>
+                <span class="stat-value" id="categoryCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Types:</span>
+                <span class="stat-value" id="typeCount">0</span>
+            </div>
+        </div>
+
+        <!-- Pagination Controls (Top) -->
+        <div class="pagination" style="display: flex; justify-content: center; align-items: center; gap: 10px; margin: 20px 0;">
+            <button onclick="changePage(-1)" id="prevBtn" style="padding: 8px 15px;">← Previous</button>
+            <span id="pageInfo" style="color: #58cc02;">Page 1 of 1</span>
+            <button onclick="changePage(1)" id="nextBtn" style="padding: 8px 15px;">Next →</button>
+            <select id="itemsPerPageSelect" onchange="changeItemsPerPage()" style="margin-left: 20px;">
+                <option value="25">25 per page</option>
+                <option value="50" selected>50 per page</option>
+                <option value="100">100 per page</option>
+                <option value="200">200 per page</option>
+            </select>
+        </div>
+
+        <!-- Table Container -->
+        <div class="table-container">
+            <div id="loadingMessage" class="loading">
+                <div>Loading data...</div>
+                <div id="loadingProgress" style="margin-top: 10px; display: none;">
+                    <div style="width: 300px; height: 20px; background: #0f1624; border-radius: 10px; margin: 0 auto;">
+                        <div id="progressBar" style="width: 0%; height: 100%; background: #58cc02; border-radius: 10px; transition: width 0.3s;"></div>
+                    </div>
+                    <div id="progressText" style="margin-top: 5px; color: #888;"></div>
+                </div>
+            </div>
+            <div id="errorMessage" class="error" style="display: none;"></div>
+            <div id="noDataMessage" class="no-data" style="display: none;">No items match your filters</div>
+            <table id="dataTable" style="display: none;">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle">Item Details</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'https://p0qp0q.com';
+        
+        // State
+        let currentTab = 'quiz-sets';
+        let allData = [];
+        let filteredData = [];
+        let quizSets = [];
+        let flashcardData = [];
+        let categories = new Set();
+        let types = new Set();
+        let healthCheckData = {};
+        
+        // Pagination state
+        let currentPage = 1;
+        let itemsPerPage = 50;
+        let totalPages = 1;
+        let totalItems = 0;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+        });
+
+        // Tab switching
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (tab === 'health-check') {
+                // For health check, we need quiz and flashcard data loaded first
+                if (quizSets.length === 0 || flashcardData.length === 0) {
+                    showLoading();
+                    loadHealthCheckData();
+                } else {
+                    generateHealthCheck();
+                }
+            } else {
+                resetFilters();
+                loadData();
+            }
+        }
+
+        // Load data from API
+        async function loadData() {
+            showLoading();
+            
+            try {
+                if (currentTab === 'quiz-sets' || currentTab === 'quiz-questions') {
+                    // Load quiz sets - fetch more to handle large dataset
+                    const response = await fetch(`${API_URL}/api/content/quiz/sets?count=5000`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('Quiz response:', data);
+                    
+                    if (currentTab === 'quiz-sets') {
+                        // Show quiz sets - API returns array directly
+                        allData = Array.isArray(data) ? data : (data.quiz_sets || []);
+                        quizSets = allData; // Store for health check
+                        console.log('Total quiz sets loaded:', allData.length);
+                    } else if (currentTab === 'quiz-questions') {
+                        // Extract individual questions from all sets
+                        allData = [];
+                        const sets = Array.isArray(data) ? data : (data.quiz_sets || []);
+                        
+                        sets.forEach(set => {
+                            // Questions might be in set.questions or set.data.questions
+                            const questions = set.questions || (set.data && set.data.questions) || [];
+                            const category = set.category || (set.data && set.data.category) || 'N/A';
+                            const theme = set.theme || (set.data && set.data.theme) || (set.data && set.data.title) || 'N/A';
+                            
+                            if (Array.isArray(questions) && questions.length > 0) {
+                                questions.forEach((q, idx) => {
+                                    allData.push({
+                                        ...q,
+                                        set_id: set.id,
+                                        set_category: category,
+                                        set_theme: theme,
+                                        quiz_index: idx,
+                                        question_number: idx + 1
+                                    });
+                                });
+                            }
+                        });
+                        console.log('Total quiz questions loaded:', allData.length);
+                    }
+                } else if (currentTab === 'flashcards') {
+                    // Load flashcards for different categories
+                    allData = [];
+                    flashcardData = []; // Store for health check
+                    const categories = ['trivia_mix', 'famous_quotes', 'bad_puns', 'knock_knock'];
+                    
+                    for (const category of categories) {
+                        const response = await fetch(`${API_URL}/api/flashcards`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                category: category,
+                                count: 50
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.cards) {
+                                allData = allData.concat(data.cards);
+                                flashcardData = flashcardData.concat(data.cards);
+                            }
+                        }
+                    }
+                } else if (currentTab === 'health-check') {
+                    // Generate health check data
+                    generateHealthCheck();
+                    return;
+                }
+                
+                // Extract categories and types
+                categories.clear();
+                types.clear();
+                
+                allData.forEach(item => {
+                    if (item.category) categories.add(item.category);
+                    if (item.type) types.add(item.type);
+                    if (item.question_type) types.add(item.question_type);
+                });
+                
+                populateFilters();
+                applyFilters();
+                
+            } catch (error) {
+                showError(`Failed to load data: ${error.message}`);
+            }
+        }
+
+        // Populate filter dropdowns
+        function populateFilters() {
+            const categorySelect = document.getElementById('categoryFilter');
+            const typeSelect = document.getElementById('typeFilter');
+            
+            // Clear existing options
+            categorySelect.innerHTML = '<option value="">All Categories</option>';
+            typeSelect.innerHTML = '<option value="">All Types</option>';
+            
+            // Add categories
+            Array.from(categories).sort().forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                categorySelect.appendChild(option);
+            });
+            
+            // Add types
+            Array.from(types).sort().forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                typeSelect.appendChild(option);
+            });
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            const difficultyFilter = document.getElementById('difficultyFilter').value;
+            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+            const problemFilter = document.getElementById('problemFilter').value;
+            
+            // Reset to first page when filtering
+            currentPage = 1;
+            
+            // First, apply problem filter if needed
+            let dataToFilter = allData;
+            if (problemFilter) {
+                if (currentTab === 'quiz-sets') {
+                    dataToFilter = allData.filter(set => {
+                        const data = set.data || {};
+                        const questions = data.questions || [];
+                        
+                        if (problemFilter === 'problems' || problemFilter === 'missing-questions') {
+                            return questions.length !== 10;
+                        }
+                        return true;
+                    });
+                } else if (currentTab === 'quiz-questions') {
+                    dataToFilter = allData.filter(q => {
+                        if (problemFilter === 'no-explanations') {
+                            return !q.explanation;
+                        }
+                        return true;
+                    });
+                }
+            }
+            
+            filteredData = dataToFilter.filter(item => {
+                // Category filter
+                if (categoryFilter) {
+                    const itemCategory = item.category || item.set_category || (item.data && item.data.category);
+                    if (itemCategory !== categoryFilter) return false;
+                }
+                
+                // Type filter
+                if (typeFilter) {
+                    const itemType = item.type || item.question_type;
+                    if (itemType !== typeFilter) return false;
+                }
+                
+                // Difficulty filter
+                if (difficultyFilter && item.difficulty !== difficultyFilter) return false;
+                
+                // Search filter
+                if (searchFilter) {
+                    const searchableText = JSON.stringify(item).toLowerCase();
+                    if (!searchableText.includes(searchFilter)) return false;
+                }
+                
+                return true;
+            });
+            
+            // Show/hide Add Questions button for problem quiz sets
+            const addBtn = document.getElementById('addQuestionsBtn');
+            if (currentTab === 'quiz-sets' && problemFilter === 'missing-questions' && filteredData.length > 0) {
+                addBtn.style.display = 'inline-block';
+            } else {
+                addBtn.style.display = 'none';
+            }
+            
+            updateStats();
+            renderTable();
+        }
+
+        // Reset filters
+        function resetFilters() {
+            document.getElementById('categoryFilter').value = '';
+            document.getElementById('typeFilter').value = '';
+            document.getElementById('difficultyFilter').value = '';
+            document.getElementById('searchFilter').value = '';
+            document.getElementById('problemFilter').value = '';
+            applyFilters();
+        }
+
+        // Update statistics
+        function updateStats() {
+            document.getElementById('totalCount').textContent = allData.length;
+            document.getElementById('filteredCount').textContent = filteredData.length;
+            document.getElementById('categoryCount').textContent = categories.size;
+            document.getElementById('typeCount').textContent = types.size;
+        }
+
+        // Render table
+        function renderTable() {
+            const table = document.getElementById('dataTable');
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+            
+            if (filteredData.length === 0) {
+                showNoData();
+                return;
+            }
+            
+            // Calculate pagination
+            totalItems = filteredData.length;
+            totalPages = Math.ceil(totalItems / itemsPerPage);
+            currentPage = Math.min(currentPage, totalPages);
+            
+            // Update pagination info
+            updatePaginationControls();
+            
+            // Get paginated data
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+            const pageData = filteredData.slice(startIndex, endIndex);
+            
+            // Build headers based on data type
+            let headers = [];
+            if (currentTab === 'quiz-sets') {
+                headers = ['ID', 'Category', 'Theme', 'Questions', 'Mode', 'Energy Cost', 'Created', 'Actions'];
+            } else if (currentTab === 'quiz-questions') {
+                headers = ['Set ID', 'Question #', 'Category', 'Type', 'Question', 'Options', 'Answer', 'Difficulty', 'Actions'];
+            } else {
+                headers = ['ID', 'Category', 'Type', 'Content', 'Details', 'Difficulty', 'Actions'];
+            }
+            
+            thead.innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+            
+            // Build rows - only for current page
+            tbody.innerHTML = pageData.map(item => {
+                if (currentTab === 'quiz-sets') {
+                    return renderQuizSetRow(item);
+                } else if (currentTab === 'quiz-questions') {
+                    return renderQuizRow(item);
+                } else {
+                    return renderFlashcardRow(item);
+                }
+            }).join('');
+            
+            hideLoading();
+            table.style.display = 'table';
+        }
+
+        // Render quiz set row
+        function renderQuizSetRow(set) {
+            const data = set.data || {};
+            const questions = data.questions || set.questions || [];
+            const questionCount = questions.length;
+            const category = data.category || set.category || 'N/A';
+            const title = data.title || data.theme || set.theme || 'N/A';
+            const energyCost = (data.economics && data.economics.cost && data.economics.cost.energy) || 'N/A';
+            const createdDate = set.created_at ? new Date(set.created_at).toLocaleDateString() : 'N/A';
+            const mode = set.mode || 'normal';
+            
+            // Flag potential issues
+            const hasIssue = questionCount !== 10;
+            const rowClass = hasIssue ? 'style="background: #4a1919;"' : '';
+            
+            return `
+                <tr ${rowClass}>
+                    <td>${set.id || 'N/A'}</td>
+                    <td>${category}</td>
+                    <td class="truncate" onclick="toggleExpand(this)">${title}</td>
+                    <td>${questionCount} questions${hasIssue ? ' ⚠️' : ''}</td>
+                    <td>${mode}</td>
+                    <td>${energyCost}</td>
+                    <td>${createdDate}</td>
+                    <td><button onclick="showDetails('quiz-set', ${JSON.stringify(set).replace(/"/g, '&quot;')})">Details</button></td>
+                </tr>
+            `;
+        }
+
+        // Render quiz row
+        function renderQuizRow(quiz) {
+            const options = quiz.options ? quiz.options.join(', ') : 'N/A';
+            return `
+                <tr>
+                    <td>${quiz.set_id || 'N/A'}</td>
+                    <td>${quiz.question_number || quiz.quiz_index + 1 || 'N/A'}</td>
+                    <td>${quiz.set_category || quiz.category || 'N/A'}</td>
+                    <td><span class="tag type-tag">${quiz.question_type || quiz.type || 'N/A'}</span></td>
+                    <td class="truncate" onclick="toggleExpand(this)">${quiz.question || 'N/A'}</td>
+                    <td class="truncate" onclick="toggleExpand(this)">${options}</td>
+                    <td>${quiz.correct_answer || 'N/A'}</td>
+                    <td><span class="tag difficulty-${quiz.difficulty}">${quiz.difficulty || 'N/A'}</span></td>
+                    <td><button onclick="showDetails('quiz', ${JSON.stringify(quiz).replace(/"/g, '&quot;')})">Details</button></td>
+                </tr>
+            `;
+        }
+
+        // Render flashcard row
+        function renderFlashcardRow(card) {
+            let details = '';
+            if (card.type === 'knock-knock') {
+                details = `Setup: ${card.setupLine}, Punch: ${card.punchLine}`;
+            } else if (card.type === 'quote') {
+                details = `Author: ${card.author}`;
+            } else if (card.answer) {
+                details = `Answer: ${card.answer}`;
+            }
+            
+            return `
+                <tr>
+                    <td>${card.id || 'N/A'}</td>
+                    <td>${card.category || 'N/A'}</td>
+                    <td><span class="tag type-tag">${card.type || 'N/A'}</span></td>
+                    <td class="truncate" onclick="toggleExpand(this)">${card.content || card.question || 'N/A'}</td>
+                    <td class="truncate" onclick="toggleExpand(this)">${details || 'N/A'}</td>
+                    <td><span class="tag difficulty-${card.difficulty}">${card.difficulty || 'N/A'}</span></td>
+                    <td><button onclick="showDetails('flashcard', ${JSON.stringify(card).replace(/"/g, '&quot;')})">Details</button></td>
+                </tr>
+            `;
+        }
+
+        // Toggle text expansion
+        function toggleExpand(element) {
+            element.classList.toggle('expanded');
+        }
+
+        // Show item details
+        function showDetails(type, item) {
+            const modal = document.getElementById('detailModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalTitle.textContent = `${type.charAt(0).toUpperCase() + type.slice(1)} Details`;
+            
+            let html = '';
+            Object.entries(item).forEach(([key, value]) => {
+                html += `
+                    <div class="detail-row">
+                        <div class="detail-label">${key}:</div>
+                        <div>${typeof value === 'object' ? `<pre>${JSON.stringify(value, null, 2)}</pre>` : value}</div>
+                    </div>
+                `;
+            });
+            
+            modalBody.innerHTML = html;
+            modal.style.display = 'block';
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // UI helpers
+        function showLoading() {
+            document.getElementById('loadingMessage').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('noDataMessage').style.display = 'none';
+            document.getElementById('dataTable').style.display = 'none';
+        }
+
+        function showError(message) {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('noDataMessage').style.display = 'none';
+            document.getElementById('dataTable').style.display = 'none';
+        }
+
+        function showNoData() {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('noDataMessage').style.display = 'block';
+            document.getElementById('dataTable').style.display = 'none';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('noDataMessage').style.display = 'none';
+        }
+
+        // Load data for health check
+        async function loadHealthCheckData() {
+            try {
+                // Load quiz sets if not already loaded
+                if (quizSets.length === 0) {
+                    const quizResponse = await fetch(`${API_URL}/api/content/quiz/sets?count=5000`);
+                    if (quizResponse.ok) {
+                        const quizData = await quizResponse.json();
+                        quizSets = Array.isArray(quizData) ? quizData : (quizData.quiz_sets || []);
+                        console.log('Health check loaded quiz sets:', quizSets.length);
+                    }
+                }
+                
+                // Load flashcards if not already loaded
+                if (flashcardData.length === 0) {
+                    const categories = ['trivia_mix', 'famous_quotes', 'bad_puns', 'knock_knock'];
+                    for (const category of categories) {
+                        const response = await fetch(`${API_URL}/api/flashcards`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                category: category,
+                                count: 10
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.cards && Array.isArray(data.cards)) {
+                                flashcardData.push(...data.cards);
+                            }
+                        }
+                    }
+                }
+                
+                // Now generate the health check
+                generateHealthCheck();
+                
+            } catch (error) {
+                console.error('Error loading health check data:', error);
+                showError('Failed to load data for health check');
+            }
+        }
+
+        // Generate health check report
+        function generateHealthCheck() {
+            showLoading();
+            
+            // Ensure we have data
+            if (quizSets.length === 0 && flashcardData.length === 0) {
+                showError('No data available for health check. Please load quiz or flashcard data first.');
+                return;
+            }
+            
+            // Analyze quiz sets
+            const quizIssues = {
+                missingQuestions: [],
+                wrongQuestionCount: [],
+                missingCategories: [],
+                missingExplanations: 0,
+                duplicateQuestions: new Map(),
+                emptyAnswers: 0,
+                totalSets: quizSets.length,
+                totalQuestions: 0
+            };
+            
+            const questionTexts = new Map();
+            
+            quizSets.forEach(set => {
+                const data = set.data || {};
+                const questions = data.questions || [];
+                const category = data.category;
+                
+                // Check question count
+                if (questions.length !== 10) {
+                    quizIssues.wrongQuestionCount.push({
+                        id: set.id,
+                        count: questions.length,
+                        category: category || 'Unknown',
+                        title: data.title || 'Untitled'
+                    });
+                }
+                
+                // Check category
+                if (!category) {
+                    quizIssues.missingCategories.push(set.id);
+                }
+                
+                // Analyze each question
+                questions.forEach((q, idx) => {
+                    quizIssues.totalQuestions++;
+                    
+                    // Check for duplicates
+                    const qText = q.question || '';
+                    if (questionTexts.has(qText)) {
+                        if (!quizIssues.duplicateQuestions.has(qText)) {
+                            quizIssues.duplicateQuestions.set(qText, []);
+                        }
+                        quizIssues.duplicateQuestions.get(qText).push({
+                            setId: set.id,
+                            questionIndex: idx
+                        });
+                    } else {
+                        questionTexts.set(qText, { setId: set.id, index: idx });
+                    }
+                    
+                    // Check for missing explanation
+                    if (!q.explanation) {
+                        quizIssues.missingExplanations++;
+                    }
+                    
+                    // Check answers
+                    if (q.answers) {
+                        q.answers.forEach(ans => {
+                            if (!ans.text || ans.text.trim() === '') {
+                                quizIssues.emptyAnswers++;
+                            }
+                        });
+                    }
+                });
+            });
+            
+            // Analyze flashcards
+            const flashcardIssues = {
+                missingContent: [],
+                missingDetails: [],
+                byType: {},
+                totalCards: flashcardData.length
+            };
+            
+            flashcardData.forEach(card => {
+                const type = card.type || 'unknown';
+                if (!flashcardIssues.byType[type]) {
+                    flashcardIssues.byType[type] = { count: 0, issues: [] };
+                }
+                flashcardIssues.byType[type].count++;
+                
+                // Check for missing content
+                if (!card.content && !card.question && !card.fact) {
+                    flashcardIssues.missingContent.push(card.id);
+                }
+                
+                // Check type-specific requirements
+                if (type === 'knock-knock' && (!card.setupLine || !card.punchLine)) {
+                    flashcardIssues.byType[type].issues.push('Missing setup or punchline');
+                }
+                if (type === 'quote' && !card.author) {
+                    flashcardIssues.byType[type].issues.push('Missing author');
+                }
+                if (type === 'trivia' && !card.detail) {
+                    flashcardIssues.missingDetails.push(card.id);
+                }
+            });
+            
+            // Display health check results
+            displayHealthCheck({ quiz: quizIssues, flashcard: flashcardIssues });
+        }
+        
+        // Display health check results
+        function displayHealthCheck(healthData) {
+            const container = document.querySelector('.table-container');
+            
+            let html = `
+                <div style="padding: 20px;">
+                    <h2 style="color: #58cc02; margin-bottom: 20px;">🏥 Content Health Check Report</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <!-- Quiz Health -->
+                        <div style="background: #0f1624; padding: 20px; border-radius: 10px;">
+                            <h3 style="color: #58cc02; margin-bottom: 15px;">📝 Quiz Sets Health</h3>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Total Quiz Sets:</span>
+                                    <span style="color: #58cc02; font-weight: bold;">${healthData.quiz.totalSets}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Total Questions:</span>
+                                    <span style="color: #58cc02; font-weight: bold;">${healthData.quiz.totalQuestions}</span>
+                                </div>
+                            </div>
+                            
+                            <h4 style="color: #e74c3c; margin-top: 20px;">🚨 Issues Found:</h4>
+                            
+                            ${healthData.quiz.wrongQuestionCount.length > 0 ? `
+                                <div style="margin: 10px 0; padding: 10px; background: #4a1919; border-radius: 5px;">
+                                    <strong>⚠️ Wrong Question Count (${healthData.quiz.wrongQuestionCount.length} sets):</strong>
+                                    <ul style="margin-top: 5px;">
+                                        ${healthData.quiz.wrongQuestionCount.map(s => 
+                                            `<li>${s.category}: "${s.title}" has ${s.count} questions</li>`
+                                        ).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            ${healthData.quiz.duplicateQuestions.size > 0 ? `
+                                <div style="margin: 10px 0; padding: 10px; background: #4a3919; border-radius: 5px;">
+                                    <strong>🔁 Duplicate Questions (${healthData.quiz.duplicateQuestions.size}):</strong>
+                                    <ul style="margin-top: 5px;">
+                                        ${Array.from(healthData.quiz.duplicateQuestions.entries()).slice(0, 5).map(([q, locations]) => 
+                                            `<li>"${q.substring(0, 50)}..." appears ${locations.length + 1} times</li>`
+                                        ).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            ${healthData.quiz.missingExplanations > 0 ? `
+                                <div style="margin: 10px 0; padding: 10px; background: #194a3d; border-radius: 5px;">
+                                    <strong>📚 Missing Explanations: ${healthData.quiz.missingExplanations} questions</strong>
+                                </div>
+                            ` : ''}
+                            
+                            ${healthData.quiz.emptyAnswers > 0 ? `
+                                <div style="margin: 10px 0; padding: 10px; background: #4a1919; border-radius: 5px;">
+                                    <strong>❌ Empty Answer Texts: ${healthData.quiz.emptyAnswers} answers</strong>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <!-- Flashcard Health -->
+                        <div style="background: #0f1624; padding: 20px; border-radius: 10px;">
+                            <h3 style="color: #58cc02; margin-bottom: 15px;">🃏 Flashcards Health</h3>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Total Flashcards:</span>
+                                    <span style="color: #58cc02; font-weight: bold;">${healthData.flashcard.totalCards}</span>
+                                </div>
+                            </div>
+                            
+                            <h4 style="color: #3498db; margin-top: 20px;">📊 By Type:</h4>
+                            ${Object.entries(healthData.flashcard.byType).map(([type, data]) => `
+                                <div style="margin: 5px 0;">
+                                    <span>${type}:</span>
+                                    <span style="color: #58cc02;">${data.count}</span>
+                                    ${data.issues.length > 0 ? `<span style="color: #e74c3c;"> (${data.issues.length} issues)</span>` : ''}
+                                </div>
+                            `).join('')}
+                            
+                            ${healthData.flashcard.missingContent.length > 0 ? `
+                                <div style="margin: 10px 0; padding: 10px; background: #4a1919; border-radius: 5px;">
+                                    <strong>❌ Missing Content: ${healthData.flashcard.missingContent.length} cards</strong>
+                                </div>
+                            ` : ''}
+                            
+                            ${healthData.flashcard.missingDetails.length > 0 ? `
+                                <div style="margin: 10px 0; padding: 10px; background: #4a3919; border-radius: 5px;">
+                                    <strong>📝 Trivia Missing Details: ${healthData.flashcard.missingDetails.length} cards</strong>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 20px; background: #0f1624; border-radius: 10px;">
+                        <h3 style="color: #58cc02;">✅ Health Score</h3>
+                        <div style="margin-top: 10px;">
+                            ${calculateHealthScore(healthData)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            hideLoading();
+        }
+        
+        // Calculate overall health score
+        function calculateHealthScore(healthData) {
+            let score = 100;
+            
+            // Check if we have valid data
+            if (!healthData || !healthData.quiz || !healthData.flashcard) {
+                return `
+                    <div style="text-align: center;">
+                        <div style="font-size: 24px; color: #e74c3c;">No data to analyze</div>
+                        <div style="margin-top: 10px; color: #888;">
+                            Load some content first to see health metrics
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Prevent division by zero
+            const totalQuestions = healthData.quiz.totalQuestions || 1;
+            const totalCards = healthData.flashcard.totalCards || 1;
+            
+            // Quiz deductions (with safety checks)
+            if (healthData.quiz.wrongQuestionCount) {
+                score -= Math.min(healthData.quiz.wrongQuestionCount.length * 2, 20); // Cap at 20 points
+            }
+            if (healthData.quiz.duplicateQuestions) {
+                score -= Math.min(healthData.quiz.duplicateQuestions.size * 1, 15); // Cap at 15 points
+            }
+            if (healthData.quiz.missingExplanations && totalQuestions > 0) {
+                score -= Math.min((healthData.quiz.missingExplanations / totalQuestions) * 10, 10);
+            }
+            if (healthData.quiz.emptyAnswers && totalQuestions > 0) {
+                score -= Math.min((healthData.quiz.emptyAnswers / (totalQuestions * 4)) * 5, 5);
+            }
+            
+            // Flashcard deductions (with safety checks)
+            if (healthData.flashcard.missingContent && totalCards > 0) {
+                score -= Math.min((healthData.flashcard.missingContent.length / totalCards) * 10, 10);
+            }
+            
+            score = Math.max(0, Math.round(score));
+            
+            // Handle NaN case
+            if (isNaN(score)) {
+                score = 0;
+            }
+            
+            let color = score >= 90 ? '#2ecc71' : score >= 70 ? '#f39c12' : '#e74c3c';
+            let grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+            
+            return `
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; color: ${color}; font-weight: bold;">${score}%</div>
+                    <div style="font-size: 24px; color: ${color};">Grade: ${grade}</div>
+                    <div style="margin-top: 10px; color: #888;">
+                        ${score >= 90 ? 'Excellent! Content is in great shape!' :
+                          score >= 70 ? 'Good, but some issues need attention.' :
+                          'Needs improvement. Several issues detected.'}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show add questions modal
+        function showAddQuestionsModal() {
+            const problemSets = filteredData.filter(set => {
+                const questions = (set.data && set.data.questions) || [];
+                return questions.length < 10;
+            });
+            
+            let html = `
+                <h2>Add Missing Questions to Quiz Sets</h2>
+                <p>The following quiz sets need additional questions:</p>
+                <div style="max-height: 400px; overflow-y: auto; margin: 20px 0;">
+                    ${problemSets.map(set => {
+                        const data = set.data || {};
+                        const questions = data.questions || [];
+                        const missing = 10 - questions.length;
+                        return `
+                            <div style="padding: 10px; margin: 10px 0; background: #0f1624; border-radius: 5px;">
+                                <h4>${data.title || 'Untitled'}</h4>
+                                <p>Category: ${data.category || 'Unknown'} | Difficulty: ${data.difficulty || 'medium'}</p>
+                                <p style="color: #e74c3c;">Missing ${missing} question${missing > 1 ? 's' : ''}</p>
+                                <button onclick="generateQuestionsForSet('${set.id}', ${missing}, '${data.category}', '${data.difficulty}')" 
+                                        style="background: #2ecc71; padding: 5px 15px; margin-top: 10px;">
+                                    Generate ${missing} Questions
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <button onclick="generateAllMissingQuestions()" style="background: #3498db; padding: 10px 20px; margin-top: 10px;">
+                    Generate All Missing Questions
+                </button>
+            `;
+            
+            const modal = document.getElementById('detailModal');
+            document.getElementById('modalTitle').textContent = 'Add Missing Questions';
+            document.getElementById('modalBody').innerHTML = html;
+            modal.style.display = 'block';
+        }
+        
+        // Generate questions for a specific set
+        async function generateQuestionsForSet(setId, count, category, difficulty) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            
+            try {
+                // Generate question request
+                const requestBody = {
+                    set_id: setId,
+                    count: count,
+                    category: category,
+                    difficulty: difficulty,
+                    style: "modern_jazzy" // Match JazzyPop style
+                };
+                
+                // Call the API to generate questions
+                const response = await fetch(`${API_URL}/api/content/quiz/generate-questions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    btn.textContent = '✅ Generated!';
+                    btn.style.background = '#27ae60';
+                    
+                    // Show success message
+                    alert(`Successfully generated ${count} questions for this quiz set!`);
+                    
+                    // Reload data to show updated set
+                    setTimeout(() => {
+                        loadData();
+                        closeModal();
+                    }, 1000);
+                } else {
+                    throw new Error('Failed to generate questions');
+                }
+            } catch (error) {
+                btn.textContent = '❌ Failed';
+                btn.style.background = '#e74c3c';
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Generate all missing questions
+        async function generateAllMissingQuestions() {
+            if (!confirm('This will generate questions for ALL incomplete quiz sets. Continue?')) {
+                return;
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Generating all...';
+            
+            const problemSets = filteredData.filter(set => {
+                const questions = (set.data && set.data.questions) || [];
+                return questions.length < 10;
+            });
+            
+            let completed = 0;
+            let failed = 0;
+            
+            for (const set of problemSets) {
+                const data = set.data || {};
+                const questions = data.questions || [];
+                const missing = 10 - questions.length;
+                
+                try {
+                    const response = await fetch(`${API_URL}/api/content/quiz/generate-questions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            set_id: set.id,
+                            count: missing,
+                            category: data.category || 'general',
+                            difficulty: data.difficulty || 'medium',
+                            style: "modern_jazzy"
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        completed++;
+                    } else {
+                        failed++;
+                    }
+                } catch (error) {
+                    failed++;
+                }
+                
+                btn.textContent = `Progress: ${completed + failed}/${problemSets.length}`;
+            }
+            
+            btn.textContent = `✅ Completed: ${completed}, Failed: ${failed}`;
+            
+            setTimeout(() => {
+                loadData();
+                closeModal();
+            }, 2000);
+        }
+        
+        // Pagination functions
+        function updatePaginationControls() {
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages} (${totalItems} items)`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        function changePage(direction) {
+            const newPage = currentPage + direction;
+            if (newPage >= 1 && newPage <= totalPages) {
+                currentPage = newPage;
+                renderTable();
+            }
+        }
+
+        function changeItemsPerPage() {
+            itemsPerPage = parseInt(document.getElementById('itemsPerPageSelect').value);
+            currentPage = 1; // Reset to first page
+            renderTable();
+        }
+        
+        // Find and show duplicates
+        function showDuplicatesModal() {
+            const duplicates = findDuplicates();
+            
+            let html = `
+                <h2>Duplicate Content Analysis</h2>
+                <p>Found ${duplicates.totalDuplicates} duplicate items across all content.</p>
+                
+                ${currentTab === 'quiz-sets' ? renderQuizSetDuplicates(duplicates) : 
+                  currentTab === 'flashcards' ? renderFlashcardDuplicates(duplicates) :
+                  renderQuizQuestionDuplicates(duplicates)}
+                
+                <div style="margin-top: 20px; padding: 15px; background: #4a1919; border-radius: 5px;">
+                    <p style="color: #e74c3c; margin-bottom: 10px;">⚠️ Note: These appear to be duplicates based on content similarity. Review before removing.</p>
+                    <button onclick="exportDuplicatesList()" style="background: #3498db; padding: 10px 20px;">
+                        Export Duplicates List
+                    </button>
+                </div>
+            `;
+            
+            const modal = document.getElementById('detailModal');
+            document.getElementById('modalTitle').textContent = 'Duplicate Content Found';
+            document.getElementById('modalBody').innerHTML = html;
+            modal.style.display = 'block';
+        }
+        
+        // Find duplicates in current data
+        function findDuplicates() {
+            const duplicateMap = new Map();
+            let totalDuplicates = 0;
+            
+            if (currentTab === 'quiz-sets') {
+                // For quiz sets, check for duplicate titles and themes
+                allData.forEach(set => {
+                    const data = set.data || {};
+                    const key = `${data.title || data.theme || ''}|${data.category || ''}`.toLowerCase().trim();
+                    
+                    if (key && key !== '|') {
+                        if (!duplicateMap.has(key)) {
+                            duplicateMap.set(key, []);
+                        }
+                        duplicateMap.get(key).push(set);
+                    }
+                });
+            } else if (currentTab === 'flashcards') {
+                // For flashcards, check content/question field
+                allData.forEach(card => {
+                    let key = '';
+                    if (card.type === 'knock-knock') {
+                        key = `${card.setupLine}|${card.punchLine}`.toLowerCase().trim();
+                    } else if (card.type === 'quote') {
+                        key = `${card.content}|${card.author}`.toLowerCase().trim();
+                    } else {
+                        key = (card.content || card.question || card.fact || '').toLowerCase().trim();
+                    }
+                    
+                    if (key) {
+                        if (!duplicateMap.has(key)) {
+                            duplicateMap.set(key, []);
+                        }
+                        duplicateMap.get(key).push(card);
+                    }
+                });
+            } else {
+                // For quiz questions, check question text
+                allData.forEach(question => {
+                    const key = (question.question || '').toLowerCase().trim();
+                    
+                    if (key) {
+                        if (!duplicateMap.has(key)) {
+                            duplicateMap.set(key, []);
+                        }
+                        duplicateMap.get(key).push(question);
+                    }
+                });
+            }
+            
+            // Filter to only actual duplicates (more than 1 item)
+            const actualDuplicates = new Map();
+            duplicateMap.forEach((items, key) => {
+                if (items.length > 1) {
+                    actualDuplicates.set(key, items);
+                    totalDuplicates += items.length - 1; // Count extra copies
+                }
+            });
+            
+            return {
+                duplicateGroups: actualDuplicates,
+                totalDuplicates: totalDuplicates,
+                uniqueGroups: actualDuplicates.size
+            };
+        }
+        
+        // Render quiz set duplicates
+        function renderQuizSetDuplicates(duplicates) {
+            if (duplicates.uniqueGroups === 0) {
+                return '<p style="color: #2ecc71;">✅ No duplicate quiz sets found!</p>';
+            }
+            
+            let html = '<div style="max-height: 400px; overflow-y: auto;">';
+            let groupNum = 0;
+            
+            duplicates.duplicateGroups.forEach((items, key) => {
+                groupNum++;
+                const [title, category] = key.split('|');
+                html += `
+                    <div style="margin: 15px 0; padding: 15px; background: #0f1624; border-radius: 5px;">
+                        <h4 style="color: #e74c3c;">Duplicate Group #${groupNum} (${items.length} copies)</h4>
+                        <p><strong>Title:</strong> ${title || 'N/A'}</p>
+                        <p><strong>Category:</strong> ${category || 'N/A'}</p>
+                        <div style="margin-top: 10px;">
+                            ${items.map((item, idx) => `
+                                <div style="padding: 5px; margin: 5px 0; background: #1a1a2e; border-radius: 3px;">
+                                    <span>ID: ${item.id}</span> | 
+                                    <span>Created: ${item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A'}</span>
+                                    ${idx > 0 ? '<span style="color: #e74c3c; margin-left: 10px;">← Duplicate</span>' : '<span style="color: #2ecc71; margin-left: 10px;">← Original</span>'}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Render flashcard duplicates
+        function renderFlashcardDuplicates(duplicates) {
+            if (duplicates.uniqueGroups === 0) {
+                return '<p style="color: #2ecc71;">✅ No duplicate flashcards found!</p>';
+            }
+            
+            let html = '<div style="max-height: 400px; overflow-y: auto;">';
+            let groupNum = 0;
+            
+            duplicates.duplicateGroups.forEach((items, key) => {
+                groupNum++;
+                html += `
+                    <div style="margin: 15px 0; padding: 15px; background: #0f1624; border-radius: 5px;">
+                        <h4 style="color: #e74c3c;">Duplicate Group #${groupNum} (${items.length} copies)</h4>
+                        <p><strong>Content:</strong> ${key.substring(0, 100)}${key.length > 100 ? '...' : ''}</p>
+                        <p><strong>Type:</strong> ${items[0].type || 'N/A'}</p>
+                        <div style="margin-top: 10px;">
+                            ${items.map((item, idx) => `
+                                <div style="padding: 5px; margin: 5px 0; background: #1a1a2e; border-radius: 3px;">
+                                    <span>ID: ${item.id}</span> | 
+                                    <span>Category: ${item.category || 'N/A'}</span>
+                                    ${idx > 0 ? '<span style="color: #e74c3c; margin-left: 10px;">← Duplicate</span>' : '<span style="color: #2ecc71; margin-left: 10px;">← Original</span>'}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Render quiz question duplicates
+        function renderQuizQuestionDuplicates(duplicates) {
+            if (duplicates.uniqueGroups === 0) {
+                return '<p style="color: #2ecc71;">✅ No duplicate questions found!</p>';
+            }
+            
+            let html = '<div style="max-height: 400px; overflow-y: auto;">';
+            let groupNum = 0;
+            
+            duplicates.duplicateGroups.forEach((items, key) => {
+                groupNum++;
+                html += `
+                    <div style="margin: 15px 0; padding: 15px; background: #0f1624; border-radius: 5px;">
+                        <h4 style="color: #e74c3c;">Duplicate Group #${groupNum} (${items.length} copies)</h4>
+                        <p><strong>Question:</strong> ${key.substring(0, 150)}${key.length > 150 ? '...' : ''}</p>
+                        <div style="margin-top: 10px;">
+                            ${items.map((item, idx) => `
+                                <div style="padding: 5px; margin: 5px 0; background: #1a1a2e; border-radius: 3px;">
+                                    <span>Set ID: ${item.set_id}</span> | 
+                                    <span>Question #${item.question_number}</span> |
+                                    <span>Category: ${item.set_category || 'N/A'}</span>
+                                    ${idx > 0 ? '<span style="color: #e74c3c; margin-left: 10px;">← Duplicate</span>' : '<span style="color: #2ecc71; margin-left: 10px;">← Original</span>'}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Export duplicates list
+        function exportDuplicatesList() {
+            const duplicates = findDuplicates();
+            let csvContent = 'data:text/csv;charset=utf-8,';
+            
+            if (currentTab === 'quiz-sets') {
+                csvContent += 'Group,Title,Category,ID,Created,Status\n';
+                let groupNum = 0;
+                duplicates.duplicateGroups.forEach((items, key) => {
+                    groupNum++;
+                    const [title, category] = key.split('|');
+                    items.forEach((item, idx) => {
+                        const status = idx === 0 ? 'Original' : 'Duplicate';
+                        csvContent += `${groupNum},"${title}","${category}",${item.id},${item.created_at || 'N/A'},${status}\n`;
+                    });
+                });
+            } else if (currentTab === 'flashcards') {
+                csvContent += 'Group,Type,Content,ID,Category,Status\n';
+                let groupNum = 0;
+                duplicates.duplicateGroups.forEach((items, key) => {
+                    groupNum++;
+                    items.forEach((item, idx) => {
+                        const status = idx === 0 ? 'Original' : 'Duplicate';
+                        csvContent += `${groupNum},"${item.type}","${key.substring(0, 100)}",${item.id},"${item.category || 'N/A'}",${status}\n`;
+                    });
+                });
+            }
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `jazzypop_duplicates_${currentTab}_${new Date().toISOString()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

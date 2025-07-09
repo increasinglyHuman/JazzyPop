@@ -1,0 +1,39 @@
+[Unit]
+Description=JazzyPop Backend API
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/jazzypop-backend
+Environment="PATH=/home/ubuntu/jazzypop-backend/venv/bin:/usr/local/bin:/usr/bin:/bin"
+
+# PID file to prevent multiple instances
+PIDFile=/var/run/jazzypop-backend.pid
+
+# Pre-start cleanup
+ExecStartPre=/bin/bash -c 'lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true'
+ExecStartPre=/bin/sleep 2
+
+# Main process
+ExecStart=/home/ubuntu/jazzypop-backend/venv/bin/python /home/ubuntu/jazzypop-backend/main.py
+
+# Restart configuration
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/jazzypop-backend.log
+StandardError=append:/var/log/jazzypop-backend.error.log
+
+# Prevent restart storms
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Ensure clean shutdown
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -99,6 +99,9 @@ class RewardsDisplay {
         const rewardsBar = document.createElement('div');
         rewardsBar.className = `rewards-bar rewards-bar-${size} rewards-bar-${theme}`;
         rewardsBar.id = 'rewardsBar';
+        // Override any rainbow gradient with transparent background
+        rewardsBar.style.background = 'transparent';
+        rewardsBar.style.backgroundImage = 'none';
         this.container.appendChild(rewardsBar);
         
         // Filter and display only rewards with values > 0
@@ -132,15 +135,26 @@ class RewardsDisplay {
         const slot = document.createElement('div');
         slot.className = 'reward-slot';
         
-        // Apply color filter for gems
-        const isGem = ['sapphires', 'emeralds', 'rubies', 'amethysts'].includes(rewardType.type);
-        const filterStyle = isGem ? `style="filter: brightness(0) saturate(100%) ${this.getGemColorFilter(rewardType.color)};"` : '';
+        // Get dynamic color based on value
+        const dynamicColor = this.getDynamicColor(rewardType.type, value);
+        
+        // Apply color filter for gems and coins
+        const needsFilter = ['sapphires', 'emeralds', 'rubies', 'amethysts', 'diamonds', 'coins'].includes(rewardType.type);
+        let filterStyle = '';
+        if (needsFilter) {
+            filterStyle = `style="filter: brightness(0) saturate(100%) ${this.getValueBasedFilter(rewardType.type, value)};"`;
+        }
+        
+        // Special handling for XP with gradient effect
+        if (rewardType.type === 'xp') {
+            filterStyle = `style="filter: ${this.getXPGradientFilter(value)};"`;
+        }
         
         slot.innerHTML = `
             <div class="slot-reel" id="reel-${rewardType.type}">
                 ${this.createSlotItems(rewardType.icon, rewardType.type, filterStyle)}
             </div>
-            <div class="reward-value" id="value-${rewardType.type}" style="color: ${rewardType.color}">+0</div>
+            <div class="reward-value" id="value-${rewardType.type}" style="color: ${dynamicColor}">+0</div>
             <div class="reward-label">${rewardType.label}</div>
         `;
         
@@ -185,7 +199,79 @@ class RewardsDisplay {
             if (value >= 100 || type === 'hearts' || type === 'giftBox') {
                 slot.classList.add('celebrate');
             }
+            
+            // Add extra glow for very high values
+            if ((type === 'xp' && value >= 100) || 
+                (type === 'coins' && value >= 100) ||
+                (type === 'diamonds' && value > 0)) {
+                slot.style.boxShadow = `0 0 20px ${this.getDynamicColor(type, value)}`;
+            }
         }, 1500 + (index * 200)); // Stagger the stops
+    }
+    
+    /**
+     * Get dynamic color based on reward type and value
+     */
+    getDynamicColor(type, value) {
+        switch(type) {
+            case 'xp':
+                // XP: blue (cold) to red (hot) based on value
+                if (value <= 10) return '#0066ff'; // Deep blue
+                if (value <= 25) return '#0099ff'; // Light blue
+                if (value <= 50) return '#00ccff'; // Cyan
+                if (value <= 100) return '#ffcc00'; // Yellow
+                if (value <= 200) return '#ff9900'; // Orange
+                return '#ff0000'; // Hot red for 200+
+                
+            case 'coins':
+                // Coins: bronze to gold based on value
+                if (value <= 20) return '#cd7f32'; // Bronze
+                if (value <= 50) return '#c0c0c0'; // Silver
+                if (value <= 100) return '#ffd700'; // Gold
+                return '#fff700'; // Bright gold for 100+
+                
+            default:
+                // Use original color for gems
+                const rewardType = this.rewardTypes.find(r => r.type === type);
+                return rewardType ? rewardType.color : '#ffffff';
+        }
+    }
+    
+    /**
+     * Get CSS filter based on value for dynamic coloring
+     */
+    getValueBasedFilter(type, value) {
+        if (type === 'coins') {
+            // Bronze to gold gradient
+            if (value <= 20) return 'invert(48%) sepia(26%) saturate(1107%) hue-rotate(357deg) brightness(91%) contrast(87%)'; // Bronze
+            if (value <= 50) return 'invert(75%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)'; // Silver
+            if (value <= 100) return 'invert(72%) sepia(73%) saturate(1431%) hue-rotate(8deg) brightness(103%) contrast(106%)'; // Gold
+            return 'invert(82%) sepia(73%) saturate(1431%) hue-rotate(8deg) brightness(120%) contrast(106%)'; // Bright gold
+        }
+        
+        // For gems, use their standard colors
+        const colorMap = {
+            'sapphires': 'invert(53%) sepia(92%) saturate(2409%) hue-rotate(192deg) brightness(92%) contrast(85%)',
+            'emeralds': 'invert(77%) sepia(39%) saturate(578%) hue-rotate(83deg) brightness(89%) contrast(85%)',
+            'rubies': 'invert(42%) sepia(88%) saturate(2468%) hue-rotate(345deg) brightness(95%) contrast(85%)',
+            'amethysts': 'invert(71%) sepia(25%) saturate(1844%) hue-rotate(215deg) brightness(97%) contrast(101%)',
+            'diamonds': 'invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)'
+        };
+        
+        return colorMap[type] || '';
+    }
+    
+    /**
+     * Get XP gradient filter based on value
+     */
+    getXPGradientFilter(value) {
+        // Create heat map effect for XP
+        if (value <= 10) return 'hue-rotate(200deg) saturate(150%)'; // Deep blue
+        if (value <= 25) return 'hue-rotate(180deg) saturate(150%)'; // Light blue
+        if (value <= 50) return 'hue-rotate(120deg) saturate(150%)'; // Cyan
+        if (value <= 100) return 'hue-rotate(60deg) saturate(150%)'; // Yellow-green
+        if (value <= 200) return 'hue-rotate(30deg) saturate(150%)'; // Orange
+        return 'hue-rotate(0deg) saturate(200%) brightness(110%)'; // Hot red
     }
     
     /**

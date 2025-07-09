@@ -86,31 +86,47 @@ class QuizFeedbackPopup {
             
             .quiz-feedback-content {
                 position: relative;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: #1a1a2e;
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 20px;
                 padding: 30px;
+                padding-left: 50px;
                 max-width: 500px;
                 width: 90%;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
                 animation: slideUp 0.4s ease-out;
+                overflow: hidden;
             }
             
-            .quiz-feedback-content.correct {
-                background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            .quiz-feedback-content::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 20px;
+                height: 100%;
+                background: rgba(255, 255, 255, 0.1);
             }
             
-            .quiz-feedback-content.incorrect {
-                background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            .quiz-feedback-content.correct::before {
+                background: #00c851;
+            }
+            
+            .quiz-feedback-content.incorrect::before {
+                background: #ff4757;
             }
             
             .feedback-bot-container {
                 text-align: center;
                 margin-bottom: 20px;
+                display: flex;
+                justify-content: center;
+                width: 100%;
             }
             
             .feedback-bot-image {
-                width: 80px;
-                height: 80px;
+                width: 240px;
+                height: 240px;
                 animation: bounce 0.6s ease-out;
             }
             
@@ -120,7 +136,7 @@ class QuizFeedbackPopup {
             }
             
             .feedback-title {
-                font-size: 28px;
+                font-size: 36px;
                 font-weight: bold;
                 color: white;
                 margin: 0 0 10px 0;
@@ -134,7 +150,8 @@ class QuizFeedbackPopup {
             }
             
             .feedback-details-container {
-                background: rgba(255, 255, 255, 0.15);
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 15px;
                 padding: 20px;
                 margin-bottom: 20px;
@@ -282,7 +299,17 @@ class QuizFeedbackPopup {
         if (!isCorrect && selectedAnswer) {
             incorrectSection.style.display = 'block';
             this.popup.querySelector('.incorrect-answer-text').textContent = selectedAnswer.text;
-            this.popup.querySelector('.incorrect-answer-feedback').textContent = incorrectFeedback || 'Not quite right.';
+            
+            // Check if incorrect feedback is different from correct feedback to avoid duplication
+            const incorrectFeedbackEl = this.popup.querySelector('.incorrect-answer-feedback');
+            if (incorrectFeedback && incorrectFeedback !== correctFeedback) {
+                incorrectFeedbackEl.textContent = incorrectFeedback;
+                incorrectFeedbackEl.style.display = 'block';
+            } else {
+                // Hide the feedback text if it would be duplicate
+                incorrectFeedbackEl.textContent = '';
+                incorrectFeedbackEl.style.display = 'none';
+            }
         } else {
             incorrectSection.style.display = 'none';
         }
@@ -309,14 +336,14 @@ class QuizFeedbackPopup {
 
     getRandomCorrectTitle() {
         const titles = [
-            "Brilliant! 🌟",
-            "Nailed It! 🎯",
-            "Genius! 🧠",
-            "Perfect! ✨",
-            "Outstanding! 🏆",
-            "Fantastic! 🎉",
-            "Incredible! 🚀",
-            "Superb! 💫"
+            "Brilliant!",
+            "Nailed It!",
+            "Genius!",
+            "Perfect!",
+            "Outstanding!",
+            "Fantastic!",
+            "Incredible!",
+            "Superb!"
         ];
         return titles[Math.floor(Math.random() * titles.length)];
     }
@@ -337,12 +364,12 @@ class QuizFeedbackPopup {
 
     getRandomIncorrectTitle() {
         const titles = [
-            "Almost! 🤔",
-            "Nice Try! 💭",
-            "So Close! 🎯",
-            "Good Effort! 💪",
-            "Not Quite! 🤷",
-            "Keep Going! 🌈"
+            "Almost!",
+            "Nice Try!",
+            "So Close!",
+            "Good Effort!",
+            "Not Quite!",
+            "Keep Going!"
         ];
         return titles[Math.floor(Math.random() * titles.length)];
     }

@@ -85,6 +85,23 @@ function init() {
         console.log('Local development detected, using production API:', window.API_URL);
     }
     
+    // Clean up old user_ format IDs for anonymous users
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    if (!isAuthenticated) {
+        const currentUserId = localStorage.getItem('userId');
+        if (currentUserId && currentUserId.startsWith('user_')) {
+            console.log('Removing old format user ID:', currentUserId);
+            localStorage.removeItem('userId');
+        }
+        
+        // Ensure we have a proper session ID
+        if (!localStorage.getItem('session_id')) {
+            const newSessionId = generateSessionId();
+            localStorage.setItem('session_id', newSessionId);
+            console.log('Generated new session ID:', newSessionId);
+        }
+    }
+    
     // Initialize Economy Manager first
     if (!window.economyManager) {
         new EconomyManager();
@@ -150,12 +167,23 @@ function preventMobileZoom() {
 
 // Update user info display
 function updateUserInfo() {
-    // Check if we have Google user data
-    const isGoogleUser = localStorage.getItem('isGoogleUser') === 'true';
-    if (isGoogleUser) {
-        userName = localStorage.getItem('userName') || 'Anonymous Player';
+    // Check for authenticated user
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    const displayName = localStorage.getItem('displayName');
+    
+    if (isAuthenticated && displayName) {
+        userName = displayName;
         userEmail = localStorage.getItem('userEmail') || '';
+    } else {
+        // Check if we have Google user data (legacy)
+        const isGoogleUser = localStorage.getItem('isGoogleUser') === 'true';
+        if (isGoogleUser) {
+            userName = localStorage.getItem('userName') || 'Anonymous Player';
+            userEmail = localStorage.getItem('userEmail') || '';
+        }
     }
+    
+    // Update the top-left username display
     document.getElementById('userName').textContent = userName;
 }
 
@@ -538,12 +566,28 @@ function selectAvatar(avatarId) {
 
 // Sync user profile with backend
 async function syncUserProfile() {
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    
     const profile = {
         userName: localStorage.getItem('userName') || 'Anonymous Player',
         userEmail: localStorage.getItem('userEmail') || '',
-        selectedAvatar: localStorage.getItem('selectedAvatar') || 'default',
-        userId: localStorage.getItem('userId') || generateUserId()
+        selectedAvatar: localStorage.getItem('selectedAvatar') || 'default'
     };
+    
+    // For anonymous users, ensure we have a session ID
+    if (!isAuthenticated) {
+        // Use session ID for anonymous users - don't generate userId
+        let sessionId = localStorage.getItem('session_id');
+        if (!sessionId) {
+            sessionId = generateSessionId();
+            localStorage.setItem('session_id', sessionId);
+        }
+        // Remove any old user_ format IDs for anonymous users
+        const currentUserId = localStorage.getItem('userId');
+        if (currentUserId && currentUserId.startsWith('user_')) {
+            localStorage.removeItem('userId');
+        }
+    }
     
     // Syncing profile with backend
     
@@ -556,21 +600,19 @@ async function syncUserProfile() {
             body: JSON.stringify(profile)
         });
         const data = await response.json();
-        localStorage.setItem('userId', data.userId);
-        */
-        
-        // For now, just ensure we have a userId
-        if (!localStorage.getItem('userId')) {
-            localStorage.setItem('userId', profile.userId);
+        if (isAuthenticated && data.userId) {
+            localStorage.setItem('userId', data.userId);
         }
+        */
     } catch (error) {
         console.error('Failed to sync profile:', error);
     }
 }
 
-// Generate a simple user ID for demo
-function generateUserId() {
-    return 'user_' + Math.random().toString(36).substr(2, 9);
+// Generate a session ID for anonymous users
+function generateSessionId() {
+    // Use timestamp-based format that backend expects for session IDs
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // Initialize CardManager
@@ -1298,14 +1340,19 @@ function updateDashboardDisplay(economyData) {
     // Calculate XP progress for current level
     if (xpFill && xpText && economyData.xp !== undefined) {
         const currentLevel = economyData.level || 1;
-        const currentLevelXP = 100 + ((currentLevel - 1) * (currentLevel - 1) * 50);
-        const nextLevelXP = 100 + (currentLevel * currentLevel * 50);
-        const xpInCurrentLevel = economyData.xp - currentLevelXP;
-        const xpNeededForLevel = nextLevelXP - currentLevelXP;
-        const xpProgress = Math.max(0, Math.min(100, (xpInCurrentLevel / xpNeededForLevel) * 100));
+        const totalXP = economyData.xp || 0;
+        
+        // Simple calculation: show current XP / XP needed for next level
+        // Level 1 → 2: need 100 XP
+        // Level 2 → 3: need 200 XP (total)
+        // Level 3 → 4: need 350 XP (total)
+        const xpForNextLevel = currentLevel * 100 + ((currentLevel - 1) * currentLevel * 25);
+        const xpProgress = Math.min(100, (totalXP / xpForNextLevel) * 100);
+        
+        console.log('XP Display Debug:', { totalXP, currentLevel, xpForNextLevel, xpProgress });
         
         xpFill.style.width = `${xpProgress}%`;
-        xpText.textContent = `${Math.max(0, xpInCurrentLevel)} / ${xpNeededForLevel} XP`;
+        xpText.textContent = `${totalXP} / ${xpForNextLevel} XP`;
     }
     
     // Update stats bar
@@ -1344,20 +1391,41 @@ function updateDashboardDisplay(economyData) {
     }
 }
 
+// Debounce timer for sync
+let syncDebounceTimer = null;
+
 // Sync dashboard with backend
 async function syncDashboard() {
+    // Clear any pending sync
+    if (syncDebounceTimer) {
+        clearTimeout(syncDebounceTimer);
+        syncDebounceTimer = null;
+    }
     // Don't sync if a modal is open (game in progress)
-    if (document.querySelector('.quiz-modal.active') || 
-        document.querySelector('.flashcard-modal.active') ||
-        document.querySelector('.herding-modal.active')) {
-        console.log('Skipping sync - game in progress');
+    const activeModals = document.querySelector('.quiz-modal.active') || 
+                        document.querySelector('.flashcard-modal.active') ||
+                        document.querySelector('.herding-modal.active') ||
+                        document.querySelector('.factoid-modal.active');
+    
+    if (activeModals) {
+        console.log('Skipping dashboard sync - game modal active:', activeModals.className);
         return;
     }
+    
+    // Also check global modal instances
+    if ((window.quizModal && window.quizModal.modal && window.quizModal.modal.classList.contains('active')) ||
+        (window.flashcardModal && window.flashcardModal.modal && window.flashcardModal.modal.classList.contains('active'))) {
+        console.log('Skipping dashboard sync - game instance active');
+        return;
+    }
+    
+    console.log('Dashboard sync proceeding - no active games detected');
     
     try {
         // Get session ID from EconomyManager
         const sessionId = window.economyManager?.sessionToken || localStorage.getItem('session_id');
-        const userId = localStorage.getItem('userId');
+        const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+        const userId = isAuthenticated ? localStorage.getItem('userId') : null;
         
         // Build query params
         const params = new URLSearchParams();
@@ -1382,16 +1450,17 @@ async function syncDashboard() {
             // The API returns {state: {...}} so we need to extract the state
             const economyState = data.state || data;
             
-            // Update EconomyManager cache
-            if (window.economyManager) {
-                window.economyManager.displayCache = { ...window.economyManager.displayCache, ...economyState };
+            // Update EconomyManager cache through its sync method
+            if (window.economyManager && window.economyManager.syncWithServer) {
+                // Let EconomyManager handle the update properly
+                window.economyManager.syncWithServer(economyState);
             }
             
             // Update dashboard display
             updateDashboardDisplay(economyState);
             
-            // Dispatch event for other components
-            window.dispatchEvent(new CustomEvent('economyUpdated', { detail: economyState }));
+            // Don't dispatch economyUpdated event during sync - it's redundant
+            // The EconomyManager already updated its state and display
         } else {
             console.error('Failed to sync dashboard:', response.status, response.statusText);
         }
@@ -1407,8 +1476,8 @@ function startDashboardSync() {
     // Initial sync
     syncDashboard();
     
-    // Sync every 30 seconds
-    dashboardSyncInterval = setInterval(syncDashboard, 30000);
+    // Sync every 60 seconds (more reasonable)
+    dashboardSyncInterval = setInterval(syncDashboard, 60000);
     
     // Also sync on visibility change
     document.addEventListener('visibilitychange', () => {
@@ -1423,8 +1492,7 @@ function startDashboardSync() {
         if (window.economyManager) {
             updateDashboardDisplay(window.economyManager.getDisplayState());
         }
-        // Also sync with backend after a short delay
-        setTimeout(syncDashboard, 1000);
+        // Don't trigger a full sync - just update the display
     });
     
     window.addEventListener('economyUpdated', (e) => {
@@ -1448,6 +1516,7 @@ function stopDashboardSync() {
 window.syncDashboard = syncDashboard;
 window.startDashboardSync = startDashboardSync;
 window.stopDashboardSync = stopDashboardSync;
+window.updateUserInfo = updateUserInfo;
 
 // Initialize on load
 window.onload = init;

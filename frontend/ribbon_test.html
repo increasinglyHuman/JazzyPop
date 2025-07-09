@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vaudeville Ribbon Variations</title>
+    <style>
+        body {
+            background: #1f2c34;
+            padding: 40px;
+            color: white;
+            font-family: Arial;
+        }
+        
+        .ribbon-demo {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        
+        .ribbon {
+            height: 60px;
+            margin: 20px 0;
+        }
+        
+        .label {
+            color: #58cc02;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Vaudeville Ribbon Variations</h1>
+    
+    <div class="ribbon-demo">
+        <div class="label">Original (2px)</div>
+        <div class="ribbon" style="background: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='white' stroke-width='2' fill='none' opacity='0.5'/%3E%3C/svg%3E&quot;); background-size: 100px 20px; background-repeat: repeat-x;"></div>
+    </div>
+    
+    <div class="ribbon-demo">
+        <div class="label">Thicker (4px)</div>
+        <div class="ribbon" style="background: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='white' stroke-width='4' fill='none' opacity='0.5'/%3E%3C/svg%3E&quot;); background-size: 100px 20px; background-repeat: repeat-x;"></div>
+    </div>
+    
+    <div class="ribbon-demo">
+        <div class="label">Variable Thickness (using two paths)</div>
+        <div class="ribbon" style="background: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='white' stroke-width='3' fill='none' opacity='0.3'/%3E%3Cpath d='M0,10 Q25,2 50,10 T100,10' stroke='white' stroke-width='1.5' fill='none' opacity='0.6'/%3E%3C/svg%3E&quot;); background-size: 100px 20px; background-repeat: repeat-x;"></div>
+    </div>
+    
+    <div class="ribbon-demo">
+        <div class="label">Double Wave (carnival style)</div>
+        <div class="ribbon" style="background: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 25'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='white' stroke-width='3' fill='none' opacity='0.5'/%3E%3Cpath d='M0,15 Q25,25 50,15 T100,15' stroke='white' stroke-width='3' fill='none' opacity='0.5'/%3E%3C/svg%3E&quot;); background-size: 100px 25px; background-repeat: repeat-x;"></div>
+    </div>
+    
+    <div class="ribbon-demo">
+        <div class="label">Scalloped Edge (more theatrical)</div>
+        <div class="ribbon" style="background: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,15 Q10,5 20,15 T40,15 T60,15 T80,15 T100,15' stroke='white' stroke-width='3' stroke-linejoin='round' fill='none' opacity='0.5'/%3E%3C/svg%3E&quot;); background-size: 100px 20px; background-repeat: repeat-x;"></div>
+    </div>
+    
+    <div class="ribbon-demo">
+        <div class="label">With Dots (marquee lights)</div>
+        <div class="ribbon" style="background: url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='white' stroke-width='3' fill='none' opacity='0.4'/%3E%3Ccircle cx='25' cy='5' r='2' fill='white' opacity='0.6'/%3E%3Ccircle cx='75' cy='5' r='2' fill='white' opacity='0.6'/%3E%3C/svg%3E&quot;); background-size: 100px 20px; background-repeat: repeat-x;"></div>
+    </div>
+</body>
+</html>

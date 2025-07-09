@@ -1797,6 +1797,13 @@
     z-index: 2;
     color: white !important;
     opacity: 1 !important;
+    font-size: 16px;
+    line-height: 1.5;
+    text-align: left;
+    padding: 0 20px;
+    max-width: 100%;
+    overflow-y: auto;
+    max-height: 200px;
 }
 
 /* Hide check answer button for factoids */
@@ -1815,10 +1822,107 @@
 /* Hide entire answer check section when showing factoids */
 #flashcard[data-challenge-type="simple-flip"] .answer-check,
 #flashcard[data-challenge-type="simple-flip"] .flashcard-check-answer-btn {
-    display: none \!important;
+    display: none !important;
+}
+
+/* Hide only BACK side challenge elements for simple-flip cards to prevent flash */
+.flashcard.simple-flip .flashcard-back .flashcard-challenge-container,
+.flashcard.simple-flip .flashcard-back .flashcard-challenge-question,
+.flashcard.simple-flip .flashcard-back .flashcard-challenge-input,
+.flashcard.simple-flip .flashcard-back .answer-check,
+.flashcard.simple-flip .flashcard-back .flashcard-check-answer-btn,
+.flashcard.simple-flip .flashcard-back .flashcard-answer-feedback,
+.flashcard.simple-flip .flashcard-back .flashcard-continue-btn {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Flip icon on back of cards */
+.flip-icon-back {
+    position: absolute !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    z-index: 10;
 }
 
 /* Also hide it based on card container content */
 .flashcard:has(.simple-flip-container) .answer-check {
     display: none \!important;
+}
+
+/* Factoid Results Screen */
+.factoid-results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 20px;
+    position: relative;
+}
+
+.results-bot-container {
+    width: 180px;
+    height: 180px;
+    margin-bottom: 20px;
+}
+
+.results-category-bot {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Jazzy text styles */
+.jazzy-title {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+}
+
+.jazzy-number {
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--primary);
+}
+
+/* Rewards bar at bottom */
+.rewards-bar-container-bottom {
+    margin-top: auto;
+    margin-bottom: 20px;
+    width: 90%;
+    max-width: 400px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 20px;
+    padding: 15px;
+    z-index: 10;
+}
+
+/* Factoid text improvements */
+.factoid-detail-label {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--primary);
+    margin-bottom: 15px;
+}
+
+.factoid-twist {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 15px;
+    padding: 20px;
+    min-height: 120px;
+}
+
+/* Hide any rainbow elements in factoid results */
+.factoid-results .rainbow-bar,
+.factoid-results .rainbow-gradient,
+.factoid-results [class*="rainbow"] {
+    display: none !important;
+}
 }

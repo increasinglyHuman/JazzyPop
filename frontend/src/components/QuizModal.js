@@ -221,6 +221,10 @@ class QuizModal {
                 this.currentQuestionIndex = 0;
                 this.score = 0;
                 this.correctAnswers = 0;
+                
+                // Fetch answer feedback captions
+                this.fetchAnswerFeedbackCaptions(quizData.id);
+                
                 this.displayCurrentQuestion();
             } else {
                 // Legacy single question format
@@ -246,6 +250,33 @@ class QuizModal {
             
             // Close modal after a delay
             setTimeout(() => this.close(), 2000);
+        }
+    }
+    
+    async fetchAnswerFeedbackCaptions(quizId) {
+        try {
+            const apiBase = window.API_URL || 'http://52.88.234.65:8000';
+            const response = await fetch(`${apiBase}/api/content/quiz/${quizId}/answer-feedback-captions`);
+            
+            if (response.ok) {
+                const feedbackData = await response.json();
+                console.log('Fetched answer feedback captions:', feedbackData);
+                
+                if (feedbackData.has_answer_feedback_captions) {
+                    // Store the feedback captions for use during the quiz
+                    this.answerFeedbackCaptions = feedbackData.all_answer_feedback_captions;
+                    console.log('Answer feedback captions available for this quiz');
+                } else {
+                    console.log('No answer feedback captions available for this quiz');
+                    this.answerFeedbackCaptions = null;
+                }
+            } else {
+                console.error('Failed to fetch answer feedback captions:', response.status);
+                this.answerFeedbackCaptions = null;
+            }
+        } catch (error) {
+            console.error('Error fetching answer feedback captions:', error);
+            this.answerFeedbackCaptions = null;
         }
     }
     
@@ -357,12 +388,19 @@ class QuizModal {
             // Check answer
             const isCorrect = this.selectedAnswer.dataset.correct === 'true';
             
+            // Store current question data BEFORE any index changes
+            const currentQuestionData = this.currentQuizSet.data.questions[this.currentQuestionIndex];
+            const selectedAnswerData = {
+                text: this.selectedAnswer.textContent,
+                id: this.selectedAnswer.dataset.answerId
+            };
+            
             // Update button
             btn.textContent = isCorrect ? '✓' : '❌';
             
             // Show feedback after delay so player can see which answer was correct
             setTimeout(() => {
-                this.showFeedback(isCorrect);
+                this.showFeedback(isCorrect, currentQuestionData, selectedAnswerData);
             }, 1200); // 1.2 second delay to see the colored answer buttons
             
             // Disable further selection
@@ -390,21 +428,46 @@ class QuizModal {
         }
     }
 
-    showFeedback(isCorrect) {
-        // Get current question data
-        const currentQuestion = this.currentQuizSet.data.questions[this.currentQuestionIndex - 1];
+    showFeedback(isCorrect, currentQuestion, selectedAnswerData) {
+        // If not passed, fall back to old method (for compatibility)
+        if (!currentQuestion) {
+            currentQuestion = this.currentQuizSet.data.questions[this.currentQuestionIndex - 1];
+        }
+        if (!selectedAnswerData && this.selectedAnswer) {
+            selectedAnswerData = {
+                text: this.selectedAnswer.textContent,
+                id: this.selectedAnswer.dataset.answerId
+            };
+        }
         
         // Find correct answer
         const correctAnswer = currentQuestion.answers.find(a => a.correct);
-        const selectedAnswerData = this.selectedAnswer ? {
-            text: this.selectedAnswer.textContent,
-            id: this.selectedAnswer.dataset.answerId
-        } : null;
         
-        // Get feedback from question data if available
-        const correctFeedback = currentQuestion.correctFeedback || correctAnswer.feedback || null;
-        const incorrectFeedback = selectedAnswerData && !isCorrect ? 
-            currentQuestion.answers.find(a => a.id === selectedAnswerData.id)?.feedback || null : null;
+        // Get feedback from answer feedback captions if available, otherwise use explanation
+        let correctFeedback = currentQuestion.explanation || null;
+        let incorrectFeedback = currentQuestion.explanation || null;
+        
+        // If we have answer-specific feedback captions, use those
+        if (this.answerFeedbackCaptions && selectedAnswerData) {
+            const selectedAnswerId = selectedAnswerData.id;
+            const correctAnswerId = correctAnswer.id;
+            
+            // Get feedback for the selected answer
+            if (this.answerFeedbackCaptions[selectedAnswerId]) {
+                if (isCorrect) {
+                    // User selected the correct answer
+                    correctFeedback = this.answerFeedbackCaptions[selectedAnswerId].correct || correctFeedback;
+                } else {
+                    // User selected an incorrect answer
+                    incorrectFeedback = this.answerFeedbackCaptions[selectedAnswerId].incorrect || incorrectFeedback;
+                }
+            }
+            
+            // Always show the correct answer's feedback
+            if (this.answerFeedbackCaptions[correctAnswerId]) {
+                correctFeedback = this.answerFeedbackCaptions[correctAnswerId].correct || correctFeedback;
+            }
+        }
         
         // Show the new feedback popup if available
         if (window.quizFeedbackPopup) {
@@ -478,12 +541,16 @@ class QuizModal {
         // Track the answer with the API
         try {
             const apiBase = window.API_URL || 'http://52.88.234.65:8000';
-            await fetch(`${apiBase}/api/content/quiz/${this.currentQuestion.id}/answer`, {
+            // Use the quiz set ID, not the question ID
+            const quizId = this.currentQuizSet.id;
+            
+            await fetch(`${apiBase}/api/content/quiz/${quizId}/answer`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    quiz_id: this.currentQuestion.id,
+                    quiz_id: quizId,
                     answer_id: this.selectedAnswer.dataset.answerId,
+                    question_index: this.currentQuestionIndex,
                     time_taken: this.mode === 'speed' ? 30 - this.timeRemaining : 0,
                     mode: this.mode
                 })
@@ -886,32 +953,34 @@ class QuizModal {
     
     // Get category-specific bot image
     getCategoryBotImage(category) {
-        // These are the actual sign-holding bot files that exist
+        // These are the actual category bot files that exist
         const categoryBots = {
-            'science': './src/images/signbots/signbot-knowledge.svg',
-            'history': './src/images/signbots/signbot-history.svg', 
-            'geography': './src/images/signbots/signbot-geography.svg',
-            'literature': './src/images/signbots/signbot-books.svg',
-            'sports': './src/images/signbots/signbot-winner.svg',
-            'entertainment': './src/images/signbots/signbot-fun.svg',
-            'technology': './src/images/signbots/signbot-tech.svg',
-            'gaming': './src/images/signbots/signbot-gaming.svg',
-            'pop_culture': './src/images/signbots/signbot-trending.svg',
-            'music': './src/images/signbots/signbot-music.svg',
-            'art': './src/images/signbots/signbot-creative.svg',
-            'food': './src/images/signbots/signbot-yummy.svg',
-            'nature': './src/images/signbots/signbot-nature.svg',
-            'animals': './src/images/signbots/signbot-animals.svg',
-            'mythology': './src/images/signbots/signbot-legend.svg',
-            'space': './src/images/signbots/signbot-cosmic.svg',
-            'mathematics': './src/images/signbots/signbot-numbers.svg',
-            'language': './src/images/signbots/signbot-words.svg',
-            'famous_lies': './src/images/signbots/signbot-famous-lies.svg',
-            'general': './src/images/signbots/signbot-quiz.svg'
+            'science': './src/images/categories/science.svg',
+            'history': './src/images/categories/history.svg', 
+            'geography': './src/images/categories/geography.svg',
+            'literature': './src/images/categories/literature.svg',
+            'sports': './src/images/categories/sports.svg',
+            'entertainment': './src/images/categories/entertainment.svg',
+            'technology': './src/images/categories/technology.svg',
+            'gaming': './src/images/categories/gaming.svg',
+            'pop_culture': './src/images/categories/pop_culture.svg',
+            'music': './src/images/categories/music.svg',
+            'art': './src/images/categories/art.svg',
+            'food': './src/images/categories/food.svg',
+            'food_cuisine': './src/images/categories/food.svg',
+            'nature': './src/images/categories/nature.svg',
+            'animals': './src/images/categories/animals.svg',
+            'mythology': './src/images/categories/mythology.svg',
+            'space': './src/images/categories/space.svg',
+            'mathematics': './src/images/categories/mathematics.svg',
+            'language': './src/images/categories/language.svg',
+            'language_evolution': './src/images/categories/language.svg',
+            'famous_lies': './src/images/categories/famous_lies.svg',
+            'general': './src/images/categories/general.svg'
         };
         
-        // Return specific bot or default quiz bot
-        return categoryBots[category.toLowerCase()] || './src/images/signbots/signbot-quiz.svg';
+        // Return specific bot or default general category bot
+        return categoryBots[category.toLowerCase()] || './src/images/categories/general.svg';
     }
     
     // Removed showLevelUp - now handled by EconomyManager
@@ -994,49 +1063,41 @@ class QuizModal {
             quizContent.style.background = 'transparent';
         }
         
-        // Create new layout with bot and stats box
+        // Create new layout with bot at top, stats below, and rewards separate
         document.getElementById('answersContainer').innerHTML = `
-            <div class="quiz-complete-layout" style="display: flex; align-items: center; gap: 20px; margin: 20px 0;">
-                <!-- Category Bot -->
-                <div class="category-bot" style="flex: 0 0 80px;">
+            <div class="quiz-complete-layout" style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin: 20px 0;">
+                <!-- Category Bot at Top -->
+                <div class="category-bot" style="margin-bottom: 10px;">
                     <img src="${this.getCategoryBotImage(category)}" alt="${categoryDisplay} Bot" 
-                         style="width: 80px; height: 80px; object-fit: contain;">
+                         style="width: 240px; height: 240px; object-fit: contain;">
+                </div>
                 
-                <!-- Stats Box -->
-                <div class="stats-box" style="flex: 1; background: rgba(255, 255, 255, 0.1); 
-                                              border-radius: 10px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.2);">
-                    <div class="quiz-results" style="display: flex; gap: 30px; justify-content: center;">
-                        <div class="result-stat">
-                            <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7;">Score</span>
-                            <span class="stat-value" style="display: block; font-size: 1.8em; font-weight: bold;">${this.correctAnswers}/${totalQuestions}</span>
-                        </div>
-                        <div class="result-stat">
-                            <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7;">Accuracy</span>
-                            <span class="stat-value" style="display: block; font-size: 1.8em; font-weight: bold;">${percentage}%</span>
-                        </div>
+                <!-- Score and Accuracy Box -->
+                <div class="stats-box" style="display: flex; gap: 30px; justify-content: center; 
+                                              background: rgba(255, 255, 255, 0.1); 
+                                              border-radius: 12px; padding: 20px 40px; 
+                                              border: 1px solid rgba(255, 255, 255, 0.2);">
+                    <div class="result-stat" style="text-align: center;">
+                        <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7; margin-bottom: 5px; text-transform: uppercase;">Score</span>
+                        <span class="stat-value" style="display: block; font-size: 2em; font-weight: bold; color: white;">${this.correctAnswers}/${totalQuestions}</span>
                     </div>
-                    
-                    <!-- Rewards Summary -->
-                    ${economyResult && economyResult.rewards ? `
-                        <div class="rewards-summary" style="margin-top: 15px; padding-top: 15px; 
-                                                           border-top: 1px solid rgba(255, 255, 255, 0.2); 
-                                                           text-align: center; font-size: 0.9em;">
-                            <div style="opacity: 0.7; margin-bottom: 5px;">Rewards Earned:</div>
-                            <div style="font-weight: bold;">
-                                ${economyResult.rewards.coins ? `${economyResult.rewards.coins} Coins` : ''}
-                                ${economyResult.rewards.xp ? ` • ${economyResult.rewards.xp} XP` : ''}
-                                ${economyResult.rewards.sapphires ? ` • ${economyResult.rewards.sapphires} Sapphires` : ''}
-                                ${economyResult.rewards.emeralds ? ` • ${economyResult.rewards.emeralds} Emeralds` : ''}
-                            </div>
-                        </div>
-                    ` : ''}
+                    <div class="stat-divider" style="width: 1px; background: rgba(255, 255, 255, 0.2); margin: 0 10px;"></div>
+                    <div class="result-stat" style="text-align: center;">
+                        <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7; margin-bottom: 5px; text-transform: uppercase;">Accuracy</span>
+                        <span class="stat-value" style="display: block; font-size: 2em; font-weight: bold; color: white;">${percentage}%</span>
+                    </div>
+                </div>
+                
+                <!-- Rewards in Dark Box -->
+                <div class="rewards-box" style="width: 100%; max-width: 500px; 
+                                                background: rgba(0, 0, 0, 0.6); 
+                                                border-radius: 12px; padding: 20px; 
+                                                border: 1px solid rgba(255, 255, 255, 0.1);
+                                                text-align: center;">
+                    <!-- Container for reward spinners -->
+                    <div id="quizRewardsBar" style="min-height: 100px;"></div>
                 </div>
             </div>
-            
-            <!-- Rewards display container moved to dark area -->
-            <div id="quizRewardsBar" class="rewards-bar-container" 
-                 style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
-                        width: 90%; max-width: 400px; min-height: 80px; z-index: 1000;"></div>
         `;
         
         // Display rewards using RewardsDisplay component

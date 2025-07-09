@@ -105,6 +105,11 @@ class AuthPanel {
             window.checkAuthStatus();
         }
         
+        // Update username display
+        if (window.updateUserInfo) {
+            window.updateUserInfo();
+        }
+        
         // Economy manager will pick up the new userId from localStorage
         // on the next API call since we just stored it above
 

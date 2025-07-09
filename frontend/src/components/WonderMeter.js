@@ -8,8 +8,8 @@ class WonderMeter {
         this.value = 50; // 0-100 scale
         this.onRatingCallback = null;
         this.emojis = [
-            { value: 0, emoji: '🤔', label: 'Huh?' },
-            { value: 100, emoji: '😎', label: 'Cool!' }
+            { value: 0, svg: 'thinkingEmoji.svg', label: 'Huh?' },
+            { value: 100, svg: 'amazingEmoji.svg', label: 'Cool!' }
         ];
     }
 
@@ -26,7 +26,7 @@ class WonderMeter {
                     <div class="emoji-track">
                         ${this.emojis.map((item, index) => `
                             <div class="emoji-marker" data-value="${item.value}" style="left: ${item.value}%">
-                                <span class="emoji">${item.emoji}</span>
+                                <img src="./src/images/navIcons/${item.svg}" class="emoji-svg" alt="${item.label}">
                                 <span class="emoji-label">${item.label}</span>
                             </div>
                         `).join('')}
@@ -43,12 +43,12 @@ class WonderMeter {
                         </div>
                     </div>
                     <div class="current-rating">
-                        <span class="rating-emoji">${this.getEmojiForValue(this.value)}</span>
+                        <img src="./src/images/navIcons/${this.getSvgForValue(this.value)}" class="rating-svg" alt="">
                         <span class="rating-text">${this.getLabelForValue(this.value)}</span>
                     </div>
                 </div>
                 <button class="wonder-meter-continue" id="wonderContinue">
-                    Rate & Continue ➡️
+                    Rate & Continue
                 </button>
             </div>
         `;
@@ -56,7 +56,7 @@ class WonderMeter {
         // Add event listeners
         const slider = container.querySelector('.wonder-slider');
         const fill = container.querySelector('.slider-fill');
-        const currentEmoji = container.querySelector('.rating-emoji');
+        const currentSvg = container.querySelector('.rating-svg');
         const currentText = container.querySelector('.rating-text');
         
         slider.addEventListener('input', (e) => {
@@ -64,7 +64,7 @@ class WonderMeter {
             
             // Update visual state
             fill.style.width = `${this.value}%`;
-            currentEmoji.textContent = this.getEmojiForValue(this.value);
+            currentSvg.src = `./src/images/navIcons/${this.getSvgForValue(this.value)}`;
             currentText.textContent = this.getLabelForValue(this.value);
             
             // Highlight nearest emoji
@@ -82,15 +82,15 @@ class WonderMeter {
         return container;
     }
     
-    getEmojiForValue(value) {
-        // Find the closest emoji
+    getSvgForValue(value) {
+        // Find the closest svg
         let closest = this.emojis[0];
         for (const item of this.emojis) {
             if (value >= item.value) {
                 closest = item;
             }
         }
-        return closest.emoji;
+        return closest.svg;
     }
     
     getLabelForValue(value) {

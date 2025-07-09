@@ -78,12 +78,23 @@ class SoundManager {
     
     /**
      * Play a sound effect
-     * @param {string} soundName - Name from the sound library
+     * @param {string} soundName - Name from the sound library or path to MP3
      * @param {Object} options - { volume: 0-1, loop: boolean, variation: index }
      */
     async play(soundName, options = {}) {
-        if (!this.enabled || !this.initialized) return null;
+        if (!this.enabled) return null;
         
+        // Initialize audio context on first play
+        if (!this.initialized) {
+            this.initAudioContext();
+        }
+        
+        // Check if it's a path to an MP3 file
+        if (soundName.includes('/') || soundName.includes('.mp3')) {
+            return this.playMP3File(soundName, options);
+        }
+        
+        // Otherwise check sound library
         const sound = this.soundLibrary[soundName];
         if (!sound) {
             console.warn(`Sound not found: ${soundName}`);
@@ -346,6 +357,57 @@ class SoundManager {
                 // Pre-generate the sound buffer
                 await this.createPlaceholderSound(soundName, this.soundLibrary[soundName].type);
             }
+        }
+    }
+    
+    /**
+     * Play an MP3 file directly
+     */
+    async playMP3File(soundPath, options = {}) {
+        try {
+            // Build the full path to the trombone audio
+            const fullPath = soundPath.includes('src/trombone_audio/') 
+                ? soundPath 
+                : `./src/trombone_audio/${soundPath}.mp3`;
+            
+            console.log(`Attempting to play: ${fullPath}`);
+            
+            // Create audio element
+            const audio = new Audio(fullPath);
+            audio.volume = options.volume || this.volume;
+            audio.loop = options.loop || false;
+            
+            // Add error handler before playing
+            audio.addEventListener('error', (e) => {
+                console.error(`Audio error for ${fullPath}:`, e);
+            });
+            
+            // Play the sound
+            const playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        console.log(`Successfully playing: ${soundPath}`);
+                    })
+                    .catch(error => {
+                        console.error(`Play failed for ${soundPath}:`, error);
+                        // Try to play after user interaction
+                        document.addEventListener('click', () => {
+                            audio.play().catch(e => console.error('Retry failed:', e));
+                        }, { once: true });
+                    });
+            }
+            
+            // Clean up when done
+            audio.addEventListener('ended', () => {
+                audio.remove();
+            });
+            
+            return audio;
+        } catch (error) {
+            console.error('Failed to play MP3:', error);
+            return null;
         }
     }
 }
