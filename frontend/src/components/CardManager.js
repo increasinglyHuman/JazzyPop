@@ -1027,27 +1027,29 @@ class CardManager {
     }
 
     getPracticeIcon(category) {
-        // Map practice categories to signbot personalities
-        const signbotMap = {
-            'bad_puns': './src/images/signbots/signbot-happy.svg',        // Happy bot for puns
-            'famous_quotes': './src/images/signbots/signbot-thinking.svg', // Thinking bot for quotes
-            'knock_knock': './src/images/signbots/signbot-excited.svg',    // Excited bot for knock-knock
-            'trivia_mix': './src/images/signbots/signbot-energetic.svg'    // Energetic bot for trivia
+        // Map practice categories to specific comedy bots
+        const comedyBotMap = {
+            'bad_puns': './src/images/comedyBots/comedyBot03.svg',        // Bot 3 for puns
+            'famous_quotes': './src/images/comedyBots/comedyBot05.svg',   // Bot 5 for quotes
+            'knock_knock': './src/images/comedyBots/comedyBot01.svg',     // Bot 1 for knock-knock
+            'trivia_mix': './src/images/comedyBots/comedyBot07.svg'       // Bot 7 for trivia
         };
         
-        // Return signbot SVG image
-        if (signbotMap[category]) {
-            return `<img src="${signbotMap[category]}" 
+        // Return comedy bot SVG image
+        if (comedyBotMap[category]) {
+            return `<img src="${comedyBotMap[category]}" 
                          alt="${category}" 
-                         class="signbot-icon"
+                         class="comedy-bot-icon"
                          style="width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.3s ease;"
                          onload="this.style.opacity='1'">`;
         }
         
-        // Default to standard signbot
-        return `<img src="./src/images/signbots/signbot-standard.svg" 
+        // Default to a random comedy bot
+        const randomBotNumber = Math.floor(Math.random() * 10) + 1;
+        const defaultBot = `./src/images/comedyBots/comedyBot${String(randomBotNumber).padStart(2, '0')}.svg`;
+        return `<img src="${defaultBot}" 
                      alt="Practice" 
-                     class="signbot-icon"
+                     class="comedy-bot-icon"
                      style="width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.3s ease;"
                      onload="this.style.opacity='1'">`;
     }
@@ -1145,7 +1147,7 @@ class CardManager {
         const practiceTypes = [
             {
                 category: 'bad_puns',
-                title: 'Bad Pun Practice',
+                title: 'Punz',
                 description: 'Groan-worthy wordplay to test your pun tolerance! Can you survive the eye-rolls?',
                 cardCount: 10
             },

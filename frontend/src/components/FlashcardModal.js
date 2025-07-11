@@ -194,6 +194,44 @@ class FlashcardModal {
         const overlay = this.modal.querySelector('.flashcard-overlay');
         overlay.addEventListener('click', () => this.close());
 
+        // DEBUG: Add keyboard shortcut to skip to results
+        this.debugKeyHandler = (e) => {
+            // Ctrl+Shift+R = Skip to Results (or Cmd+Shift+R on Mac)
+            if (
+                (e.ctrlKey || e.metaKey) &&
+                e.shiftKey &&
+                e.key === 'R' &&
+                this.modal.classList.contains('active')
+            ) {
+                e.preventDefault();
+                this.currentIndex = this.cards.length;
+
+                // Check if this is a joke session (knock-knock or puns)
+                const isJokeSession = this.cards.some(
+                    (card) => card.type === 'knock-knock' || card.type === 'pun'
+                );
+
+                if (isJokeSession) {
+                    // For jokes, we need to populate ratings first
+                    this.cards.forEach((card, index) => {
+                        if (
+                            card.type === 'knock-knock' ||
+                            card.type === 'pun'
+                        ) {
+                            this.jokeRatings.push({
+                                cardIndex: index,
+                                rating: 80 // Default rating for debug
+                            });
+                        }
+                    });
+                    this.showJokeResults();
+                } else {
+                    this.showResults();
+                }
+            }
+        };
+        document.addEventListener('keydown', this.debugKeyHandler);
+
         // Flashcard click to flip - use event delegation on container instead
         // USER INTERACTION 1: Click card to flip from front to back
         const flashcardContainer = this.modal.querySelector(
@@ -369,14 +407,9 @@ class FlashcardModal {
         console.log('Cards from fetch:', this.cards);
 
         if (!this.cards || this.cards.length === 0) {
-            console.log('No cards from API, generating dynamic content...');
-            // Generate dynamic cards instead of using static data
-            this.cards = await this.generateDynamicCards(config);
-            console.log('Cards from generation:', this.cards);
-        }
-
-        if (!this.cards || this.cards.length === 0) {
-            console.error('Could not generate flashcards');
+            console.error('Failed to load flashcards from API');
+            alert('Unable to load flashcards. Please check your connection and try again.');
+            this.close();
             return;
         }
 
@@ -436,44 +469,76 @@ class FlashcardModal {
         try {
             const apiBase = window.API_URL || 'https://p0qp0q.com';
 
-            // Get user ID from localStorage if available
-            const userId = localStorage.getItem('userId');
-            // For trivia_mix, ensure we get 10 factoids
-            const requestBody = {
-                category: config.category || 'trivia_mix',
-                count: config.count || 10, // Default to 10 cards
-                user_id: userId // Will be null for anonymous users
+            // Map practice categories to the new set endpoints
+            const setEndpoints = {
+                bad_puns: '/api/content/pun/sets?count=1',
+                famous_quotes: '/api/content/quote/sets?count=1',
+                knock_knock: '/api/content/joke/sets?count=1',
+                trivia_mix: '/api/content/trivia/sets?count=1'
             };
 
-            const response = await fetch(`${apiBase}/api/flashcards`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
+            const category = config.category || 'trivia_mix';
+            const endpoint = setEndpoints[category];
+
+            if (!endpoint) {
+                throw new Error(`Unknown category: ${category}`);
+            }
+
+            const response = await fetch(`${apiBase}${endpoint}`, {
+                method: 'GET'
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch flashcards');
+                throw new Error('Failed to fetch practice set');
             }
 
-            const data = await response.json();
+            const sets = await response.json();
 
-            // Transform API response to match our expected format
-            if (data.cards && Array.isArray(data.cards)) {
-                return data.cards.map((card) => {
+            if (!sets || sets.length === 0) {
+                throw new Error('No practice sets available');
+            }
+
+            // Get the first set
+            const practiceSet = sets[0];
+            const setData = practiceSet.data;
+
+            // Extract the cards from the set based on type
+            let cards = [];
+
+            if (category === 'bad_puns' && setData.puns) {
+                cards = setData.puns;
+            } else if (category === 'famous_quotes' && setData.quotes) {
+                cards = setData.quotes;
+            } else if (category === 'knock_knock' && setData.jokes) {
+                cards = setData.jokes;
+            } else if (category === 'trivia_mix' && setData.trivia) {
+                cards = setData.trivia;
+            } else if (setData.items) {
+                // Fallback for generic 'items' array
+                cards = setData.items;
+            }
+
+            // Transform to match our expected format
+            if (Array.isArray(cards)) {
+                return cards.map((card) => {
                     // Handle joke formats from Haiku API
                     if (
-                        card.type === 'joke' &&
+                        (card.type === 'joke' && card.category === 'knock_knock') ||
                         card.category === 'knock_knock'
                     ) {
                         return {
                             id: card.id,
                             category: 'Knock Knock 🚪',
                             type: 'knock-knock',
-                            content: card.content, // "Knock knock."
+                            content: card.content || "Knock knock.", // "Knock knock."
                             setupLine: card.whosThere, // "Dishes"
                             whosThereWho: card.whosThereWho, // "Dishes who?"
                             punchLine: card.punchline,
-                            difficulty: card.difficulty || 'easy'
+                            difficulty: card.difficulty || 'easy',
+                            // Explicitly exclude challenge fields for knock-knock jokes
+                            challenge: undefined,
+                            challengeType: undefined,
+                            answer: undefined
                         };
                     } else if (
                         card.type === 'pun' ||
@@ -481,7 +546,7 @@ class FlashcardModal {
                     ) {
                         return {
                             id: card.id,
-                            category: 'Punz 😅',
+                            category: 'Punz',
                             type: 'pun',
                             content: card.content, // Full setup question
                             setupLine: card.content, // Same as content for puns
@@ -524,7 +589,8 @@ class FlashcardModal {
                 });
             }
 
-            return data.cards;
+            // If we couldn't extract cards, return empty array
+            return [];
         } catch (error) {
             console.error('Error fetching flashcards:', error);
             // Return null to trigger dynamic generation
@@ -1208,7 +1274,7 @@ class FlashcardModal {
             bad_puns: 'pun',
             famous_quotes: 'quote',
             knock_knock: 'knock-knock',
-            trivia_mix: ['factoid', 'trivia', 'phrase']
+            trivia_mix: 'trivia'
         };
 
         const targetTypes = categoryMap[category];
@@ -1237,6 +1303,11 @@ class FlashcardModal {
         // console.log('🔄 loadCard() called - Index:', this.currentIndex, 'Total cards:', this.cards.length);
         if (this.currentIndex >= this.cards.length) {
             this.showResults();
+            return;
+        }
+        
+        // Don't set up card if we're about to show results
+        if (this.currentIndex === this.cards.length - 1 && this.isTransitioning) {
             return;
         }
 
@@ -1353,7 +1424,7 @@ class FlashcardModal {
         // Update progress
         document.getElementById('flashcardCurrentCard').textContent =
             this.currentIndex + 1;
-        const progress = ((this.currentIndex + 1) / this.cards.length) * 100;
+        const progress = (this.currentIndex / this.cards.length) * 100;
         document.getElementById(
             'flashcardProgressFill'
         ).style.width = `${progress}%`;
@@ -1535,6 +1606,12 @@ class FlashcardModal {
 
     setupChallenge() {
         // console.log('🔧 setupChallenge() called for card:', this.currentCard?.id);
+        
+        // Don't setup challenge if no current card or if we're transitioning
+        if (!this.currentCard || this.isTransitioning) {
+            return;
+        }
+        
         const questionEl = this.modal.querySelector(
             '.flashcard-challenge-question'
         );
@@ -1543,8 +1620,10 @@ class FlashcardModal {
         // console.log('Setting up challenge for card:', this.currentCard);
         // console.log('Challenge text:', this.currentCard.challenge);
 
-        // Skip challenge setup for simple-flip cards (factoids)
-        if (this.currentCard.challengeType === 'simple-flip') {
+        // Skip challenge setup for non-quote cards (puns, knock-knock, factoids)
+        if (this.currentCard.type === 'pun' || 
+            this.currentCard.type === 'knock-knock' || 
+            this.currentCard.challengeType === 'simple-flip') {
             if (questionEl) questionEl.style.display = 'none';
             if (inputEl) inputEl.style.display = 'none';
             return;
@@ -2821,6 +2900,16 @@ class FlashcardModal {
         flashcard.style.display = 'none';
         container.style.display = 'block';
 
+        // Update progress bar to show current card progress
+        const progress = (this.currentIndex / this.cards.length) * 100;
+        document.getElementById(
+            'flashcardProgressFill'
+        ).style.width = `${progress}%`;
+
+        // Update card counter text
+        document.getElementById('flashcardCurrentCard').textContent =
+            this.currentIndex + 1;
+
         // Reset page to 0 if this is the first time loading this joke
         if (this.currentPage === undefined || this.currentPage < 0) {
             this.currentPage = 0;
@@ -2838,11 +2927,11 @@ class FlashcardModal {
 
         // Update text with animation
         jokeText.style.opacity = '0';
-        
+
         // Wrap each word in a span for individual animations
         const words = pageContent.text.split(' ');
         jokeText.innerHTML = words
-            .map(word => `<span class="word">${word}</span>`)
+            .map((word) => `<span class="word">${word}</span>`)
             .join(' ');
 
         // Apply special styling based on content type
@@ -2865,100 +2954,130 @@ class FlashcardModal {
 
         // Play sound if available
         if (pageContent.sound && window.soundManager) {
-            console.log(`Playing joke sound: ${pageContent.sound} for page ${this.currentPage}`);
+            console.log(
+                `Playing joke sound: ${pageContent.sound} for page ${this.currentPage}`
+            );
             window.soundManager.play(pageContent.sound);
         } else {
-            console.log(`No sound for page ${this.currentPage}:`, pageContent.sound, window.soundManager);
+            console.log(
+                `No sound for page ${this.currentPage}:`,
+                pageContent.sound,
+                window.soundManager
+            );
         }
     }
 
     getRandomJokeIntroSound() {
         // Fanfare sounds specifically for "Knock knock!" announcement
         const fanfareSounds = [
-            'comedy_emphasis/kazoo_fanfare',       // Silly kazoo fanfare
-            'comedy_stingers/circus_stinger',      // Circus fanfare feel
-            'comedy_emphasis/timpani_roll',        // Dramatic drumroll fanfare
-            'comedy_stingers/bigband_ending',      // Big band fanfare
-            'comedy_stingers/orchestra_stinger',   // Orchestra fanfare
-            'comedy_emphasis/achievement_unlock',   // Achievement fanfare
-            'comedy_emphasis/kazoo_fanfare',       // Kazoo fanfare (duplicate for variety)
-            'comedy_stinger_1920s',                // 1920s vaudeville fanfare
-            'comedy_emphasis/xylophone_run'        // Classic cartoon xylophone fanfare
+            'comedy_emphasis/kazoo_fanfare', // Silly kazoo fanfare
+            'comedy_stingers/circus_stinger', // Circus fanfare feel
+            'comedy_emphasis/timpani_roll', // Dramatic drumroll fanfare
+            'comedy_stingers/bigband_ending', // Big band fanfare
+            'comedy_stingers/orchestra_stinger', // Orchestra fanfare
+            'comedy_emphasis/achievement_unlock', // Achievement fanfare
+            'comedy_emphasis/kazoo_fanfare', // Kazoo fanfare (duplicate for variety)
+            'comedy_stinger_1920s', // 1920s vaudeville fanfare
+            'comedy_emphasis/xylophone_run' // Classic cartoon xylophone fanfare
         ];
-        
+
         return fanfareSounds[Math.floor(Math.random() * fanfareSounds.length)];
     }
-    
+
     getRandomPunchlineSound() {
-        // Punchline stingers for the joke payoff
-        const punchlineSounds = [
-            'comedy_stingers/classic_rimshot',     // Ba-dum-tss
-            'comedy_stingers/burlesque_rimshot',   // Vaudeville style
-            'comedy_stinger_1920s',                // 1920s comedy stinger
-            'comedy_stingers/ragtime_stinger',     // Ragtime comedy ending
-            'comedy_stingers/quick_rimshot',       // Short rimshot
-            'comedy_stingers/double_rimshot',      // Double ba-dum-tss
-            'comedy_stingers/cymbal_only',         // Just the crash
-            'comedy_emphasis/slide_whistle_down',  // Slide whistle
-            'trombone_wah_1',                      // Classic wah-wah
-            'comedy_stingers/bongo_rimshot',       // Bongo variation
-            // Awkward silence options
-            'comedy_emphasis/cricket_awkward',     // Single cricket
-            'comedy_emphasis/crickets_silence',    // Multiple crickets
-            'comedy_emphasis/tumbleweed',          // Tumbleweed
-            'comedy_emphasis/clock_ticking',       // Ticking clock
-            'comedy_emphasis/awkward_cough',       // Someone coughing
-            'comedy_emphasis/wolf_howl_distant',   // Distant wolf
-            'comedy_emphasis/water_drip_echo'      // Cave drip
-        ];
-        
-        return punchlineSounds[Math.floor(Math.random() * punchlineSounds.length)];
+        // 70% chance for classic rimshots, 30% for other sounds
+        if (Math.random() < 0.7) {
+            // Classic joke stingers (snare + cymbal variations)
+            const classicStingers = [
+                'comedy_stingers/classic_rimshot', // Ba-dum-tss
+                'comedy_stingers/burlesque_rimshot', // Vaudeville style
+                'comedy_stingers/quick_rimshot', // Short rimshot
+                'comedy_stingers/double_rimshot', // Double ba-dum-tss
+                'comedy_stingers/bongo_rimshot' // Bongo variation
+            ];
+            return classicStingers[
+                Math.floor(Math.random() * classicStingers.length)
+            ];
+        } else {
+            // Alternative punchline sounds
+            const altSounds = [
+                'comedy_stinger_1920s', // 1920s comedy stinger
+                'comedy_stingers/ragtime_stinger', // Ragtime comedy ending
+                'comedy_stingers/cymbal_only', // Just the crash
+                'comedy_emphasis/slide_whistle_down', // Slide whistle
+                'trombone_wah_1', // Classic wah-wah
+                'comedy_emphasis/cricket_awkward', // Single cricket
+                'comedy_emphasis/crickets_silence', // Multiple crickets
+                'comedy_emphasis/tumbleweed', // Tumbleweed
+                'comedy_emphasis/awkward_cough' // Someone coughing
+            ];
+            return altSounds[Math.floor(Math.random() * altSounds.length)];
+        }
     }
-    
+
     getRandomResponseSound() {
         // Trombone talk sounds for "Who's there?" responses
         const responseSounds = [
-            'experimental/cartoon_trombone_talk',   // Cartoon wah-wah voice
-            'experimental/vaudeville_trombone',     // Old-time vaudeville style
-            'speech_patterns/question_rising',      // Rising question intonation
-            'speech_patterns/angry_speech',         // Grumpy/annoyed response
-            'abstract_voices/jazz_conversation',    // Jazz-style trombone talk
-            'abstract_voices/harmon_mute_speech',   // Harmon muted trombone
-            'basic_effects/waa_waaa_who'           // Classic wah-wah-who
+            'experimental/cartoon_trombone_talk', // Cartoon wah-wah voice
+            'experimental/vaudeville_trombone', // Old-time vaudeville style
+            'speech_patterns/question_rising', // Rising question intonation
+            'speech_patterns/angry_speech', // Grumpy/annoyed response
+            'abstract_voices/jazz_conversation', // Jazz-style trombone talk
+            'abstract_voices/harmon_mute_speech', // Harmon muted trombone
+            'basic_effects/waa_waaa_who' // Classic wah-wah-who
         ];
-        
-        return responseSounds[Math.floor(Math.random() * responseSounds.length)];
+
+        return responseSounds[
+            Math.floor(Math.random() * responseSounds.length)
+        ];
     }
-    
+
+    getComedyBotPair() {
+        // Select a random pair of comedy bots for this joke
+        if (!this.currentComedyBotPair) {
+            const botNumber = Math.floor(Math.random() * 5) + 1; // 1-5
+            this.currentComedyBotPair = {
+                left: `./src/images/comedyBots/comedyBot${String(
+                    botNumber * 2 - 1
+                ).padStart(2, '0')}.svg`, // 01, 03, 05, 07, 09
+                right: `./src/images/comedyBots/comedyBot${String(
+                    botNumber * 2
+                ).padStart(2, '0')}.svg` // 02, 04, 06, 08, 10
+            };
+        }
+        return this.currentComedyBotPair;
+    }
+
     getJokePageContent() {
         const card = this.currentCard;
 
         if (card.type === 'knock-knock') {
+            const botPair = this.getComedyBotPair();
             const pages = [
                 {
                     text: 'Knock knock!',
-                    botImage: './src/images/signbots/signbot-excited.svg',
-                    sound: this.getRandomJokeIntroSound(),  // Random comedy intro
+                    botImage: botPair.left,
+                    sound: this.getRandomJokeIntroSound(), // Random comedy intro
                     textClass: 'knock-knock',
                     speaker: 'left'
                 },
                 {
                     text: "Who's there?",
-                    botImage: './src/images/signbots/signbot-thinking.svg',
-                    sound: this.getRandomResponseSound(),  // Random trombone voice
+                    botImage: botPair.right,
+                    sound: this.getRandomResponseSound(), // Random trombone voice
                     textClass: 'whos-there',
                     speaker: 'right'
                 },
                 {
                     text: card.setupLine || 'Orange',
-                    botImage: './src/images/signbots/signbot-excited.svg',
-                    sound: null,
+                    botImage: botPair.left,
+                    sound: this.getRandomJokeIntroSound(), // Add sound to setup line
                     speaker: 'left'
                 },
                 {
                     text: `${card.setupLine || 'Orange'} who?`,
-                    botImage: './src/images/signbots/signbot-thinking.svg',
-                    sound: this.getRandomResponseSound(),  // Random trombone voice
+                    botImage: botPair.right,
+                    sound: this.getRandomResponseSound(), // Random trombone voice
                     textClass: 'whos-there',
                     speaker: 'right'
                 },
@@ -2966,8 +3085,8 @@ class FlashcardModal {
                     text:
                         card.punchLine ||
                         "Orange you glad I didn't say banana?",
-                    botImage: './src/images/signbots/signbot-happy.svg',
-                    sound: this.getRandomPunchlineSound(),  // Random punchline stinger
+                    botImage: botPair.left,
+                    sound: this.getRandomPunchlineSound(), // Random punchline stinger
                     textClass: 'punchline',
                     speaker: 'left'
                 }
@@ -2975,6 +3094,7 @@ class FlashcardModal {
 
             return pages[this.currentPage] || pages[0];
         } else if (card.type === 'pun') {
+            const botPair = this.getComedyBotPair();
             // Build the proper response - always repeat the full question
             let naiveResponse = "I don't know...";
             if (card.setupLine) {
@@ -2985,21 +3105,21 @@ class FlashcardModal {
             const pages = [
                 {
                     text: card.setupLine || "Why don't scientists trust atoms?",
-                    botImage: './src/images/signbots/signbot-happy.svg',
-                    sound: 'drum_roll',
+                    botImage: botPair.left,
+                    sound: this.getRandomJokeIntroSound(), // Use fanfare for setup
                     speaker: 'left'
                 },
                 {
                     text: naiveResponse,
-                    botImage: './src/images/signbots/signbot-thinking.svg',
-                    sound: 'whos_there',
+                    botImage: botPair.right,
+                    sound: this.getRandomResponseSound(), // Use silly sound for middle
                     textClass: 'whos-there',
                     speaker: 'right'
                 },
                 {
                     text: card.punchLine || 'Because they make up everything!',
-                    botImage: './src/images/signbots/signbot-happy.svg',
-                    sound: Math.random() > 0.5 ? 'rimshot' : 'sad_trombone',
+                    botImage: botPair.left,
+                    sound: this.getRandomPunchlineSound(), // Use punchline stinger
                     textClass: 'punchline',
                     speaker: 'left'
                 }
@@ -3040,13 +3160,42 @@ class FlashcardModal {
         jokeContainer.style.display = 'none';
         container.style.display = 'block';
 
+        // Clear container
+        container.innerHTML = '';
+
+        // Add fun sponge bot at the top
+        const funSpongeContainer = document.createElement('div');
+        funSpongeContainer.className = 'fun-sponge-container';
+
+        // Create animated text with individual word spans
+        const words = 'Rate this joke!'.split(' ');
+        const animatedText = words
+            .map(
+                (word, index) =>
+                    `<span class="word" style="animation-delay: ${
+                        index * 0.3
+                    }s">${word}</span>`
+            )
+            .join(' ');
+
+        // Use a random comedy bot as the fun sponge
+        const funSpongeBotNumber = Math.floor(Math.random() * 10) + 1;
+        const funSpongeBotPath = `./src/images/comedyBots/comedyBot${String(
+            funSpongeBotNumber
+        ).padStart(2, '0')}.svg`;
+
+        funSpongeContainer.innerHTML = `
+            <img src="${funSpongeBotPath}" class="fun-sponge-bot" alt="Rate this joke">
+            <div class="fun-sponge-text joke-text">${animatedText}</div>
+        `;
+        container.appendChild(funSpongeContainer);
+
         // Create giggle meter if not exists
         if (!this.giggleMeter) {
             this.giggleMeter = new GiggleMeter();
         }
 
-        // Clear container and add meter
-        container.innerHTML = '';
+        // Add meter
         this.giggleMeter.create(container, {
             onRatingChange: (value) => {
                 // Store rating
@@ -3064,11 +3213,18 @@ class FlashcardModal {
         continueBtn.textContent = 'Next Joke';
         continueBtn.onclick = () => this.nextJoke();
         container.appendChild(continueBtn);
+
+        // Update progress bar to show current completion
+        const progress = ((this.currentIndex + 1) / this.cards.length) * 100;
+        document.getElementById(
+            'flashcardProgressFill'
+        ).style.width = `${progress}%`;
     }
 
     nextJoke() {
         // Reset for next joke
         this.currentPage = 0;
+        this.currentComedyBotPair = null; // Reset bot pair for next joke
 
         // Hide giggle meter
         const giggleContainer = document.getElementById('giggleMeterContainer');
@@ -3120,9 +3276,20 @@ class FlashcardModal {
             (card) => card.challengeType === 'simple-flip'
         );
 
+        // Check if this was a joke session (knock-knock or puns)
+        const isJokeSession = this.cards.some(
+            (card) => card.type === 'knock-knock' || card.type === 'pun'
+        );
+
         // For joke sessions, show joke ratings summary
-        if (this.jokeRatings.length > 0) {
+        if (isJokeSession) {
             this.showJokeResults();
+            return;
+        }
+
+        // For factoid sessions, show factoid results
+        if (isFactoidSession) {
+            this.showFactoidResults();
             return;
         }
 
@@ -3200,12 +3367,28 @@ class FlashcardModal {
                 }
             }
         } else {
-            // Regular quiz results screen
+            // Regular quiz results screen (quotes, challenges, etc.)
             const percentage = Math.round(
                 (this.score / this.cards.length) * 100
             );
+
+            // Determine card type for specific styling
+            const cardType =
+                this.cards[0]?.challengeType ||
+                this.cards[0]?.type ||
+                'general';
+            let resultClass = 'general-results';
+
+            if (cardType === 'quote-author' || cardType === 'quote-complete') {
+                resultClass = 'quote-results';
+            } else if (cardType === 'word-order') {
+                resultClass = 'word-order-results';
+            } else if (cardType === 'true-false') {
+                resultClass = 'true-false-results';
+            }
+
             flashcardContainer.innerHTML = `
-                <div class="results-screen">
+                <div class="results-screen ${resultClass}">
                     <h2>Great Practice!</h2>
                     <div class="results-stats">
                         <div class="result-stat">
@@ -3248,9 +3431,14 @@ class FlashcardModal {
         }
     }
 
-    showJokeResults() {
+    async showJokeResults() {
         const flashcardContainer =
             document.getElementById('flashcardContainer');
+
+        // Update progress to show completion
+        document.getElementById('flashcardCurrentCard').textContent =
+            this.cards.length;
+        document.getElementById('flashcardProgressFill').style.width = '100%';
 
         // Calculate average rating
         const avgRating =
@@ -3258,40 +3446,207 @@ class FlashcardModal {
             this.jokeRatings.length;
         const avgStars = Math.round(avgRating / 20); // Convert 0-100 to 0-5 stars
 
-        // Award points based on participation and ratings
-        this.awardJokeCompletionBonus(avgRating);
+        // Determine joke type for specific styling
+        const jokeType = this.cards[0]?.type || 'joke';
+
+        // Award points and get rewards
+        const rewards = await this.awardJokeCompletionBonus(avgRating);
+
+        // Select a random comedy bot for the results screen
+        const resultBotNumber = Math.floor(Math.random() * 10) + 1;
+        const resultBotPath = `./src/images/comedyBots/comedyBot${String(
+            resultBotNumber
+        ).padStart(2, '0')}.svg`;
+
+        const resultClass =
+            jokeType === 'knock-knock'
+                ? 'knock-knock-results'
+                : jokeType === 'pun'
+                ? 'pun-results'
+                : 'joke-results';
+
+        // Add class to modal for specific styling
+        this.modal.className = `flashcard-modal active ${resultClass}-modal`;
 
         flashcardContainer.innerHTML = `
-            <div class="results-screen joke-results">
-                <h2>Comedy Session Complete!</h2>
-                <div class="joke-stats">
-                    <div class="result-stat">
-                        <span class="stat-value">${
-                            this.jokeRatings.length
-                        }</span>
-                        <span class="stat-label">Jokes Rated</span>
-                    </div>
-                    <div class="result-stat">
-                        <span class="stat-value">${'⭐'.repeat(avgStars)}</span>
-                        <span class="stat-label">Average Rating</span>
+            <div class="results-screen ${resultClass}">
+                <div class="results-bot-container-large">
+                    <img src="${resultBotPath}" class="results-comedy-bot-large" alt="Comedy Bot" style="width: 400px; height: 400px; margin: 5px auto; display: block;">
+                </div>
+                
+                <!-- Large black container for rewards -->
+                <div class="rewards-container-large">
+                    <div class="rewards-bar" id="rewardsBar">
+                        <!-- Spinner slots will be added here -->
                     </div>
                 </div>
-                <div class="results-message">
-                    ${this.getJokeResultMessage(avgRating)}
-                </div>
-                <div class="joke-comparison">
-                    <p>Your ratings vs AI predictions:</p>
-                    <div class="comparison-chart">
-                        <!-- This would show a comparison chart in production -->
-                        <p>Thanks for helping train our comedy AI!</p>
-                    </div>
-                </div>
+                
                 <div class="results-actions">
-                    <button class="btn-primary" onclick="window.flashcardModal.close()">Done</button>
-                    <button class="btn-secondary" onclick="window.flashcardModal.restart()">More Jokes!</button>
+                    <button class="btn-primary done-button" onclick="window.flashcardModal.close()">Done</button>
                 </div>
             </div>
         `;
+
+        // Use RewardsDisplay component to animate rewards with slot machine effect
+        if (this.rewardsDisplay && rewards) {
+            const rewardsContainer = document.getElementById('rewardsBar');
+            if (rewardsContainer) {
+                setTimeout(() => {
+                    this.rewardsDisplay.show(rewards, rewardsContainer, {
+                        size: 'large', // Use large size for joke results
+                        theme: 'dark' // Dark theme for consistency
+                    });
+                }, 300); // Small delay for visual flow
+            }
+        } else {
+            // Fallback to manual display if RewardsDisplay not available
+            setTimeout(() => {
+                console.log(
+                    'DEBUG showJokeResults: About to display rewards:',
+                    rewards
+                );
+                if (rewards) {
+                    const rewardsContainer = document.getElementById('rewardsBar');
+                    console.log(
+                        'DEBUG showJokeResults: Found container:',
+                        !!rewardsContainer
+                    );
+                    if (rewardsContainer) {
+                        // Clear and populate with actual rewards
+                        rewardsContainer.innerHTML = '';
+
+                        // Define icon mapping for all potential rewards - in display order
+                        const iconMap = {
+                            xp: 'src/images/economy-icons/xpIcon.svg',
+                            coins: 'src/images/economy-icons/coinIcon.svg',
+                            hearts: 'src/images/economy-icons/heartIcon.svg',
+                            keys: 'src/images/economy-icons/keyIcon.svg',
+                            tickets: 'src/images/economy-icons/ticketIcon.svg',
+                            giftBox: 'src/images/economy-icons/giftBox.svg',
+                            prizeBox: 'src/images/economy-icons/giftBox.svg',
+                            gems: 'src/images/economy-icons/gemIcon.svg',
+                            diamonds: 'src/images/power-icons/diamonds.svg',
+                            sapphires: 'src/images/economy-icons/gemIcon.svg',
+                            emeralds: 'src/images/economy-icons/gemIcon.svg',
+                            rubies: 'src/images/economy-icons/gemIcon.svg',
+                            amethysts: 'src/images/economy-icons/gemIcon.svg'
+                        };
+
+                        // Define the 7 slot types we always show
+                        const slotTypes = [
+                            'xp',
+                            'coins',
+                            'sapphires',
+                            'keys',
+                            'tickets',
+                            'giftBox',
+                            'hearts'
+                        ];
+
+                    // Display all 7 slots
+                    for (const type of slotTypes) {
+                        const amount = rewards[type] || 0; // Get amount or 0 if not in rewards
+                        const icon =
+                            iconMap[type] ||
+                            'src/images/economy-icons/gemIcon.svg'; // Fallback
+                        const slot = document.createElement('div');
+                        slot.className = 'reward-slot';
+                        slot.style.cssText =
+                            'display: flex !important; flex-direction: column !important; align-items: center !important; opacity: 1 !important; visibility: visible !important; position: relative !important; overflow: visible !important; height: auto !important; width: auto !important; padding: 0 !important; margin: 0 !important; background: none !important; border: none !important;';
+
+                        // Get dynamic color filter based on type and value
+                        let filterStyle = '';
+                        if (type === 'coins') {
+                            // Bronze to gold based on value
+                            if (amount <= 20)
+                                filterStyle =
+                                    'invert(48%) sepia(26%) saturate(1107%) hue-rotate(357deg) brightness(91%) contrast(87%)'; // Bronze
+                            else if (amount <= 50)
+                                filterStyle =
+                                    'invert(75%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)'; // Silver
+                            else if (amount <= 100)
+                                filterStyle =
+                                    'invert(72%) sepia(73%) saturate(1431%) hue-rotate(8deg) brightness(103%) contrast(106%)'; // Gold
+                            else
+                                filterStyle =
+                                    'invert(82%) sepia(73%) saturate(1431%) hue-rotate(8deg) brightness(120%) contrast(106%)'; // Bright gold
+                        } else if (type === 'xp') {
+                            // Heat map for XP
+                            if (amount <= 10)
+                                filterStyle =
+                                    'hue-rotate(200deg) saturate(150%)'; // Deep blue
+                            else if (amount <= 25)
+                                filterStyle =
+                                    'hue-rotate(180deg) saturate(150%)'; // Light blue
+                            else if (amount <= 50)
+                                filterStyle =
+                                    'hue-rotate(120deg) saturate(150%)'; // Cyan
+                            else if (amount <= 100)
+                                filterStyle =
+                                    'hue-rotate(60deg) saturate(150%)'; // Yellow-green
+                            else if (amount <= 200)
+                                filterStyle =
+                                    'hue-rotate(30deg) saturate(150%)'; // Orange
+                            else
+                                filterStyle =
+                                    'hue-rotate(0deg) saturate(200%) brightness(110%)'; // Hot red
+                        } else if (
+                            [
+                                'sapphires',
+                                'emeralds',
+                                'rubies',
+                                'amethysts',
+                                'diamonds'
+                            ].includes(type)
+                        ) {
+                            // Gem colors
+                            const gemFilters = {
+                                sapphires:
+                                    'invert(53%) sepia(92%) saturate(2409%) hue-rotate(192deg) brightness(92%) contrast(85%)',
+                                emeralds:
+                                    'invert(77%) sepia(39%) saturate(578%) hue-rotate(83deg) brightness(89%) contrast(85%)',
+                                rubies: 'invert(42%) sepia(88%) saturate(2468%) hue-rotate(345deg) brightness(95%) contrast(85%)',
+                                amethysts:
+                                    'invert(71%) sepia(25%) saturate(1844%) hue-rotate(215deg) brightness(97%) contrast(101%)',
+                                diamonds:
+                                    'invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)'
+                            };
+                            filterStyle = gemFilters[type] || '';
+                        }
+
+                        // Just create a single icon - no spinning for now
+                        const img = document.createElement('img');
+                        img.src = icon;
+                        img.className = 'reward-icon';
+                        img.alt = type;
+                        // Only apply filter if we have one (not for white icons that need to stay white)
+                        const finalFilter = filterStyle || 'none';
+                        const opacity = amount > 0 ? '1' : '0.10'; // Very faint if no reward
+                        img.style.cssText = `width: 42px !important; height: 42px !important; display: block !important; filter: ${finalFilter} !important; opacity: ${opacity} !important; visibility: visible !important;`;
+
+                        // Add spinner animation to the icon itself only if amount > 0
+                        if (amount > 0) {
+                            img.style.animation = 'spinIcon 2s ease-in-out';
+                        }
+
+                        slot.appendChild(img);
+
+                        // Add amount text below icon
+                        const span = document.createElement('span');
+                        span.className = 'reward-amount';
+                        span.textContent = amount.toString();
+                        // Show immediately if using debug skip, otherwise animate
+                        const showDelay = amount > 0 ? '2s' : '0s';
+                        const textOpacity = amount > 0 ? '1' : '0.10';
+                        span.style.cssText = `color: white !important; font-size: 18px !important; margin-top: 5px !important; opacity: ${textOpacity} !important;`;
+
+                        slot.appendChild(span);
+                        rewardsContainer.appendChild(slot);
+                    }
+                }
+            }
+            }, 100); // Small delay to ensure DOM is ready
+        }
     }
 
     getJokeResultMessage(avgRating) {
@@ -3333,8 +3688,204 @@ class FlashcardModal {
                         }
                     })
                 );
+                return result.rewards; // Return the rewards!
             }
         }
+        return null;
+    }
+
+    async showFactoidResults() {
+        const flashcardContainer =
+            document.getElementById('flashcardContainer');
+
+        // Update progress to show completion
+        document.getElementById('flashcardCurrentCard').textContent =
+            this.cards.length;
+        document.getElementById('flashcardProgressFill').style.width = '100%';
+
+        // Award points and get rewards
+        const rewards = await this.awardCompletionBonus();
+
+        // Get the category icon from the last card
+        const lastCard = this.cards[this.cards.length - 1];
+        const theme = lastCard.theme || lastCard.data?.theme || 'science';
+        const iconMap = {
+            science: 'science.svg',
+            history: 'history.svg',
+            geography: 'geography.svg',
+            pop_culture: 'pop_culture.svg',
+            technology: 'technology.svg',
+            nature: 'nature.svg',
+            sports: 'sports.svg',
+            literature: 'literature.svg',
+            music: 'music.svg',
+            food_cuisine: 'food_cuisine.svg',
+            film: 'film.svg',
+            gaming: 'gaming.svg',
+            art: 'art.svg',
+            mythology: 'mythology.svg',
+            space: 'space.svg',
+            animals: 'animals.svg',
+            inventions: 'inventions.svg',
+            internet_culture: 'internet_culture.svg'
+        };
+        const iconFile = iconMap[theme] || 'science.svg';
+        const iconPath = `./src/images/categories/${iconFile}`;
+
+        // Add class to modal for specific styling
+        this.modal.className = 'flashcard-modal active factoid-results-modal';
+
+        flashcardContainer.innerHTML = `
+            <div class="results-screen factoid-results">
+                <div class="results-bot-container-large">
+                    <img src="${iconPath}" class="results-category-icon-large" alt="${theme}" style="width: 400px; height: 400px; margin: 5px auto; display: block;">
+                </div>
+                
+                <!-- Large black container for rewards -->
+                <div class="rewards-container-large">
+                    <div class="rewards-bar" id="rewardsBar">
+                        <!-- Spinner slots will be added here -->
+                    </div>
+                </div>
+                
+                <div class="results-actions">
+                    <button class="btn-primary done-button" onclick="window.flashcardModal.close()">Done</button>
+                </div>
+            </div>
+        `;
+
+        // Display rewards directly - add a small delay to ensure DOM is ready
+        setTimeout(() => {
+            if (rewards) {
+                const rewardsContainer = document.getElementById('rewardsBar');
+                if (rewardsContainer) {
+                    // Clear and populate with actual rewards
+                    rewardsContainer.innerHTML = '';
+
+                    // Use same icon mapping and slot types as jokes
+                    const iconMap = {
+                        xp: 'src/images/economy-icons/xpIcon.svg',
+                        coins: 'src/images/economy-icons/coinIcon.svg',
+                        hearts: 'src/images/economy-icons/heartIcon.svg',
+                        keys: 'src/images/economy-icons/keyIcon.svg',
+                        tickets: 'src/images/economy-icons/ticketIcon.svg',
+                        giftBox: 'src/images/economy-icons/giftBox.svg',
+                        prizeBox: 'src/images/economy-icons/giftBox.svg',
+                        gems: 'src/images/economy-icons/gemIcon.svg',
+                        diamonds: 'src/images/power-icons/diamonds.svg',
+                        sapphires: 'src/images/economy-icons/gemIcon.svg',
+                        emeralds: 'src/images/economy-icons/gemIcon.svg',
+                        rubies: 'src/images/economy-icons/gemIcon.svg',
+                        amethysts: 'src/images/economy-icons/gemIcon.svg'
+                    };
+
+                    // Define the 7 slot types we always show
+                    const slotTypes = [
+                        'xp',
+                        'coins',
+                        'sapphires',
+                        'keys',
+                        'tickets',
+                        'giftBox',
+                        'hearts'
+                    ];
+
+                    // Display all 7 slots
+                    for (const type of slotTypes) {
+                        const amount = rewards[type] || 0;
+                        const icon =
+                            iconMap[type] ||
+                            'src/images/economy-icons/gemIcon.svg';
+                        const slot = document.createElement('div');
+                        slot.className = 'reward-slot';
+                        slot.style.cssText =
+                            'display: flex !important; flex-direction: column !important; align-items: center !important; opacity: 1 !important; visibility: visible !important; position: relative !important; overflow: visible !important; height: auto !important; width: auto !important; padding: 0 !important; margin: 0 !important; background: none !important; border: none !important;';
+
+                        // Get dynamic color filter based on type and value
+                        let filterStyle = '';
+                        if (type === 'coins') {
+                            if (amount <= 20)
+                                filterStyle =
+                                    'invert(48%) sepia(26%) saturate(1107%) hue-rotate(357deg) brightness(91%) contrast(87%)';
+                            else if (amount <= 50)
+                                filterStyle =
+                                    'invert(75%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)';
+                            else if (amount <= 100)
+                                filterStyle =
+                                    'invert(72%) sepia(73%) saturate(1431%) hue-rotate(8deg) brightness(103%) contrast(106%)';
+                            else
+                                filterStyle =
+                                    'invert(82%) sepia(73%) saturate(1431%) hue-rotate(8deg) brightness(120%) contrast(106%)';
+                        } else if (type === 'xp') {
+                            if (amount <= 10)
+                                filterStyle =
+                                    'hue-rotate(200deg) saturate(150%)';
+                            else if (amount <= 25)
+                                filterStyle =
+                                    'hue-rotate(180deg) saturate(150%)';
+                            else if (amount <= 50)
+                                filterStyle =
+                                    'hue-rotate(120deg) saturate(150%)';
+                            else if (amount <= 100)
+                                filterStyle =
+                                    'hue-rotate(60deg) saturate(150%)';
+                            else if (amount <= 200)
+                                filterStyle =
+                                    'hue-rotate(30deg) saturate(150%)';
+                            else
+                                filterStyle =
+                                    'hue-rotate(0deg) saturate(200%) brightness(110%)';
+                        } else if (
+                            [
+                                'sapphires',
+                                'emeralds',
+                                'rubies',
+                                'amethysts',
+                                'diamonds'
+                            ].includes(type)
+                        ) {
+                            const gemFilters = {
+                                sapphires:
+                                    'invert(53%) sepia(92%) saturate(2409%) hue-rotate(192deg) brightness(92%) contrast(85%)',
+                                emeralds:
+                                    'invert(77%) sepia(39%) saturate(578%) hue-rotate(83deg) brightness(89%) contrast(85%)',
+                                rubies: 'invert(42%) sepia(88%) saturate(2468%) hue-rotate(345deg) brightness(95%) contrast(85%)',
+                                amethysts:
+                                    'invert(71%) sepia(25%) saturate(1844%) hue-rotate(215deg) brightness(97%) contrast(101%)',
+                                diamonds:
+                                    'invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)'
+                            };
+                            filterStyle = gemFilters[type] || '';
+                        }
+
+                        // Create icon
+                        const img = document.createElement('img');
+                        img.src = icon;
+                        img.className = 'reward-icon';
+                        img.alt = type;
+                        const finalFilter = filterStyle || 'none';
+                        const opacity = amount > 0 ? '1' : '0.10';
+                        img.style.cssText = `width: 42px !important; height: 42px !important; display: block !important; filter: ${finalFilter} !important; opacity: ${opacity} !important; visibility: visible !important;`;
+
+                        if (amount > 0) {
+                            img.style.animation = 'spinIcon 2s ease-in-out';
+                        }
+
+                        slot.appendChild(img);
+
+                        // Add amount text
+                        const span = document.createElement('span');
+                        span.className = 'reward-amount';
+                        span.textContent = amount.toString();
+                        const textOpacity = amount > 0 ? '1' : '0.10';
+                        span.style.cssText = `color: white !important; font-size: 18px !important; margin-top: 5px !important; opacity: ${textOpacity} !important;`;
+
+                        slot.appendChild(span);
+                        rewardsContainer.appendChild(slot);
+                    }
+                }
+            }
+        }, 100);
     }
 
     restart() {
@@ -3386,6 +3937,11 @@ class FlashcardModal {
     close() {
         this.modal.classList.remove('active');
         document.body.style.overflow = '';
+
+        // Clean up debug event listener
+        if (this.debugKeyHandler) {
+            document.removeEventListener('keydown', this.debugKeyHandler);
+        }
 
         // Reset state
         this.cards = [];

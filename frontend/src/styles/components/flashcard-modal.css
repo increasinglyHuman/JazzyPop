@@ -144,7 +144,8 @@
 
 .flashcard.simple-flip {
     overflow: visible !important;
-    height: 580px;
+    height: 650px;
+    min-height: 650px;
 }
 
 .flashcard.flipped {
@@ -507,27 +508,28 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 5px;
+    gap: 15px;
     width: 100%;
     position: relative;
-    margin-top: -30px;
+    margin-top: 0;
+    padding: 20px 10px;
 }
 
 .category-hero-icon {
-    width: 256px;
-    height: 256px;
+    width: 300px;
+    height: 300px;
     object-fit: contain;
-    margin-top: 10px;
-    margin-bottom: -20px;
+    margin: 0;
 }
 
 .factoid-text {
-    font-size: 19px;
-    line-height: 1.35;
-    text-align: center;
+    font-size: 20px;
+    line-height: 1.5;
+    text-align: left;
     color: var(--text-primary);
-    margin-top: 10px;
-    padding: 0 15px;
+    margin: 0;
+    padding: 0;
+    width: 100%;
 }
 
 /* Sign bot decoration - removed for cleaner design */
@@ -546,17 +548,18 @@
 }
 
 .factoid-twist {
-    font-size: 18px;
+    font-size: 20px;
     line-height: 1.6;
     color: var(--text-primary);
-    margin-bottom: 10px;
-    padding: 15px 10px;
-    background: rgba(88, 204, 2, 0.1);
-    border-radius: 16px;
-    border: 2px solid rgba(88, 204, 2, 0.3);
-    width: calc(100% - 20px);
-    max-height: 180px;
-    overflow-y: auto;
+    margin: 20px 0;
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+    border: none;
+    width: 100%;
+    max-height: none;
+    overflow-y: visible;
+    text-align: left;
 }
 
 /* Custom scrollbar for factoid twist */
@@ -1531,8 +1534,8 @@
 
 /* Flip icon button */
 .flip-icon-button {
-    position: absolute;
-    bottom: 20px;
+    position: fixed;
+    bottom: 80px;
     right: 20px;
     width: 40px;
     height: 40px;
@@ -1571,13 +1574,6 @@
     z-index: 1000;
     position: absolute;
     bottom: 20px;
-    right: 20px;
-}
-
-/* Move flip button to top-right on factoid backs */
-.flashcard.simple-flip.flipped .flip-icon-button {
-    bottom: auto;
-    top: 20px;
     right: 20px;
 }
 
@@ -1924,5 +1920,402 @@
 .factoid-results .rainbow-gradient,
 .factoid-results [class*="rainbow"] {
     display: none !important;
+}
+
+/* Hide any rainbow elements in knock-knock results - MODAL SPECIFIC */
+.knock-knock-results-modal .rainbow-bar,
+.knock-knock-results-modal .rainbow-gradient,
+.knock-knock-results-modal [class*="rainbow"],
+.knock-knock-results-modal .rewards-popup,
+.knock-knock-results .rainbow-bar,
+.knock-knock-results .rainbow-gradient,
+.knock-knock-results [class*="rainbow"] {
+    display: none !important;
+    background: none !important;
+}
+
+/* Specific styles for joke and factoid results modals */
+.knock-knock-results-modal .rewards-container-large,
+.pun-results-modal .rewards-container-large,
+.factoid-results-modal .rewards-container-large {
+    background: #000000 !important;
+}
+
+.knock-knock-results-modal .reward-slot {
+    padding: 5px 0 !important;
+}
+
+/* Hide any rainbow elements in quote results */
+.quote-results .rainbow-bar,
+.quote-results .rainbow-gradient,
+.quote-results [class*="rainbow"],
+.quote-results .rewards-bar,
+.quote-results .rewards-bar-container-bottom {
+    display: none !important;
+    background: none !important;
+}
+
+/* Hide any rainbow elements in pun results */
+.pun-results .rainbow-bar,
+.pun-results .rainbow-gradient,
+.pun-results [class*="rainbow"] {
+    display: none !important;
+    background: none !important;
+}
+
+/* Keep rewards bar visible in pun results */
+.pun-results .rewards-bar,
+.pun-results .rewards-bar-container-bottom {
+    display: flex !important;
+    background: transparent !important;
+}
+
+/* Hide any rainbow elements in general results */
+.general-results .rainbow-bar,
+.general-results .rainbow-gradient,
+.general-results [class*="rainbow"],
+.general-results .rewards-bar,
+.general-results .rewards-bar-container-bottom {
+    display: none !important;
+    background: none !important;
+}
+
+/* Comedy bot on results screen */
+.results-comedy-bot {
+    width: 300px;
+    height: 300px;
+    object-fit: contain;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.3));
+}
+
+/* Large comedy bot for joke results */
+.results-bot-container-large {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.results-comedy-bot-large {
+    width: 400px;
+    height: 400px;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.3));
+}
+
+/* Large rewards container - belt style */
+.rewards-container-large {
+    width: 400px;
+    max-width: calc(100% - 20px);
+    height: 120px;
+    background: #000000;
+    border-radius: 0;
+    margin: 5px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    position: relative;
+    z-index: 5;
+}
+
+/* Fix rewards bar in ALL results screens - remove gradient background */
+.results-screen .rewards-bar,
+.joke-results .rewards-bar {
+    position: static !important;
+    background: transparent !important;
+    transform: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+/* Rewards bar inside large container */
+.rewards-container-large .rewards-bar {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    position: relative;
+    z-index: 5;
+}
+
+/* Reward slots */
+.reward-slot {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 10;
+    align-items: center;
+    gap: 0;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.reward-icon {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    position: relative;
+    z-index: 20;
+}
+
+.reward-amount {
+    font-size: 20px;
+    font-weight: 700;
+    color: #58cc02;
+    text-shadow: 0 0 10px rgba(88, 204, 2, 0.5);
+}
+
+/* Force reward slots to be visible */
+.rewards-container-large .reward-slot,
+#flashcardContainer .reward-slot {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: flex !important;
+    position: relative !important;
+    z-index: 100 !important;
+}
+
+.rewards-container-large .reward-icon,
+#flashcardContainer .reward-icon {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    width: 48px !important;
+    height: 48px !important;
+    position: relative !important;
+    z-index: 30 !important;
+    filter: none !important; /* No filters on white SVGs */
+}
+
+.rewards-container-large .reward-amount,
+#flashcardContainer .reward-amount {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    color: white !important;
+    font-size: 20px !important;
+}
+
+/* Debug the rewards bar content */
+.rewards-container-large .rewards-bar,
+#flashcardContainer .rewards-bar {
+    min-height: 80px;
+}
+
+/* Debug the container itself */
+#flashcardContainer .rewards-container-large {
+}
+
+/* Prevent ANY rewards bar gradient in flashcard modal */
+.flashcard-modal .rewards-bar {
+    background: transparent !important;
+}
+
+/* DEBUG: Force rewards bar to stay visible without animation */
+.flashcard-modal .rewards-bar,
+.results-screen .rewards-bar,
+.knock-knock-results .rewards-bar,
+.joke-results .rewards-bar,
+#flashcardContainer .rewards-bar {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transition: none !important;
+    animation: none !important;
+}
+
+/* DEBUG: Add border to identify gradient elements */
+.results-screen [style*="gradient"],
+.results-screen [class*="gradient"],
+.results-screen [class*="rainbow"],
+.flashcard-modal [style*="gradient"],
+.flashcard-modal [class*="gradient"],
+.flashcard-modal [class*="rainbow"] {
+    border: 3px solid magenta !important;
+    box-shadow: 0 0 10px magenta !important;
+}
+
+/* Ensure rewards popup doesn't show on results screens */
+.results-screen .rewards-bar::before,
+.joke-results .rewards-bar::before {
+    display: none !important;
+}
+
+/* Force rewards bar content to be visible in knock-knock results */
+.knock-knock-results-modal .rewards-bar,
+.knock-knock-results-modal #rewardsBar {
+    position: relative !important;
+    z-index: 10 !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Ensure slot reel stays visible and properly positioned */
+.knock-knock-results-modal .slot-reel,
+.rewards-container-large .slot-reel {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    animation-fill-mode: forwards !important;
+}
+
+/* Ensure reward icons in slot reel don't get inverted */
+.slot-reel .reward-icon {
+    filter: none !important; /* Override any global filter */
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Style reward slots - remove all spacing */
+.knock-knock-results-modal .reward-slot,
+.pun-results-modal .reward-slot,
+.factoid-results-modal .reward-slot {
+    min-width: 42px !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Remove all margins and padding from reward slots everywhere */
+.reward-slot {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Remove any spacing from reward icons */
+.reward-icon {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Remove spacing from reward amount text */
+.reward-amount {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+}
+
+/* Override global rewards bar gap for joke and factoid results */
+.knock-knock-results-modal .rewards-bar,
+.knock-knock-results-modal #rewardsBar,
+.pun-results-modal .rewards-bar,
+.pun-results-modal #rewardsBar,
+.factoid-results-modal .rewards-bar,
+.factoid-results-modal #rewardsBar {
+    gap: 10px !important;  /* Reduced from 40px for 7 slots */
+    padding: 10px 0 !important;
+}
+
+/* Make slots smaller to fit 7 columns */
+.knock-knock-results-modal .reward-slot,
+.pun-results-modal .reward-slot,
+.factoid-results-modal .reward-slot {
+    width: 60px !important;  /* Reduced from 80px */
+    height: 60px !important;
+    overflow: visible !important;  /* Allow values to show below */
+    margin-bottom: 30px !important;  /* Space for value text */
+}
+
+/* Ensure reward values are visible in results modals */
+.knock-knock-results-modal .reward-value,
+.pun-results-modal .reward-value,
+.factoid-results-modal .reward-value {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    position: absolute !important;
+    bottom: -25px !important;
+    font-size: 16px !important;
+    font-weight: bold !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+}
+
+/* Ensure images are visible */
+.knock-knock-results-modal .reward-slot img {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    position: relative !important;
+    z-index: 50 !important;
+    filter: none !important; /* Remove any filter that might make white SVGs invisible */
+}
+
+/* Slot machine spin animation */
+@keyframes slotSpin {
+    0% {
+        transform: translateY(-400px); /* Start with spacer visible */
+    }
+    50% {
+        transform: translateY(-2400px); /* Spin very fast through many rotations */
+    }
+    80% {
+        transform: translateY(-490px); /* Come back to show first icon */
+    }
+    90% {
+        transform: translateY(-475px); /* Slight bounce */
+    }
+    100% {
+        transform: translateY(-480px); /* Settle with first icon centered */
+    }
+}
+
+/* Fade in amount after spin */
+@keyframes fadeInAmount {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Simple icon spin animation */
+@keyframes spinIcon {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1) rotate(360deg);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1) rotate(720deg);
+        opacity: 1;
+    }
+}
+
+/* Done button positioning */
+.done-button {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    min-width: 120px;
+}
+
+/* Hide joke results elements we don't want */
+.joke-results .joke-comparison {
+    display: none;
+}
+
+/* Results actions positioning */
+.joke-results .results-actions {
+    position: relative;
+    height: 60px;
+    margin-top: 40px;
 }
 }

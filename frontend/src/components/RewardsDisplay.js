@@ -104,19 +104,40 @@ class RewardsDisplay {
         rewardsBar.style.backgroundImage = 'none';
         this.container.appendChild(rewardsBar);
         
-        // Filter and display only rewards with values > 0
-        const activeRewards = this.rewardTypes.filter(reward => rewards[reward.type] > 0);
+        // Define the 7 slots we always want to show in order
+        const slotOrder = ['xp', 'coins', 'sapphires', 'keys', 'tickets', 'giftBox', 'hearts'];
         
-        if (activeRewards.length === 0) {
-            console.log('RewardsDisplay: No rewards to display');
-            this.isAnimating = false;
-            return;
-        }
+        // Create reward slots in the specified order
+        const slotsToShow = slotOrder.map(type => {
+            const rewardType = this.rewardTypes.find(r => r.type === type);
+            if (!rewardType) {
+                console.warn(`RewardsDisplay: Unknown reward type ${type}`);
+                return null;
+            }
+            return {
+                ...rewardType,
+                value: rewards[type] || 0
+            };
+        }).filter(Boolean);
         
-        // Create slots for each active reward
-        activeRewards.forEach((reward, index) => {
-            this.createRewardSlot(reward, rewards[reward.type], rewardsBar, index);
+        console.log('RewardsDisplay: Creating all 7 slots:', slotsToShow.map(r => `${r.type}: ${r.value}`));
+        
+        // Create slots for all 7 reward types
+        slotsToShow.forEach((reward, index) => {
+            console.log(`RewardsDisplay: Creating slot for ${reward.type} with value ${reward.value}`);
+            this.createRewardSlot(reward, reward.value, rewardsBar, index);
         });
+        
+        // Debug: Check if slots were created
+        setTimeout(() => {
+            const slots = rewardsBar.querySelectorAll('.reward-slot');
+            console.log(`RewardsDisplay: Created ${slots.length} reward slots`);
+            slots.forEach((slot, i) => {
+                const reel = slot.querySelector('.slot-reel');
+                const items = slot.querySelectorAll('.slot-item');
+                console.log(`Slot ${i}: has reel: ${!!reel}, has ${items.length} items`);
+            });
+        }, 100);
         
         // Wait for all animations to complete
         await new Promise(resolve => {
@@ -142,12 +163,12 @@ class RewardsDisplay {
         const needsFilter = ['sapphires', 'emeralds', 'rubies', 'amethysts', 'diamonds', 'coins'].includes(rewardType.type);
         let filterStyle = '';
         if (needsFilter) {
-            filterStyle = `style="filter: brightness(0) saturate(100%) ${this.getValueBasedFilter(rewardType.type, value)};"`;
+            filterStyle = `brightness(0) saturate(100%) ${this.getValueBasedFilter(rewardType.type, value)}`;
         }
         
         // Special handling for XP with gradient effect
         if (rewardType.type === 'xp') {
-            filterStyle = `style="filter: ${this.getXPGradientFilter(value)};"`;
+            filterStyle = this.getXPGradientFilter(value);
         }
         
         slot.innerHTML = `
@@ -173,7 +194,9 @@ class RewardsDisplay {
         let items = '';
         // Create 5 identical items for smooth spinning
         for (let i = 0; i < 5; i++) {
-            items += `<div class="slot-item"><img src="${icon}" alt="${type}" ${filterStyle}></div>`;
+            // Apply filter as a style attribute if provided
+            const styleAttr = filterStyle ? `style="filter: ${filterStyle};"` : '';
+            items += `<div class="slot-item"><img src="${icon}" alt="${type}" ${styleAttr}></div>`;
         }
         return items;
     }
