@@ -66,6 +66,13 @@ body {
     position: relative; /* For absolute positioning of event dots */
 }
 
+/* Constrain header content to mobile width */
+.header > * {
+    max-width: 385px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
 .user-section {
     display: flex;
     align-items: center;
@@ -223,6 +230,7 @@ body {
     display: flex;
     justify-content: space-around;
     gap: 4px;
+    /* Already constrained by parent .header > * rule */
 }
 
 .stat-item {
@@ -271,8 +279,10 @@ body {
 
 .stat-icon {
     font-size: 20px;
-    width: 48px;
-    height: 48px;
+    /* width: 48px;
+    height: 48px; */
+    width: 31px; /* 65% of 48px */
+    height: 31px; /* 65% of 48px */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -304,7 +314,8 @@ body {
 .main-content {
     flex: 1;
     padding: 16px;
-    padding-bottom: 80px; /* Space for bottom nav */
+    /* padding-bottom: 80px; */ /* Space for bottom nav */
+    padding-bottom: 50px; /* Reduced to match smaller nav bar */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -312,7 +323,8 @@ body {
 @media (max-width: 480px) {
     .main-content {
         padding: 12px;
-        padding-bottom: 80px;
+        /* padding-bottom: 80px; */
+        padding-bottom: 50px; /* Reduced to match smaller nav bar */
     }
 }
 
@@ -379,14 +391,16 @@ body {
     right: 0;
     background: var(--bg-card);
     border-top: 1px solid var(--border);
-    padding: 8px 0;
+    /* padding: 8px 0; */
+    padding: 2px 0; /* Minimal padding */
     z-index: 100;
 }
 
 .nav-items {
     display: flex;
     justify-content: space-around;
-    max-width: 600px;
+    /* max-width: 600px; */
+    max-width: 385px; /* Constrain to mobile width */
     margin: 0 auto;
 }
 
@@ -395,7 +409,8 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 12px;
+    /* padding: 12px; */
+    padding: 8px 6px; /* Slightly more vertical padding */
     color: var(--text-secondary);
     text-decoration: none;
     transition: var(--transition);
@@ -410,9 +425,12 @@ body {
 }
 
 .nav-icon {
-    font-size: 24px;
+    /* font-size: 24px; */
+    font-size: 20px; /* Reduced from 24px to 20px */
     width: 40px;
     height: 40px;
+    max-width: 40px; /* Prevent scaling on larger screens */
+    max-height: 40px; /* Prevent scaling on larger screens */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -422,6 +440,8 @@ body {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    /* Ensure the SVG fills the container */
+    display: block;
 }
 
 /* Hide nav labels */
@@ -451,4 +471,26 @@ body {
 
 .nav-item:hover::after {
     opacity: 1;
+}
+
+/* Prevent nav items from scaling up on larger screens */
+@media (min-width: 768px) {
+    .nav-item {
+        /* max-width: 80px; */ /* Limit individual item width */
+        font-size: 12px; /* Keep font small */
+    }
+    
+    .nav-icon {
+        width: 40px !important; /* Force icon size */
+        height: 40px !important;
+        max-width: 40px !important;
+        max-height: 40px !important;
+    }
+    
+    .nav-icon img {
+        width: 100% !important; /* Fill the 40px container */
+        height: 100% !important;
+        max-width: 40px !important;
+        max-height: 40px !important;
+    }
 }

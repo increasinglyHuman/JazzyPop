@@ -52,6 +52,8 @@ class SettingsPanel {
                     <div class="settings-section">
                         <h3 class="section-title">Appearance</h3>
                         
+                        <!-- Mode buttons commented out - themes are now affixed to individual quiz cards only -->
+                        <!--
                         <div class="setting-item">
                             <div class="theme-selector">
                                 <button class="theme-option ${this.settings.theme === 'poqpoq' ? 'active' : ''}" data-theme="poqpoq" title="P0qP0q Theme">
@@ -68,6 +70,7 @@ class SettingsPanel {
                                 </button>
                             </div>
                         </div>
+                        -->
                         
                         <div class="setting-item">
                             <label class="setting-label">

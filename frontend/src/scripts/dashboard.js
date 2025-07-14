@@ -1356,12 +1356,12 @@ function updateDashboardDisplay(economyData) {
     }
     
     // Update stats bar
-    const streakValue = document.getElementById('streakValue');
+    const coinsValue = document.getElementById('coinsValue');
     const gemsValue = document.getElementById('gemsValue');
     const energyValue = document.getElementById('energyValue');
     const livesValue = document.getElementById('livesValue');
     
-    if (streakValue) streakValue.textContent = economyData.streak || 0;
+    if (coinsValue) coinsValue.textContent = economyData.coins || 0;
     if (energyValue) energyValue.textContent = economyData.energy || 0;
     if (livesValue) livesValue.textContent = economyData.hearts || 0;
     

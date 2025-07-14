@@ -112,8 +112,9 @@ class RewardsPopup {
 }
 
 // Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => new RewardsPopup());
-} else {
-    new RewardsPopup();
-}
+// TEMPORARILY DISABLED - Causing duplicate rewards display with party popper emoji
+// if (document.readyState === 'loading') {
+//     document.addEventListener('DOMContentLoaded', () => new RewardsPopup());
+// } else {
+//     new RewardsPopup();
+// }

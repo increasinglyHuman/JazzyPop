@@ -6,12 +6,15 @@
 /* Joke page container */
 .joke-page-container {
     width: 100%;
+    /* max-width: 428px; */ /* Constrain to mobile width - matching iPhone Pro Max */
+    max-width: 400px; /* More conservative mobile constraint */
+    margin: 0 auto; /* Center the container */
     height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
+    justify-content: flex-start; /* Changed to allow footer at bottom */
+    padding: 40px 20px 0; /* Remove bottom padding for footer */
     text-align: center;
     background: #1f2c34; /* Solid dark background matching quiz modal */
     border-radius: 20px;
@@ -19,50 +22,28 @@
     overflow: hidden;
 }
 
-/* Sine wave ribbon at top */
-.joke-page-container::before {
-    content: '';
-    position: absolute;
-    top: 15px;  /* Added 15px margin from top */
-    left: 0;
-    right: 0;
-    height: 40px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,0 50,10 T100,10' stroke='white' stroke-width='2' fill='none' opacity='0.3'/%3E%3C/svg%3E");
-    background-size: 100px 20px;
-    background-repeat: repeat-x;
-    opacity: 0.5;
-}
-
-/* Sine wave ribbon at bottom */
-.joke-page-container::after {
-    content: '';
-    position: absolute;
-    bottom: 15px;  /* Added 15px margin from bottom */
-    left: 0;
-    right: 0;
-    height: 40px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0,10 Q25,20 50,10 T100,10' stroke='white' stroke-width='2' fill='none' opacity='0.3'/%3E%3C/svg%3E");
-    background-size: 100px 20px;
-    background-repeat: repeat-x;
-    opacity: 0.5;
-    transform: rotate(180deg); /* Flip it for variety */
-}
+/* Removed sine wave decorations for performance */
 
 /* Removed sparkle gradient effect for cleaner, solid appearance */
 
 /* Bot container */
 .joke-bot-container {
-    width: 300px;  /* Doubled from 150px */
-    height: 300px; /* Doubled from 150px */
-    margin-bottom: 5px;  /* Reduced from 20px to bring text closer */
+    /* width: 400px; */ /* Large bot display */
+    /* height: 400px; */ /* Large bot display */
+    width: 280px; /* Reduced to fit within mobile constraints */
+    height: 280px; /* Keep it square */
+    margin: 0 auto 5px; /* Center horizontally, small bottom margin */
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Mobile responsive bot size */
 @media (max-width: 480px) {
     .joke-bot-container {
-        width: 240px;  /* Doubled from 120px */
-        height: 240px; /* Doubled from 120px */
+        width: 280px; /* Still large on mobile */
+        height: 280px; /* Still large on mobile */
         margin-bottom: 15px;
     }
 }
@@ -139,7 +120,8 @@
 
 /* Joke content */
 .joke-content {
-    max-width: 400px;
+    /* max-width: 400px; */
+    max-width: 100%; /* Use full width of container which is already constrained */
     margin: 0 auto 40px;
 }
 
@@ -171,9 +153,9 @@
 /* Word spotlight animation with decaying bounce */
 .joke-text .word {
     display: inline-block;
-    animation: wordSpotlight 3s ease-out both;  /* Increased to 3 seconds */
-    transform-origin: center bottom;  /* Anchor at bottom for better effect */
-    margin: 0 2px;  /* Small margin for better readability during animation */
+    animation: wordSpotlight 3s ease-out both; /* Increased to 3 seconds */
+    transform-origin: center bottom; /* Anchor at bottom for better effect */
+    margin: 0 2px; /* Small margin for better readability during animation */
 }
 
 @keyframes wordSpotlight {
@@ -181,50 +163,62 @@
         transform: scale(1) rotate(0deg) translateY(0);
     }
     10% {
-        transform: scale(1.4) rotate(-5deg) translateY(-20px);  /* Big initial jump */
+        transform: scale(1.4) rotate(-5deg) translateY(-20px); /* Big initial jump */
     }
     20% {
-        transform: scale(1.35) rotate(3deg) translateY(0);     /* First landing */
+        transform: scale(1.35) rotate(3deg) translateY(0); /* First landing */
     }
     30% {
         transform: scale(1.3) rotate(-2deg) translateY(-12px); /* Second bounce (smaller) */
     }
     40% {
-        transform: scale(1.25) rotate(1deg) translateY(0);     /* Second landing */
+        transform: scale(1.25) rotate(1deg) translateY(0); /* Second landing */
     }
     50% {
-        transform: scale(1.2) rotate(-1deg) translateY(-6px);  /* Third bounce */
+        transform: scale(1.2) rotate(-1deg) translateY(-6px); /* Third bounce */
     }
     60% {
-        transform: scale(1.15) rotate(0.5deg) translateY(0);   /* Third landing */
+        transform: scale(1.15) rotate(0.5deg) translateY(0); /* Third landing */
     }
     70% {
-        transform: scale(1.1) rotate(0deg) translateY(-3px);   /* Tiny bounce */
+        transform: scale(1.1) rotate(0deg) translateY(-3px); /* Tiny bounce */
     }
     80% {
-        transform: scale(1.05) rotate(0deg) translateY(0);     /* Almost done */
+        transform: scale(1.05) rotate(0deg) translateY(0); /* Almost done */
     }
     90% {
-        transform: scale(1.02) rotate(0deg) translateY(-1px);  /* Micro bounce */
+        transform: scale(1.02) rotate(0deg) translateY(-1px); /* Micro bounce */
     }
     100% {
-        transform: scale(1) rotate(0deg) translateY(0);        /* Settled */
+        transform: scale(1) rotate(0deg) translateY(0); /* Settled */
     }
 }
 
 /* Stagger the animations - bigger delays for human speed */
-.joke-text .word:nth-child(1) { animation-delay: 0s; }
-.joke-text .word:nth-child(2) { animation-delay: 0.3s; }   /* was 0.15s */
-.joke-text .word:nth-child(3) { animation-delay: 0.6s; }   /* was 0.3s */
-.joke-text .word:nth-child(4) { animation-delay: 0.9s; }   /* was 0.45s */
-.joke-text .word:nth-child(5) { animation-delay: 1.2s; }   /* was 0.6s */
-.joke-text .word:nth-child(6) { animation-delay: 1.5s; }   /* was 0.75s */
+.joke-text .word:nth-child(1) {
+    animation-delay: 0s;
+}
+.joke-text .word:nth-child(2) {
+    animation-delay: 0.3s;
+} /* was 0.15s */
+.joke-text .word:nth-child(3) {
+    animation-delay: 0.6s;
+} /* was 0.3s */
+.joke-text .word:nth-child(4) {
+    animation-delay: 0.9s;
+} /* was 0.45s */
+.joke-text .word:nth-child(5) {
+    animation-delay: 1.2s;
+} /* was 0.6s */
+.joke-text .word:nth-child(6) {
+    animation-delay: 1.5s;
+} /* was 0.75s */
 
 /* Special styles for different joke phases */
 .joke-text.knock-knock {
     font-size: 36px;
     color: #ffd700;
-    animation: slowThrob 2s ease-in-out infinite;  /* Slow pulsing instead of shake */
+    animation: slowThrob 2s ease-in-out infinite; /* Slow pulsing instead of shake */
 }
 
 @keyframes knockShake {
@@ -241,13 +235,13 @@
 }
 
 .joke-text.whos-there {
-    font-size: 24px;
+    font-size: 34px; /* Increased from 24px */
     color: #87ceeb;
     font-style: italic;
 }
 
 .joke-text.punchline {
-    font-size: 32px;
+    font-size: 40px; /* Increased from 32px */
     color: #58cc02;
     animation: punchlineReveal 0.6s ease-out;
 }
@@ -266,35 +260,63 @@
     }
 }
 
-/* Navigation button */
+/* Navigation button - OLD STYLE kept for reference */
 .joke-nav {
     position: absolute;
-    bottom: 10px;  /* Even lower */
-    right: 20px;   /* Closer to the edge */
-    z-index: 10;  /* Ensure it's above other content */
+    bottom: 10px; /* Even lower */
+    right: 20px; /* Closer to the edge */
+    z-index: 10; /* Ensure it's above other content */
+}
+
+/* New footer-based navigation for jokes and puns */
+.joke-flip-footer,
+.pun-flip-footer {
+    width: calc(100% + 40px); /* Full width plus container padding */
+    padding: 15px 20px 20px; /* More vertical padding for button */
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: flex-end; /* Right align button */
+    align-items: center;
+    background: transparent;
+    position: relative;
+    margin-top: auto; /* Push to bottom */
+    margin-left: -20px; /* Compensate for container padding */
+    margin-right: -20px; /* Compensate for container padding */
+    margin-bottom: -20px; /* Extend to bottom edge */
+    border-radius: 0 0 20px 20px; /* Match container bottom radius */
+}
+
+/* Pun-specific footer styling */
+.pun-flip-footer {
+    background: rgba(0, 0, 0, 0.2); /* Subtle dark background for puns */
 }
 
 .joke-nav-btn {
-    width: 45px;  /* Reduced from 60px */
-    height: 45px;  /* Reduced from 60px */
+    width: 45px; /* Reduced from 60px */
+    height: 45px; /* Reduced from 60px */
     border-radius: 50%;
-    background: none;
-    border: none;
-    font-size: 20px;  /* Scaled down with button */
+    background: transparent;
+    border: none; /* No border - just the icon */
+    font-size: 20px; /* Scaled down with button */
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;  /* For z-index context */
+    position: relative; /* For z-index context */
     z-index: 1;
-    opacity: 0.7;  /* Soften the appearance */
-    filter: brightness(0.8) sepia(0.2) hue-rotate(180deg);  /* Add subtle blue tint */
+    opacity: 0.7; /* Soften the appearance */
+}
+
+/* Footer-specific button styling */
+.joke-flip-footer .joke-nav-btn,
+.pun-flip-footer .joke-nav-btn {
+    /* Button centered by parent flexbox */
 }
 
 .joke-nav-btn:hover {
     transform: scale(1.1);
-    opacity: 0.9;  /* Brighten slightly on hover */
+    opacity: 0.9; /* Brighten slightly on hover */
 }
 
 .joke-nav-btn:active {
@@ -302,10 +324,20 @@
 }
 
 .nav-icon {
-    pointer-events: none;  /* Let clicks pass through to button */
+    pointer-events: none; /* Let clicks pass through to button */
     display: block;
     width: 100%;
     height: 100%;
+}
+
+/* Joke/pun navigation icon sizing */
+.joke-flip-footer .nav-icon img,
+.pun-flip-footer .nav-icon img,
+.joke-nav .nav-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* No filter needed - flipper icon is already white */
 }
 
 @keyframes iconPulse {
@@ -320,7 +352,8 @@
 
 /* Slow throb for Knock Knock text */
 @keyframes slowThrob {
-    0%, 100% {
+    0%,
+    100% {
         transform: scale(1);
         opacity: 1;
     }
@@ -333,7 +366,7 @@
 /* Giggle meter container */
 .giggle-meter-container {
     width: 100%;
-    max-width: 500px;
+    /*   max-width: 500px;  max width is nearly always a bad plan if integer*/
     margin: 0 auto;
     padding: 40px 20px;
     animation: fadeInUp 0.5s ease-out;
@@ -512,6 +545,5 @@
         width: 50px;
         height: 50px;
         font-size: 20px;
-        background-color: #1f2c34;
     }
 }
