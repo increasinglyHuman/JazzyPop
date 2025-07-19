@@ -21,6 +21,7 @@ build/
 jazzyPopArchives
 JazzyPopArchitecture_specs
 kawaii-quiz-backend
+.kawaii-quiz-backend
 
 # Project documentation and temporary files
 STREAMING_PLAN_TWITCH/
