@@ -24,6 +24,7 @@ kawaii-quiz-backend
 .kawaii-quiz-backend
 
 # Project documentation and temporary files
+future/
 STREAMING_PLAN_TWITCH/
 pythonScriptsJuly8/
 PracticeModalScreenshots/
