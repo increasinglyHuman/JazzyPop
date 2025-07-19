@@ -36,6 +36,8 @@ frontend/update_flashcard_fetch.js
 frontend/check_auth.html
 frontend/check_storage.html
 frontend/test/
+frontend/archived-css/
+frontend/archiveWorkingTests/
 STREAMING_PLAN_TWITCH/
 pythonScriptsJuly8/
 PracticeModalScreenshots/
