@@ -39,6 +39,7 @@ database_viewer.html
 # Session handoff files
 SESSION_HANDOFF_*.md
 ARCHIVE_SESSION_HANDOFF_*.md
+*HANDOFF*
 
 # Data files
 data/*.json
