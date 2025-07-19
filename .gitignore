@@ -21,6 +21,9 @@ build/
 jazzyPopArchives
 JazzyPopArchitecture_specs
 backend/API_*.md
+backend/__pycache__/
+compare_file_dates.py
+COMMIT_MESSAGE.txt
 kawaii-quiz-backend
 .kawaii-quiz-backend
 
