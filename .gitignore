@@ -40,6 +40,7 @@ deploy_checklist.md
 
 # Security - don't expose admin tools
 database_viewer.html
+frontend/database_viewer.html
 
 # Session handoff files
 SESSION_HANDOFF_*.md
