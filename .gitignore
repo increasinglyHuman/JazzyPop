@@ -33,6 +33,9 @@ frontend/poqpoq.md
 frontend/debug_google_button.js
 frontend/fix_google_signin.js
 frontend/update_flashcard_fetch.js
+frontend/check_auth.html
+frontend/check_storage.html
+frontend/test/
 STREAMING_PLAN_TWITCH/
 pythonScriptsJuly8/
 PracticeModalScreenshots/
