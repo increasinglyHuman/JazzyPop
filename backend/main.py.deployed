@@ -1,0 +1,2595 @@
+"""
+JazzyPop Backend API
+Main FastAPI application
+"""
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, HTTPException, Depends, Query, WebSocket, Body
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timedelta
+import os
+import json
+import logging
+import asyncio
+from uuid import UUID, uuid4
+from contextlib import asynccontextmanager
+
+# Import our modules
+from database import db
+from roaring_bitmap_dedup import RoaringBitmapDeduplication
+from audio_service import audio_service
+from auth_utils import hash_password, verify_password, validate_password_strength, validate_email_format, generate_username_from_email
+from auth_password_reset import router as password_reset_router
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await db.connect()
+    # Initialize roaring bitmap deduplication
+    rb_dedup = RoaringBitmapDeduplication()
+    async with db.pool.acquire() as conn:
+        await rb_dedup.initialize_user_bitmaps(conn)
+    app.state.rb_dedup = rb_dedup
+    logger.info("Roaring bitmap deduplication initialized")
+    yield
+    # Shutdown
+    await db.disconnect()
+
+# Initialize FastAPI app with enhanced OpenAPI documentation
+app = FastAPI(
+    title="JazzyPop API",
+    description="""
+## JazzyPop Quiz Platform API
+
+Welcome to the JazzyPop API! This backend powers an engaging quiz and learning platform with gamification features.
+
+### Features:
+* 🎯 **Quiz Management** - Dynamic quiz content with multiple difficulty levels
+* 💰 **Economy System** - Energy, coins, gems, and XP tracking
+* 🃏 **Flashcards** - Practice mode with spaced repetition
+* 👤 **User Profiles** - Track progress and achievements
+* 🏆 **Leaderboards** - Compete with other players
+* 🔊 **Audio Support** - Text-to-speech for quiz questions
+* 🎮 **Quest System** - Sequential and daily quests
+* 🏅 **Achievements & Badges** - Unlock rewards and show off accomplishments
+* 🐾 **Pets & Assets** - Collect and customize with virtual companions
+
+### Getting Started:
+1. Check the `/api/health` endpoint to verify the API is running
+2. Use `/api/content/quiz/sets` to fetch quiz content
+3. Track game results with `/api/economy/process-result`
+
+### Test User:
+For testing endpoints that require a user ID, you can use:
+- **User ID**: `550e8400-e29b-41d4-a716-446655440000`
+- **Username**: `test_user`
+- **Email**: `test@jazzypop.com`
+
+This test user comes pre-loaded with sample data including quests, badges, and a pet!
+
+### Authentication:
+Currently, the API uses session-based identification. Full authentication is coming soon.
+    """,
+    version="1.0.0",
+    openapi_tags=[
+        {"name": "Health", "description": "API health and status endpoints"},
+        {"name": "Quiz", "description": "Quiz content and gameplay endpoints"},
+        {"name": "Economy", "description": "Game economy, rewards, and energy management"},
+        {"name": "Flashcards", "description": "Practice mode and flashcard endpoints"},
+        {"name": "Users", "description": "User profile and progress tracking"},
+        {"name": "Leaderboard", "description": "Competition and ranking endpoints"},
+        {"name": "Audio", "description": "Text-to-speech and audio services"},
+        {"name": "Content", "description": "General content delivery endpoints"},
+        {"name": "Feedback", "description": "Player feedback and content rating"},
+        {"name": "Validation", "description": "Content validation system"},
+        {"name": "Quests", "description": "Quest system and progression"},
+        {"name": "Achievements", "description": "Achievement tracking and unlocks"},
+        {"name": "Badges", "description": "Badge collection and tiers"},
+        {"name": "Assets", "description": "User assets, pets, and cosmetics"},
+        {"name": "Analytics", "description": "Performance analytics and insights"},
+        {"name": "Authentication", "description": "User authentication and login"}
+    ],
+    contact={
+        "name": "JazzyPop Support",
+        "url": "https://p0qp0q.com",
+        "email": "support@p0qp0q.com"
+    },
+    license_info={
+        "name": "Proprietary",
+        "url": "https://p0qp0q.com/license"
+    },
+    lifespan=lifespan
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],  # Add this to expose all headers
+)
+
+# Include routers
+app.include_router(password_reset_router)
+
+# Pydantic models with enhanced documentation
+class ContentBase(BaseModel):
+    """Base model for all content types in JazzyPop"""
+    type: str = Field(
+        ..., 
+        description="Content type: 'quiz', 'flashcard', 'quote', etc.",
+        example="quiz"
+    )
+    data: Dict[str, Any] = Field(
+        ..., 
+        description="Content payload specific to the content type",
+        example={"question": "What's 2+2?", "answers": [{"id": "a", "text": "4", "correct": True}]}
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default={},
+        description="Additional metadata like difficulty, category, author",
+        example={"difficulty": "easy", "category": "math"}
+    )
+    tags: Optional[List[str]] = Field(
+        default=[],
+        description="Content tags for filtering and categorization",
+        example=["mathematics", "basic", "arithmetic"]
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type": "quiz",
+                "data": {
+                    "question": "What's the capital of France?",
+                    "answers": [
+                        {"id": "a", "text": "London"},
+                        {"id": "b", "text": "Paris", "correct": True},
+                        {"id": "c", "text": "Berlin"},
+                        {"id": "d", "text": "Madrid"}
+                    ]
+                },
+                "metadata": {"difficulty": "easy", "category": "geography"},
+                "tags": ["geography", "capitals", "europe"]
+            }
+        }
+
+class Content(ContentBase):
+    """Complete content model with system fields"""
+    id: UUID = Field(..., description="Unique content identifier")
+    created_at: datetime = Field(..., description="Content creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+
+class QuizAnswer(BaseModel):
+    """Model for submitting quiz answers"""
+    answer_id: str = Field(
+        ..., 
+        description="Selected answer ID (a, b, c, or d)",
+        example="b"
+    )
+    time_taken: float = Field(
+        ..., 
+        description="Time taken to answer in seconds",
+        example=5.2
+    )
+    mode: str = Field(
+        default="poqpoq",
+        description="Game mode: 'poqpoq', 'chaos', 'zen', etc.",
+        example="chaos"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "quiz_id": "550e8400-e29b-41d4-a716-446655440000",
+                "answer_id": "c",
+                "time_taken": 3.7,
+                "mode": "poqpoq"
+            }
+        }
+
+class UserProfile(BaseModel):
+    """User profile information"""
+    username: Optional[str] = Field(
+        None,
+        description="Unique username for the user",
+        example="jazzmaster2000",
+        min_length=3,
+        max_length=30
+    )
+    display_name: str = Field(
+        ...,
+        description="Display name shown in game",
+        example="Jazz Master",
+        min_length=1,
+        max_length=50
+    )
+    avatar_id: str = Field(
+        default="default",
+        description="Avatar identifier or image URL",
+        example="avatar_03"
+    )
+    email: Optional[str] = Field(
+        None,
+        description="User email for account recovery",
+        example="user@example.com",
+        pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "quizwhiz",
+                "display_name": "Quiz Whiz",
+                "avatar_id": "avatar_07",
+                "email": "whiz@example.com"
+            }
+        }
+
+class GoogleAuthRequest(BaseModel):
+    """Google OAuth authentication request"""
+    google_id: str = Field(..., description="Google user ID")
+    email: str = Field(..., description="User email from Google")
+    name: str = Field(..., description="User's display name from Google")
+    picture: Optional[str] = Field(None, description="Profile picture URL")
+    session_id: Optional[str] = Field(None, description="Current session ID for migration")
+
+class AuthResponse(BaseModel):
+    """Authentication response"""
+    user_id: str = Field(..., description="JazzyPop user ID")
+    is_new_user: bool = Field(..., description="Whether this is a newly created user")
+    display_name: str = Field(..., description="User's display name")
+    avatar_id: str = Field(..., description="User's avatar ID")
+    migrated_data: bool = Field(..., description="Whether session data was migrated")
+
+class RegisterRequest(BaseModel):
+    """Email/password registration request"""
+    email: str = Field(..., description="User email address", example="user@example.com")
+    password: str = Field(..., description="User password (min 8 chars)", min_length=8, example="SecurePass123")
+    display_name: str = Field(..., description="Display name", example="John Doe")
+    session_id: Optional[str] = Field(None, description="Current session ID for migration")
+
+class LoginRequest(BaseModel):
+    """Email/password login request"""
+    email: str = Field(..., description="User email address", example="user@example.com")
+    password: str = Field(..., description="User password", example="SecurePass123")
+
+# Routes
+@app.get("/", tags=["Health"])
+async def root():
+    """Root endpoint with API information"""
+    return {
+        "message": "Welcome to JazzyPop API",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
+
+@app.get("/api/health", 
+    tags=["Health"],
+    summary="Health check endpoint",
+    description="Check if the API is running and healthy")
+async def health_check():
+    """Returns the health status of the API"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow()
+    }
+
+# Content endpoints
+@app.get("/api/content/quiz/current",
+    tags=["Quiz"],
+    summary="Get current quiz (deprecated)",
+    description="Returns a single quiz. Use /api/content/quiz/sets instead for better performance",
+    deprecated=True)
+async def get_current_quiz(
+    mode: str = Query("poqpoq", description="Game mode: 'poqpoq', 'chaos', 'zen'")
+):
+    """Get the current active quiz - DEPRECATED: Use /api/content/quiz/sets instead"""
+    quiz = await db.get_current_quiz(mode)
+    
+    if not quiz:
+        # Return a random quiz from our fallback list
+        import random
+        fallback_quizzes = [
+            {
+                "question": "What's the capital of France?",
+                "answers": [
+                    {"id": "a", "text": "London"},
+                    {"id": "b", "text": "Paris", "correct": True},
+                    {"id": "c", "text": "Berlin"},
+                    {"id": "d", "text": "Madrid"}
+                ],
+                "mode_variations": {
+                    "chaos": {
+                        "question": "Which baguette-worshipping metropolis houses a big metal triangle?"
+                    }
+                }
+            },
+            {
+                "question": "What do the Eiffel Tower and a whale's heartbeat have in common?",
+                "answers": [
+                    {"id": "a", "text": "Both can be heard from a mile away"},
+                    {"id": "b", "text": "Both weigh approximately the same (10,000 tons)", "correct": True},
+                    {"id": "c", "text": "Both were discovered in 1889"},
+                    {"id": "d", "text": "Both are made of iron"}
+                ],
+                "mode_variations": {
+                    "chaos": {
+                        "question": "What cosmic coincidence links a Parisian landmark to a cetacean's life-pumping organ?"
+                    }
+                }
+            },
+            {
+                "question": "How many times could you fold a piece of paper to reach the moon?",
+                "answers": [
+                    {"id": "a", "text": "100 times"},
+                    {"id": "b", "text": "42 times", "correct": True},
+                    {"id": "c", "text": "1,000 times"},
+                    {"id": "d", "text": "It's impossible"}
+                ],
+                "mode_variations": {
+                    "chaos": {
+                        "question": "How many reality-bending paper folds until you can high-five lunar astronauts?"
+                    }
+                }
+            },
+            {
+                "question": "Which of these is NOT a real programming language?",
+                "answers": [
+                    {"id": "a", "text": "LOLCODE"},
+                    {"id": "b", "text": "Brainfuck"},
+                    {"id": "c", "text": "ChaoScript", "correct": True},
+                    {"id": "d", "text": "Shakespeare"}
+                ],
+                "mode_variations": {
+                    "chaos": {
+                        "question": "Which code-tongue is a FILTHY LIE in the pantheon of absurd programming dialects?"
+                    }
+                }
+            },
+            {
+                "question": "What percentage of the internet consists of cat content?",
+                "answers": [
+                    {"id": "a", "text": "15%", "correct": True},
+                    {"id": "b", "text": "3%"},
+                    {"id": "c", "text": "42%"},
+                    {"id": "d", "text": "0.001% (it just feels like more)"}
+                ],
+                "mode_variations": {
+                    "chaos": {
+                        "question": "What fraction of the digital universe has been conquered by our feline overlords?"
+                    }
+                }
+            }
+        ]
+        
+        selected = random.choice(fallback_quizzes)
+        return {
+            "id": str(uuid4()),
+            "type": "quiz",
+            "data": selected,
+            "mode_variations": selected.get("mode_variations", {})
+        }
+    
+    return quiz
+
+@app.get("/api/content/quote/current")
+async def get_current_quote(category: str = "wisdom"):
+    """Get a current quote for flashcard practice"""
+    try:
+        # Get a quote from the database
+        async with db.pool.acquire() as conn:
+            quote = await conn.fetchrow("""
+                SELECT id, type, data, metadata, tags
+                FROM content
+                WHERE type = 'quote' 
+                AND is_active = true
+                AND ($1 = 'any' OR $1 = ANY(tags))
+                ORDER BY RANDOM()
+                LIMIT 1
+            """, category)
+            
+            if quote:
+                return {
+                    "id": str(quote["id"]),
+                    "type": quote["type"],
+                    "data": json.loads(quote["data"]),
+                    "metadata": json.loads(quote["metadata"]) if quote["metadata"] else {},
+                    "tags": quote["tags"]
+                }
+    except Exception as e:
+        logger.error(f"Error fetching quote: {e}")
+    
+    # Fallback quote if database is empty
+    from quote_generator import quote_generator
+    fallback = quote_generator.get_fallback_quote(category)
+    return fallback
+
+@app.post("/api/content/quiz/{quiz_id}/answer",
+    tags=["Quiz"],
+    summary="Submit quiz answer",
+    description="Track a user's answer to a specific quiz question",
+    responses={
+        200: {"description": "Answer recorded successfully"},
+        404: {"description": "Quiz not found"},
+        500: {"description": "Failed to submit answer"}
+    })
+async def submit_quiz_answer(
+    quiz_id: UUID,
+    answer: QuizAnswer,
+    user_id: Optional[UUID] = Query(None, description="User ID for tracking progress")
+):
+    """Submit an answer to a quiz question"""
+    try:
+        result = await db.submit_answer(
+            user_id=user_id,
+            quiz_id=quiz_id,
+            answer_id=answer.answer_id,
+            time_taken=answer.time_taken,
+            mode=answer.mode
+        )
+        
+        # Add streak info if user is authenticated
+        if user_id:
+            # This would be fetched from user progress
+            result["streak"] = 5  # TODO: Get actual streak
+        
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to submit answer")
+
+# User endpoints
+
+@app.get("/api/content/quiz/sets")
+async def get_quiz_sets(
+    count: int = Query(default=1, ge=1, le=100, description="Number of quiz sets to return"),
+    category: Optional[str] = Query(default=None, description="Filter by category"),
+    mode: str = Query(default="random", description="Mode selection: random, poqpoq, chaos, zen, speed"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    include_variations: bool = Query(default=True, description="Include mode variations"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get multiple quiz sets with filtering options
+    
+    - count: Number of quiz sets to return (1-100)
+    - category: Filter by specific category (e.g., 'science', 'gaming')
+    - mode: Which mode variation to include (random will vary per quiz)
+    - order: How to sort results (random, newest first, oldest first)
+    - include_variations: Whether to include mode variations in response
+    """
+    
+    # Valid categories from the frontend
+    valid_categories = [
+        'technology', 'science', 'history', 'geography', 'literature',
+        'film', 'music', 'art', 'sports', 'nature', 'animals', 'food_cuisine',
+        'pop_culture', 'mythology', 'space', 'gaming', 'internet_culture',
+        'architecture', 'ancient_architecture', 'fashion_design', 'inventions',
+        'famous_lies', 'language_evolution', 'dinosaurs', 'fame_glory'
+    ]
+    
+    # Validate category if provided
+    if category and category not in valid_categories:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid category. Must be one of: {', '.join(valid_categories)}"
+        )
+    
+    async with db.pool.acquire() as conn:
+        # Build the query
+        query_parts = [
+            "SELECT c.id, c.type, c.data, c.metadata, c.created_at",
+            "FROM content c",
+            "WHERE c.type = 'quiz_set'",
+            "AND c.is_active = true"
+        ]
+        
+        params = []
+        param_count = 0
+        
+        # Add category filter if specified
+        if category:
+            param_count += 1
+            query_parts.append(f"AND c.data->>'category' = ${param_count}")
+            params.append(category)
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY c.created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY c.created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        # Add limit
+        param_count += 1
+        query_parts.append(f"LIMIT ${param_count}")
+        params.append(count)
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, *params)
+        
+        results = []
+        for row in rows:
+            quiz_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            
+            # Add mode variations if requested
+            if include_variations:
+                # Determine which mode(s) to fetch
+                if mode == "random":
+                    # Pick a random mode for this quiz
+                    import random
+                    selected_mode = random.choice(['chaos', 'zen', 'speed', 'poqpoq'])
+                else:
+                    selected_mode = mode if mode in ['chaos', 'zen', 'speed'] else 'poqpoq'
+                
+                # Fetch the variation
+                var_query = """
+                    SELECT mode, variation_data 
+                    FROM content_variations 
+                    WHERE content_id = $1 AND mode = $2
+                """
+                
+                variation = await conn.fetchrow(var_query, row["id"], selected_mode)
+                
+                if variation:
+                    var_data = json.loads(variation["variation_data"]) if isinstance(variation["variation_data"], str) else variation["variation_data"]
+                    
+                    # Apply variation to quiz data
+                    if selected_mode == 'chaos' and 'questions' in var_data:
+                        quiz_data["data"]["questions"] = var_data["questions"]
+                        quiz_data["mode"] = "chaos"
+                        quiz_data["mode_effects"] = var_data.get("chaos_effects", [])
+                    elif selected_mode == 'zen' and 'questions' in var_data:
+                        # Merge zen hints into questions
+                        for i, q in enumerate(quiz_data["data"]["questions"]):
+                            if i < len(var_data["questions"]):
+                                q["hint"] = var_data["questions"][i].get("hint", "")
+                        quiz_data["mode"] = "zen"
+                        quiz_data["no_timer"] = True
+                    elif selected_mode == 'speed':
+                        quiz_data["mode"] = "speed"
+                        quiz_data["time_per_question"] = var_data.get("time_per_question", 10)
+                    else:
+                        quiz_data["mode"] = "poqpoq"
+            
+            results.append(quiz_data)
+        
+        return results
+
+@app.get("/api/content/pun/sets")
+async def get_pun_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of pun sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get pun sets for practice activities
+    
+    - count: Number of pun sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="pun",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "pun", item['id']
+                )
+            
+            return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'pun_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            pun_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(pun_data)
+        
+        return results
+
+@app.get("/api/content/quote/sets")
+async def get_quote_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of quote sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get quote sets for practice activities
+    
+    - count: Number of quote sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="quote",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "quote", item['id']
+                )
+            
+            return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'quote_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            quote_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(quote_data)
+        
+        return results
+
+@app.get("/api/content/joke/sets")
+async def get_joke_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of joke sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get joke sets (knock-knock jokes) for practice activities
+    
+    - count: Number of joke sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="joke",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "joke", item['id']
+                )
+            
+            return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'joke_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            joke_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(joke_data)
+        
+        return results
+
+@app.get("/api/content/trivia/sets")
+async def get_trivia_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of trivia sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get trivia sets (factoids) for practice activities
+    
+    - count: Number of trivia sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="trivia",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "trivia", item['id']
+                )
+            
+            return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'trivia_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            trivia_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(trivia_data)
+        
+        return results
+
+# ========== AUTHENTICATION ENDPOINTS ==========
+
+@app.post("/api/auth/google",
+    tags=["Authentication"],
+    summary="Authenticate with Google OAuth",
+    description="Exchange Google credentials for JazzyPop user ID",
+    response_model=AuthResponse)
+async def google_auth(auth_request: GoogleAuthRequest):
+    """Handle Google OAuth authentication"""
+    import random
+    
+    try:
+        # Check if user exists by google_id or email
+        async with db.pool.acquire() as conn:
+            # Check if google_id column exists
+            has_google_id = await conn.fetchval("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'google_id'
+                )
+            """)
+            
+            if has_google_id:
+                # Try by google_id first, then email
+                existing_user = await conn.fetchrow("""
+                    SELECT id, display_name, avatar_id, google_id 
+                    FROM users 
+                    WHERE google_id = $1 OR email = $2
+                """, auth_request.google_id, auth_request.email)
+            else:
+                # Fallback to email only
+                existing_user = await conn.fetchrow("""
+                    SELECT id, display_name, avatar_id 
+                    FROM users 
+                    WHERE email = $1
+                """, auth_request.email)
+            
+            if existing_user:
+                # User exists - return their info
+                user_id = existing_user['id']
+                is_new_user = False
+                display_name = existing_user['display_name']
+                avatar_id = existing_user['avatar_id']
+                
+                # Update google_id if missing
+                if has_google_id and not existing_user.get('google_id'):
+                    await conn.execute("""
+                        UPDATE users SET google_id = $1 WHERE id = $2
+                    """, auth_request.google_id, existing_user['id'])
+            else:
+                # Create new user
+                # Generate username from email
+                username = auth_request.email.split('@')[0]
+                # Ensure username is unique
+                username_exists = await conn.fetchval(
+                    "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)",
+                    username
+                )
+                if username_exists:
+                    # Add random suffix
+                    username = f"{username}_{random.randint(1000, 9999)}"
+                
+                # Pick a random avatar if no picture
+                avatar_id = f"avatar_{random.randint(1, 10):02d}"
+                
+                # Create the user
+                if has_google_id:
+                    user_id = await conn.fetchval("""
+                        INSERT INTO users (
+                            username, email, display_name, avatar_id, google_id,
+                            is_anonymous, created_at
+                        )
+                        VALUES ($1, $2, $3, $4, $5, FALSE, NOW())
+                        RETURNING id
+                    """, username, auth_request.email, auth_request.name, 
+                        avatar_id, auth_request.google_id)
+                else:
+                    user_id = await conn.fetchval("""
+                        INSERT INTO users (
+                            username, email, display_name, avatar_id, 
+                            is_anonymous, created_at
+                        )
+                        VALUES ($1, $2, $3, $4, FALSE, NOW())
+                        RETURNING id
+                    """, username, auth_request.email, auth_request.name, 
+                        avatar_id)
+                
+                # Initialize user_progress
+                await conn.execute("""
+                    INSERT INTO user_progress (user_id, stats, updated_at)
+                    VALUES ($1, jsonb_build_object(
+                        'economy', jsonb_build_object(
+                            'energy', 100,
+                            'hearts', 5,
+                            'coins', 100,
+                            'sapphires', 0,
+                            'emeralds', 0,
+                            'rubies', 0,
+                            'amethysts', 0,
+                            'diamonds', 0,
+                            'xp', 0,
+                            'level', 1,
+                            'streak', 0
+                        ),
+                        'quests', jsonb_build_object(
+                            'active', '[]'::jsonb,
+                            'completed', '[]'::jsonb,
+                            'chains', '{}'::jsonb
+                        ),
+                        'badges', '[]'::jsonb,
+                        'assets', jsonb_build_object(
+                            'pets', '[]'::jsonb,
+                            'cosmetics', '{}'::jsonb,
+                            'inventory', '[]'::jsonb
+                        )
+                    ), NOW())
+                """, user_id)
+                
+                is_new_user = True
+                display_name = auth_request.name
+            
+            # Migrate session data if provided
+            migrated_data = False
+            if auth_request.session_id and is_new_user:
+                # Get session data
+                session_data = await conn.fetchrow(
+                    "SELECT data FROM sessions WHERE id = $1",
+                    auth_request.session_id
+                )
+                
+                if session_data and session_data['data']:
+                    economy = session_data['data'].get('economy', {})
+                    if economy:
+                        # Update user's economy with session data
+                        await conn.execute("""
+                            UPDATE user_progress 
+                            SET stats = jsonb_set(
+                                stats, 
+                                '{economy}', 
+                                stats->'economy' || $1::jsonb
+                            )
+                            WHERE user_id = $2
+                        """, json.dumps(economy), user_id)
+                        
+                        migrated_data = True
+                        
+                        # Mark session as migrated
+                        await conn.execute(
+                            "UPDATE sessions SET user_id = $1 WHERE id = $2",
+                            user_id, auth_request.session_id
+                        )
+            
+            return AuthResponse(
+                user_id=str(user_id),
+                is_new_user=is_new_user,
+                display_name=display_name,
+                avatar_id=avatar_id,
+                migrated_data=migrated_data
+            )
+            
+    except Exception as e:
+        logger.error(f"Google auth error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/auth/register",
+    tags=["Authentication"],
+    summary="Register with email and password",
+    description="Create a new account using email and password",
+    response_model=AuthResponse)
+async def register(register_request: RegisterRequest):
+    """Handle email/password registration"""
+    import random
+    
+    try:
+        # Validate email format
+        email_valid, email_result = validate_email_format(register_request.email)
+        if not email_valid:
+            raise HTTPException(status_code=400, detail=f"Invalid email: {email_result}")
+        
+        # Use normalized email
+        normalized_email = email_result
+        
+        # Validate password strength
+        password_valid, password_msg = validate_password_strength(register_request.password)
+        if not password_valid:
+            raise HTTPException(status_code=400, detail=password_msg)
+        
+        # Hash the password
+        password_hash = hash_password(register_request.password)
+        
+        async with db.pool.acquire() as conn:
+            # Check if email already exists
+            existing_user = await conn.fetchval(
+                "SELECT id FROM users WHERE LOWER(email) = LOWER($1)",
+                normalized_email
+            )
+            
+            if existing_user:
+                raise HTTPException(status_code=409, detail="Email already registered")
+            
+            # Generate username from email
+            base_username = generate_username_from_email(normalized_email)
+            username = base_username
+            
+            # Ensure username is unique
+            counter = 1
+            while await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)",
+                username
+            ):
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            # Pick a random avatar
+            avatar_id = f"avatar_{random.randint(1, 10):02d}"
+            
+            # Create the user
+            user_id = await conn.fetchval("""
+                INSERT INTO users (
+                    username, email, password_hash, display_name, 
+                    avatar_id, is_anonymous, created_at
+                )
+                VALUES ($1, $2, $3, $4, $5, FALSE, NOW())
+                RETURNING id
+            """, username, normalized_email, password_hash, 
+                register_request.display_name, avatar_id)
+            
+            # Initialize user_progress
+            await conn.execute("""
+                INSERT INTO user_progress (user_id, stats, updated_at)
+                VALUES ($1, jsonb_build_object(
+                    'economy', jsonb_build_object(
+                        'energy', 100,
+                        'hearts', 5,
+                        'coins', 100,
+                        'sapphires', 0,
+                        'emeralds', 0,
+                        'rubies', 0,
+                        'amethysts', 0,
+                        'diamonds', 0,
+                        'xp', 0,
+                        'level', 1,
+                        'streak', 0
+                    ),
+                    'quests', jsonb_build_object(
+                        'active', '[]'::jsonb,
+                        'completed', '[]'::jsonb,
+                        'chains', '{}'::jsonb
+                    ),
+                    'badges', '[]'::jsonb,
+                    'assets', jsonb_build_object(
+                        'pets', '[]'::jsonb,
+                        'cosmetics', '{}'::jsonb,
+                        'inventory', '[]'::jsonb
+                    )
+                ), NOW())
+            """, user_id)
+            
+            # Handle session migration if provided
+            migrated_data = False
+            if register_request.session_id:
+                # Get session economy data
+                session_data = await db.get_economy_state(None, register_request.session_id)
+                if session_data:
+                    # Migrate economy data
+                    await conn.execute("""
+                        UPDATE user_progress 
+                        SET stats = jsonb_set(
+                            stats, 
+                            '{economy}', 
+                            $1::jsonb
+                        )
+                        WHERE user_id = $2
+                    """, json.dumps(session_data), user_id)
+                    
+                    migrated_data = True
+                    
+                    # Mark session as migrated
+                    await conn.execute(
+                        "UPDATE sessions SET user_id = $1 WHERE id = $2",
+                        user_id, register_request.session_id
+                    )
+            
+            return AuthResponse(
+                user_id=str(user_id),
+                is_new_user=True,
+                display_name=register_request.display_name,
+                avatar_id=avatar_id,
+                migrated_data=migrated_data
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail="Registration failed")
+
+
+@app.post("/api/auth/login",
+    tags=["Authentication"],
+    summary="Login with email and password",
+    description="Authenticate using email and password",
+    response_model=AuthResponse)
+async def login(login_request: LoginRequest):
+    """Handle email/password login"""
+    try:
+        async with db.pool.acquire() as conn:
+            # Find user by email (case-insensitive)
+            user = await conn.fetchrow("""
+                SELECT id, password_hash, display_name, avatar_id
+                FROM users 
+                WHERE LOWER(email) = LOWER($1)
+            """, login_request.email)
+            
+            if not user:
+                # Don't reveal if email exists or not
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Invalid email or password"
+                )
+            
+            # Check if user has a password (might be Google-only account)
+            if not user['password_hash']:
+                raise HTTPException(
+                    status_code=401,
+                    detail="This account uses Google login. Please sign in with Google."
+                )
+            
+            # Verify password
+            if not verify_password(login_request.password, user['password_hash']):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid email or password"
+                )
+            
+            # Login successful!
+            return AuthResponse(
+                user_id=str(user['id']),
+                is_new_user=False,
+                display_name=user['display_name'],
+                avatar_id=user['avatar_id'],
+                migrated_data=False
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
+
+
+@app.post("/api/auth/logout",
+    tags=["Authentication"],
+    summary="Logout user",
+    description="Clear user session and invalidate auth tokens")
+async def logout(
+    user_id: Optional[UUID] = Query(None, description="User ID"),
+    session_id: Optional[str] = Query(None, description="Session ID")
+):
+    """Handle user logout"""
+    try:
+        if user_id:
+            async with db.pool.acquire() as conn:
+                # Clear any server-side session data
+                await conn.execute("""
+                    UPDATE sessions 
+                    SET expires_at = NOW(), 
+                        data = jsonb_set(data, '{logged_out}', 'true'::jsonb)
+                    WHERE user_id = $1 OR id = $2
+                """, user_id, session_id)
+                
+                # Log the logout event
+                logger.info(f"User {user_id} logged out")
+        
+        return {
+            "status": "success",
+            "message": "Logged out successfully",
+            "redirect": "/"
+        }
+        
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        # Even if error, return success to clear client state
+        return {
+            "status": "success",
+            "message": "Logged out",
+            "redirect": "/"
+        }
+
+
+@app.post("/api/users/profile",
+    tags=["Users"],
+    summary="Create or update user profile",
+    description="Create a new user profile or update existing one")
+async def create_or_update_profile(profile: UserProfile):
+    """Create or update user profile"""
+    # TODO: Implement user creation/update
+    return {
+        "id": str(uuid4()),
+        "username": profile.username,
+        "display_name": profile.display_name,
+        "avatar_id": profile.avatar_id
+    }
+
+@app.get("/api/users/{user_id}/progress")
+async def get_user_progress(user_id: UUID):
+    """Get user progress and stats"""
+    # TODO: Fetch from database
+    return {
+        "user_id": str(user_id),
+        "stats": {
+            "total_quizzes": 42,
+            "correct_answers": 38,
+            "current_streak": 7,
+            "best_streak": 15,
+            "total_points": 4200
+        },
+        "achievements": [
+            {"id": "first_quiz", "name": "First Steps", "unlocked_at": datetime.utcnow()}
+        ]
+    }
+
+# Leaderboard endpoints
+@app.get("/api/leaderboard/{period}")
+async def get_leaderboard(period: str = "daily", mode: Optional[str] = None, limit: int = 10):
+    """Get leaderboard for specified period"""
+    # Accept both all-time and all_time formats
+    if period == "all-time":
+        period = "all_time"
+    
+    if period not in ["daily", "weekly", "all_time"]:
+        raise HTTPException(status_code=400, detail="Invalid period")
+    
+    entries = await db.get_leaderboard(period, mode, limit)
+    
+    return {
+        "period": period,
+        "mode": mode,
+        "updated_at": datetime.utcnow(),
+        "entries": entries
+    }
+
+# Card endpoints
+@app.get("/api/cards/active")
+async def get_active_cards(limit: int = 10):
+    """Get currently active promotional cards"""
+    try:
+        cards = await db.get_active_cards(limit)
+        return {"cards": cards}
+    except Exception as e:
+        # Return default card if database query fails
+        return {
+            "cards": [{
+                "id": str(uuid4()),
+                "type": "quiz_tease",
+                "priority": 10,
+                "template": "quiz_preview",
+                "data": {
+                    "title": "Browse Our Quiz Collection!",
+                    "description": "Over 2,600 quiz sets available! Pick your category.",
+                    "icon": "⏳",
+                    "category": "general",
+                    "difficulty": "medium"
+                }
+            }]
+        }
+
+# Flashcard endpoints
+@app.get("/api/flashcards")
+async def get_flashcards_simple(
+    category: str = Query("trivia_mix", description="Flashcard category"),
+    count: int = Query(10, description="Number of flashcards to return"),
+    user_id: Optional[str] = Query(None, description="Optional user ID for progression tracking")
+):
+    """GET endpoint for flashcards - simpler for CORS and browser access"""
+    try:
+        logger.info(f"GET flashcards: category={category}, count={count}, user_id={user_id}")
+        flashcards = await db.get_flashcard_content(category, count, user_id)
+        
+        if not flashcards:
+            logger.warning(f"No flashcards found for category {category}, generating dynamic content")
+            flashcards = await generate_dynamic_flashcards(category, count)
+        else:
+            logger.info(f"Found {len(flashcards)} flashcards from database")
+        
+        return {"cards": flashcards}
+    except Exception as e:
+        logger.error(f"Error in get_flashcards_simple: {str(e)}", exc_info=True)
+        return {
+            "cards": [{
+                "id": f"fallback-{i}",
+                "category": category,
+                "type": "trivia",
+                "content": f"Fallback {category} content {i}",
+                "difficulty": "medium"
+            } for i in range(min(count, 3))]
+        }
+
+@app.post("/api/flashcards")
+async def get_flashcards(request: Dict[str, Any]):
+    """POST endpoint for flashcards - supports complex queries and maintains backward compatibility"""
+    category = request.get("category", "trivia_mix")
+    count = request.get("count", 10)
+    user_id = request.get("user_id")  # Optional user ID for progression tracking
+    
+    try:
+        # Fetch content from database based on category and user progression
+        logger.info(f"Fetching flashcards: category={category}, count={count}, user_id={user_id}")
+        flashcards = await db.get_flashcard_content(category, count, user_id)
+        
+        if not flashcards:
+            logger.warning(f"No flashcards found for category {category}, generating dynamic content")
+            # Generate dynamic flashcards if none in database
+            flashcards = await generate_dynamic_flashcards(category, count)
+        else:
+            logger.info(f"Found {len(flashcards)} flashcards from database")
+        
+        return {"cards": flashcards}
+    except Exception as e:
+        logger.error(f"Error in get_flashcards: {str(e)}", exc_info=True)
+        # Return minimal set for testing
+        return {
+            "cards": [{
+                "id": f"dynamic-{i}",
+                "category": category,
+                "type": "quote" if category == "famous_quotes" else "trivia",
+                "content": f"Dynamic {category} content {i}",
+                "challengeType": "true-false",
+                "challenge": "Is this a test card?",
+                "answer": "True",
+                "difficulty": "easy"
+            } for i in range(min(count, 5))]
+        }
+
+# Track content views
+@app.post("/api/flashcards/track-view")
+async def track_flashcard_view(request: Dict[str, Any]):
+    """Track that a user has viewed a flashcard"""
+    user_id = request.get("user_id")
+    content_id = request.get("content_id")
+    content_type = request.get("content_type", "flashcard")
+    metadata = request.get("metadata", {})
+    
+    if not user_id or not content_id:
+        raise HTTPException(status_code=400, detail="user_id and content_id required")
+    
+    try:
+        await db.track_content_view(user_id, content_id, content_type, metadata)
+        return {"status": "tracked"}
+    except Exception as e:
+        # Don't fail the request if tracking fails
+        return {"status": "error", "message": str(e)}
+
+# Economy endpoints
+class EconomyState(BaseModel):
+    """Current state of a player's game economy"""
+    energy: int = Field(
+        default=100,
+        description="Available energy for playing games (0-100)",
+        ge=0,
+        le=100,
+        example=85
+    )
+    hearts: int = Field(
+        default=5,
+        description="Lives/hearts remaining",
+        ge=0,
+        le=10,
+        example=3
+    )
+    coins: int = Field(
+        default=0,
+        description="Basic currency earned from gameplay",
+        ge=0,
+        example=1250
+    )
+    sapphires: int = Field(
+        default=0,
+        description="Rare blue gems for special purchases",
+        ge=0,
+        example=5
+    )
+    emeralds: int = Field(
+        default=0,
+        description="Rare green gems for unlocking content",
+        ge=0,
+        example=3
+    )
+    rubies: int = Field(
+        default=0,
+        description="Rare red gems for premium features",
+        ge=0,
+        example=2
+    )
+    amethysts: int = Field(
+        default=0,
+        description="Rare purple gems for cosmetic items",
+        ge=0,
+        example=1
+    )
+    diamonds: int = Field(
+        default=0,
+        description="Ultra-rare gems for exclusive content",
+        ge=0,
+        example=0
+    )
+    xp: int = Field(
+        default=0,
+        description="Experience points for leveling up",
+        ge=0,
+        example=3450
+    )
+    level: int = Field(
+        default=1,
+        description="Current player level",
+        ge=1,
+        example=7
+    )
+    streak: int = Field(
+        default=0,
+        description="Current winning streak",
+        ge=0,
+        example=5
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "energy": 75,
+                "hearts": 4,
+                "coins": 2500,
+                "sapphires": 8,
+                "emeralds": 4,
+                "rubies": 2,
+                "amethysts": 1,
+                "diamonds": 0,
+                "xp": 4200,
+                "level": 8,
+                "streak": 3
+            }
+        }
+
+class GameResult(BaseModel):
+    """Game completion result for reward calculation"""
+    type: str = Field(
+        ...,
+        description="Game type: 'quiz_complete', 'practice_complete', 'flashcard_complete'",
+        example="quiz_complete"
+    )
+    category: Optional[str] = Field(
+        default='general',
+        description="Content category played",
+        example="science"
+    )
+    difficulty: Optional[str] = Field(
+        default='medium',
+        description="Difficulty level: 'easy', 'medium', 'hard', 'extreme'",
+        example="hard"
+    )
+    mode: Optional[str] = Field(
+        default='normal',
+        description="Game mode: 'normal', 'chaos', 'zen', 'speed'",
+        example="chaos"
+    )
+    correct_answers: Optional[int] = Field(
+        default=0,
+        description="Number of correct answers",
+        ge=0,
+        example=8
+    )
+    total_questions: Optional[int] = Field(
+        default=1,
+        description="Total number of questions",
+        ge=1,
+        example=10
+    )
+    time_spent: Optional[float] = Field(
+        default=0,
+        description="Time spent in seconds",
+        ge=0,
+        example=125.5
+    )
+    perfect_score: Optional[bool] = Field(
+        default=False,
+        description="Whether all answers were correct",
+        example=False
+    )
+    streak: Optional[int] = Field(
+        default=0,
+        description="Current winning streak",
+        ge=0,
+        example=3
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type": "quiz_complete",
+                "category": "science",
+                "difficulty": "medium",
+                "mode": "chaos",
+                "correct_answers": 7,
+                "total_questions": 10,
+                "time_spent": 98.5,
+                "perfect_score": False,
+                "streak": 2
+            }
+        }
+
+class EnergySpendRequest(BaseModel):
+    """Request model for spending energy"""
+    amount: int = Field(
+        ...,
+        description="Amount of energy to spend",
+        ge=0,
+        le=10000,
+        example=10
+    )
+    activity_type: str = Field(
+        ...,
+        description="Type of activity: 'quiz_start', 'practice_start', 'flashcard_start', 'bonus_unlock'",
+        example="quiz_start"
+    )
+    session_id: Optional[str] = Field(
+        None,
+        description="Session identifier",
+        example="session_123"
+    )
+    user_id: Optional[UUID] = Field(
+        None,
+        description="User identifier",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "amount": 10,
+                "activity_type": "quiz_start",
+                "session_id": "session_abc123",
+                "user_id": "550e8400-e29b-41d4-a716-446655440000"
+            }
+        }
+
+@app.post("/api/economy/spend-energy", 
+    tags=["Economy"],
+    summary="Spend energy to start an activity",
+    description="Deducts energy from the player's economy when starting a game or activity",
+    response_description="Returns success status and updated economy state",
+    responses={
+        200: {
+            "description": "Energy successfully spent",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "remaining_energy": 90,
+                        "new_state": {
+                            "energy": 90,
+                            "hearts": 5,
+                            "coins": 1250
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Insufficient energy",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": "Insufficient energy",
+                        "required": 10,
+                        "available": 5
+                    }
+                }
+            }
+        }
+    }
+)
+async def spend_energy(request: EnergySpendRequest):
+    """Spend energy to start a game or activity"""
+    try:
+        # Get current economy state
+        economy_state = await db.get_economy_state(request.user_id, request.session_id)
+        
+        # Check if user has enough energy
+        if economy_state['energy'] < request.amount:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "success": False,
+                    "error": "Insufficient energy",
+                    "required": request.amount,
+                    "available": economy_state['energy']
+                }
+            )
+        
+        # Deduct energy
+        economy_state['energy'] -= request.amount
+        
+        # Log the energy spend transaction
+        # TODO: Implement transaction logging
+        # await db.log_transaction(
+        #     user_id=request.user_id,
+        #     session_id=request.session_id,
+        #     transaction_type="energy_spend",
+        #     amount=-request.amount,
+        #     activity_type=request.activity_type,
+        #     metadata={
+        #         "timestamp": datetime.utcnow().isoformat(),
+        #         "remaining_energy": economy_state['energy']
+        #     }
+        # )
+        
+        # Save updated state
+        await db.save_economy_state(request.user_id, request.session_id, economy_state)
+        
+        return {
+            "success": True,
+            "remaining_energy": economy_state['energy'],
+            "new_state": economy_state
+        }
+    except HTTPException:
+        # Re-raise HTTP exceptions as they already have proper JSON format
+        raise
+    except Exception as e:
+        # Log the error for debugging
+        logger.error(f"Error in spend_energy endpoint: {str(e)}", exc_info=True)
+        
+        # Return a proper JSON error response
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "success": False,
+                "error": "Internal server error",
+                "message": "Failed to process energy spend request"
+            }
+        )
+
+@app.post("/api/economy/process-result",
+    tags=["Economy"],
+    summary="Process game completion",
+    description="Calculate and apply rewards after game completion",
+    response_description="Rewards earned and updated economy state")
+async def process_game_result(
+    result: GameResult,
+    session_id: Optional[str] = Query(None, description="Session identifier"),
+    user_id: Optional[UUID] = Query(None, description="User identifier")
+):
+    """Process game results and calculate rewards server-side"""
+    # Calculate rewards based on result
+    rewards = calculate_rewards(result)
+    
+    # Get current economy state
+    economy_state = await db.get_economy_state(user_id, session_id)
+    
+    # Apply rewards
+    new_state = apply_rewards(economy_state, rewards)
+    
+    # Check for level up
+    level_up = check_level_up(economy_state, new_state)
+    
+    # Save new state
+    await db.save_economy_state(user_id, session_id, new_state)
+    
+    return {
+        "success": True,
+        "rewards": rewards,
+        "new_state": new_state,
+        "level_up": level_up
+    }
+
+@app.get("/api/economy/state",
+    tags=["Economy"],
+    summary="Get current economy state",
+    description="Retrieve the current economy state including energy, coins, gems, and level")
+async def get_economy_state(
+    session_id: Optional[str] = Query(None, description="Session identifier"),
+    user_id: Optional[UUID] = Query(None, description="User identifier")
+):
+    """Get current economy state for a user or session"""
+    state = await db.get_economy_state(user_id, session_id)
+    return {"state": state}
+
+def calculate_rewards(result: GameResult) -> dict:
+    """Calculate rewards based on game results"""
+    rewards = {}
+    
+    # Base values
+    base_xp = 10
+    base_coins = 30
+    
+    # Difficulty multipliers
+    difficulty_multipliers = {
+        "easy": 1.0,
+        "medium": 1.5,
+        "hard": 2.0,
+        "expert": 3.0
+    }
+    
+    # Mode multipliers
+    mode_multipliers = {
+        "normal": {"xp": 1.0, "coins": 1.0},
+        "zen": {"xp": 1.2, "coins": 0.8},
+        "speed": {"xp": 0.9, "coins": 1.3},
+        "chaos": {"xp": 1.5, "coins": 1.5}
+    }
+    
+    # Apply multipliers
+    diff_mult = difficulty_multipliers.get(result.difficulty, 1.0)
+    mode_mult = mode_multipliers.get(result.mode, {"xp": 1.0, "coins": 1.0})
+    
+    # Calculate base rewards
+    if result.type == "quiz_complete":
+        rewards["xp"] = int(base_xp * diff_mult * mode_mult["xp"])
+        rewards["coins"] = int(base_coins * diff_mult * mode_mult["coins"])
+        
+        # Bonus for perfect score
+        if result.perfect_score:
+            rewards["xp"] = int(rewards["xp"] * 1.5)
+            rewards["diamonds"] = 1
+            
+        # Streak bonuses
+        if result.streak >= 10:
+            rewards["amethysts"] = 1
+        elif result.streak >= 5:
+            rewards["rubies"] = 1
+        elif result.streak >= 3:
+            rewards["sapphires"] = 1
+            
+    elif result.type == "practice_complete":
+        # Practice gives less rewards
+        rewards["xp"] = int(base_xp * 0.4 * diff_mult)
+        rewards["coins"] = int(base_coins * 0.4 * diff_mult)
+        
+        if result.perfect_score:
+            rewards["sapphires"] = 1
+    
+    return rewards
+
+def apply_rewards(state: dict, rewards: dict) -> dict:
+    """Apply rewards to current state"""
+    new_state = state.copy()
+    
+    for resource, amount in rewards.items():
+        if resource in new_state:
+            new_state[resource] = new_state.get(resource, 0) + amount
+            
+    return new_state
+
+def check_level_up(old_state: dict, new_state: dict) -> Optional[dict]:
+    """Check if player leveled up"""
+    old_level = old_state.get("level", 1)
+    
+    # Calculate level from XP (polynomial progression)
+    xp = new_state.get("xp", 0)
+    new_level = 1
+    
+    while True:
+        xp_for_next = 100 + (new_level * new_level * 50)
+        if xp >= xp_for_next:
+            new_level += 1
+        else:
+            break
+    
+    if new_level > old_level:
+        new_state["level"] = new_level
+        return {
+            "old_level": old_level,
+            "new_level": new_level,
+            "unlocks": get_level_unlocks(new_level)
+        }
+    
+    return None
+
+def get_level_unlocks(level: int) -> list:
+    """Get unlocks for reaching a level"""
+    unlocks = []
+    
+    if level == 5:
+        unlocks.append("New avatar: Cool Bot")
+    if level == 10:
+        unlocks.append("New mode: Speed Challenge")
+    if level % 5 == 0:
+        unlocks.append(f"Bonus: {level * 10} gems")
+        
+    return unlocks
+
+async def generate_dynamic_flashcards(category: str, count: int):
+    """Generate flashcards using Haiku API"""
+    flashcards = []
+    
+    # Map categories to generators
+    if category == "famous_quotes":
+        from quote_generator import quote_generator
+        themes = ["wisdom", "success", "courage", "friendship", "perseverance"]
+        
+        for i in range(min(count, len(themes))):
+            quote = await quote_generator.generate_single_quote(themes[i % len(themes)])
+            if quote:
+                flashcard = {
+                    "id": quote["id"],
+                    "category": "Famous Quote",
+                    "type": "quote",
+                    **quote["data"]
+                }
+                flashcards.append(flashcard)
+                
+    elif category == "bad_puns":
+        from pun_generator import pun_generator
+        themes = ["food", "animals", "technology", "music", "sports"]
+        
+        for i in range(min(count, len(themes))):
+            pun = await pun_generator.generate_single_pun(themes[i % len(themes)])
+            if pun:
+                flashcard = {
+                    "id": pun["id"],
+                    "category": "Bad Pun",
+                    "type": "pun",
+                    **pun["data"]
+                }
+                flashcards.append(flashcard)
+                
+    elif category == "trivia_mix":
+        # Generate factoids (simple-flip format) for trivia_mix
+        from trivia_generator import trivia_generator
+        themes = ["history", "science", "geography", "animals", "space", "technology", "nature", "ocean"]
+        
+        for i in range(min(count, len(themes))):
+            # Generate factoid format instead of true/false
+            trivia = await trivia_generator.generate_single_trivia(themes[i % len(themes)], format="factoid")
+            if trivia:
+                flashcard = {
+                    "id": trivia["id"],
+                    "category": "Factoid 🤯",
+                    "type": "factoid",
+                    **trivia["data"]
+                }
+                flashcards.append(flashcard)
+    
+    return flashcards
+
+# Audio endpoints
+@app.get("/api/audio/quiz/{quiz_id}")
+async def get_quiz_audio(quiz_id: UUID, mode: str = "normal"):
+    """Get audio files for a quiz (cached if available)"""
+    # For demo, using current quiz
+    quiz = await db.get_current_quiz(mode)
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+    
+    # Check if audio service is configured
+    if not audio_service.api_key:
+        return {
+            "available": False,
+            "message": "Audio service not configured"
+        }
+    
+    # Generate audio files
+    audio_files = await audio_service.generate_quiz_audio(quiz, mode)
+    
+    # Convert to base64 for JSON response
+    import base64
+    audio_urls = {}
+    for key, audio_data in audio_files.items():
+        if audio_data:
+            audio_urls[key] = f"data:audio/mpeg;base64,{base64.b64encode(audio_data).decode()}"
+    
+    return {
+        "available": True,
+        "quiz_id": str(quiz_id),
+        "mode": mode,
+        "audio": audio_urls
+    }
+
+@app.get("/api/audio/usage")
+async def get_audio_usage():
+    """Get current audio generation usage stats"""
+    stats = await audio_service.get_usage_stats()
+    return stats
+
+# Player Feedback endpoints
+class FeedbackRequest(BaseModel):
+    """Request model for submitting player feedback"""
+    content_id: UUID = Field(
+        ...,
+        description="ID of the content being reviewed",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    )
+    feedback_type: str = Field(
+        ...,
+        description="Type of feedback: 'thumbs_up', 'thumbs_down', 'difficulty', 'flag', 'emote'",
+        example="thumbs_up"
+    )
+    user_id: Optional[UUID] = Field(
+        None,
+        description="User ID if authenticated",
+        example="550e8400-e29b-41d4-a716-446655440000"
+    )
+    session_id: Optional[str] = Field(
+        None,
+        description="Session ID for anonymous users",
+        example="session_123"
+    )
+    # Type-specific fields
+    rating: Optional[int] = Field(
+        None,
+        description="Difficulty rating (1-5) for 'difficulty' feedback",
+        ge=1,
+        le=5,
+        example=3
+    )
+    reason: Optional[str] = Field(
+        None,
+        description="Reason for flagging (for 'flag' feedback)",
+        example="wrong_answer"
+    )
+    details: Optional[str] = Field(
+        None,
+        description="Additional details for flag feedback",
+        example="The capital of France is Paris, not London"
+    )
+    emote: Optional[str] = Field(
+        None,
+        description="Emote reaction (for 'emote' feedback)",
+        example="mind_blown"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "content_id": "550e8400-e29b-41d4-a716-446655440000",
+                "feedback_type": "thumbs_up",
+                "session_id": "session_abc123"
+            }
+        }
+
+@app.post("/api/feedback/submit",
+    tags=["Feedback"],
+    summary="Submit player feedback",
+    description="Submit feedback for quiz content including ratings, flags, and reactions",
+    response_description="Feedback submission result with rewards")
+async def submit_feedback(feedback: FeedbackRequest):
+    """Submit player feedback for content quality control"""
+    from player_feedback import player_feedback_system
+    
+    # Convert request to feedback data
+    feedback_data = {
+        "content_id": feedback.content_id,
+        "feedback_type": feedback.feedback_type,
+        "user_id": feedback.user_id,
+        "session_id": feedback.session_id
+    }
+    
+    # Add type-specific fields
+    if feedback.feedback_type == "difficulty" and feedback.rating:
+        feedback_data["rating"] = feedback.rating
+    elif feedback.feedback_type == "flag":
+        feedback_data["reason"] = feedback.reason or "other"
+        feedback_data["details"] = feedback.details or ""
+    elif feedback.feedback_type == "emote" and feedback.emote:
+        feedback_data["emote"] = feedback.emote
+    
+    result = await player_feedback_system.submit_feedback(feedback_data)
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.get("/api/feedback/content/{content_id}",
+    tags=["Feedback"],
+    summary="Get feedback summary for content",
+    description="Retrieve aggregated feedback data for a specific piece of content")
+async def get_content_feedback(content_id: UUID):
+    """Get aggregated feedback for a content item"""
+    from player_feedback import player_feedback_system
+    
+    summary = await player_feedback_system.get_content_feedback_summary(content_id)
+    return summary
+
+@app.post("/api/content/quiz/generate-questions")
+async def patch_quiz_set(request: Dict[str, Any]):
+    """Generate missing questions for an existing quiz set"""
+    set_id = request.get("set_id")
+    count = request.get("count", 1)
+    
+    if not set_id:
+        raise HTTPException(status_code=400, detail="set_id is required")
+    
+    if count < 1 or count > 9:
+        raise HTTPException(status_code=400, detail="count must be between 1 and 9")
+    
+    try:
+        # Load the existing quiz set
+        async with db.pool.acquire() as conn:
+            quiz_set = await conn.fetchrow("""
+                SELECT id, type, data, metadata
+                FROM content
+                WHERE id = $1 AND type = 'quiz_set'
+            """, UUID(set_id))
+            
+            if not quiz_set:
+                raise HTTPException(status_code=404, detail="Quiz set not found")
+            
+            # Parse the data
+            data = json.loads(quiz_set["data"]) if isinstance(quiz_set["data"], str) else quiz_set["data"]
+            existing_questions = data.get("questions", [])
+            
+            # Extract context from the existing set
+            category = data.get("category", request.get("category", "general"))
+            difficulty = data.get("difficulty", request.get("difficulty", "medium"))
+            title = data.get("title", "")
+            
+            # Generate the missing questions using the quiz generator
+            from quiz_set_generator import QuizSetGenerator
+            generator = QuizSetGenerator()
+            
+            new_questions = []
+            start_num = len(existing_questions) + 1
+            
+            for i in range(count):
+                question_num = start_num + i
+                # Generate a question that matches the set's style
+                question = await generator.generate_quiz_question(category, question_num)
+                if question:
+                    new_questions.append(question)
+                await asyncio.sleep(0.5)  # Rate limiting
+            
+            # Merge with existing questions
+            all_questions = existing_questions + new_questions
+            
+            # Update the data
+            data["questions"] = all_questions[:10]  # Ensure max 10 questions
+            
+            # Save back to database
+            await conn.execute("""
+                UPDATE content
+                SET data = $1,
+                    updated_at = $2
+                WHERE id = $3
+            """, json.dumps(data), datetime.utcnow(), UUID(set_id))
+            
+            logger.info(f"Patched quiz set {set_id} with {len(new_questions)} new questions")
+            
+            return {
+                "success": True,
+                "set_id": set_id,
+                "questions_added": len(new_questions),
+                "total_questions": len(data["questions"])
+            }
+            
+    except Exception as e:
+        logger.error(f"Error patching quiz set: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
+
+@app.get("/api/admin/content/{content_type}")
+async def get_all_content_by_type(
+    content_type: str,
+    limit: int = Query(5000, description="Maximum number of items to return"),
+    offset: int = Query(0, description="Number of items to skip")
+):
+    """Admin endpoint to fetch all content of a specific type - for database viewer"""
+    try:
+        async with db.pool.acquire() as conn:
+            # Validate content type
+            valid_types = ['quiz_set', 'pun_set', 'quote_set', 'joke_set', 'trivia_set']
+            if content_type not in valid_types:
+                raise HTTPException(status_code=400, detail=f"Invalid content type. Must be one of: {valid_types}")
+            
+            # Fetch content
+            rows = await conn.fetch("""
+                SELECT id, type, data, metadata, tags, created_at, updated_at
+                FROM content
+                WHERE type = $1
+                ORDER BY created_at DESC
+                LIMIT $2 OFFSET $3
+            """, content_type, limit, offset)
+            
+            # Also get total count
+            total = await conn.fetchval("""
+                SELECT COUNT(*) FROM content WHERE type = $1
+            """, content_type)
+            
+            content = []
+            for row in rows:
+                content.append({
+                    "id": str(row["id"]),
+                    "type": row["type"],
+                    "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                    "metadata": json.loads(row["metadata"]) if row["metadata"] and isinstance(row["metadata"], str) else row["metadata"],
+                    "tags": row["tags"],
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None
+                })
+            
+            return {
+                "content": content,
+                "total": total,
+                "limit": limit,
+                "offset": offset
+            }
+            
+    except Exception as e:
+        logger.error(f"Error fetching content type {content_type}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch content: {str(e)}")
+
+@app.get("/api/feedback/user/{user_id}/stats",
+    tags=["Feedback"],
+    summary="Get user feedback statistics",
+    description="Retrieve a user's feedback history and achievements")
+async def get_user_feedback_stats(user_id: UUID):
+    """Get user's feedback statistics and achievements"""
+    from player_feedback import player_feedback_system
+    
+    stats = await player_feedback_system.get_user_feedback_stats(user_id)
+    return stats
+
+@app.get("/api/validation/stats",
+    tags=["Validation"],
+    summary="Get validation statistics",
+    description="Retrieve overall validation system statistics")
+async def get_validation_stats():
+    """Get validation system statistics"""
+    from validation_service import validation_service
+    
+    stats = await validation_service.get_validation_stats()
+    return {
+        "validation_stats": stats,
+        "timestamp": datetime.utcnow()
+    }
+
+@app.post("/api/validation/validate/{content_id}",
+    tags=["Validation"],
+    summary="Manually trigger validation",
+    description="Manually trigger validation for a specific quiz set (admin only)")
+async def trigger_validation(
+    content_id: UUID,
+    api_key: str = Query(..., description="Admin API key")
+):
+    """Manually trigger validation for a quiz set"""
+    # TODO: Verify admin API key
+    from validation_service import validation_service
+    
+    result = await validation_service.validate_quiz_set(content_id)
+    return result
+
+# ============== QUEST SYSTEM ENDPOINTS ==============
+
+@app.get("/api/quests",
+    tags=["Quests"],
+    summary="Get user's active and completed quests",
+    description="Retrieve all quest information including active quests, completed quests, and quest chains")
+async def get_user_quests(
+    user_id: Optional[UUID] = Query(None, description="User ID"),
+    session_id: Optional[str] = Query(None, description="Session ID for anonymous users")
+):
+    """Get all quests for a user"""
+    if not user_id:
+        return {"active": [], "completed": [], "chains": {}}
+    
+    quests = await db.get_user_quests(user_id)
+    return quests
+
+@app.post("/api/quests/{quest_id}/progress",
+    tags=["Quests"],
+    summary="Update quest progress",
+    description="Update progress for a specific quest and check for completion")
+async def update_quest_progress(
+    quest_id: str,
+    user_id: Optional[UUID] = Query(None, description="User ID"),
+    progress: int = Query(1, description="Progress amount to add")
+):
+    """Update quest progress"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    # Update progress (quest_id is used as quest_type for now)
+    completed = await db.update_quest_progress(user_id, quest_id, progress)
+    
+    return {
+        "success": True,
+        "completed_quests": completed,
+        "rewards_earned": [q.get("rewards", {}) for q in completed]
+    }
+
+# ============== ACHIEVEMENTS & BADGES ==============
+
+@app.get("/api/achievements",
+    tags=["Achievements"],
+    summary="Get user's achievements",
+    description="Retrieve all achievements and their unlock status")
+async def get_achievements(user_id: Optional[UUID] = Query(None)):
+    """Get all achievements for a user"""
+    # TODO: Return both unlocked and available achievements
+    return {
+        "unlocked": [],
+        "available": [],
+        "progress": {}
+    }
+
+@app.post("/api/achievements/{achievement_id}/unlock",
+    tags=["Achievements"],
+    summary="Unlock an achievement",
+    description="Manually unlock an achievement (for testing or special events)")
+async def unlock_achievement(
+    achievement_id: str,
+    user_id: Optional[UUID] = Query(None)
+):
+    """Unlock an achievement"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    unlocked = await db.unlock_achievement(user_id, achievement_id)
+    
+    return {
+        "success": unlocked,
+        "achievement_id": achievement_id,
+        "message": "Achievement unlocked!" if unlocked else "Already unlocked"
+    }
+
+@app.get("/api/badges",
+    tags=["Badges"],
+    summary="Get user's badges",
+    description="Retrieve all earned badges with their tiers")
+async def get_user_badges(user_id: Optional[UUID] = Query(None)):
+    """Get all badges for a user"""
+    if not user_id:
+        return {"badges": []}
+    
+    badges = await db.get_user_badges(user_id)
+    return {"badges": badges}
+
+@app.post("/api/badges/{badge_id}/award",
+    tags=["Badges"],
+    summary="Award a badge",
+    description="Award a badge to a user at a specific tier")
+async def award_badge(
+    badge_id: str,
+    user_id: Optional[UUID] = Query(None),
+    tier: str = Query("bronze", description="Badge tier: bronze, silver, gold, platinum")
+):
+    """Award a badge to a user"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    await db.award_badge(user_id, badge_id, tier)
+    
+    return {
+        "success": True,
+        "badge_id": badge_id,
+        "tier": tier
+    }
+
+# ============== ASSETS & PETS ==============
+
+@app.get("/api/assets",
+    tags=["Assets"],
+    summary="Get user's assets",
+    description="Retrieve all user assets including pets, cosmetics, and inventory")
+async def get_user_assets(user_id: Optional[UUID] = Query(None)):
+    """Get all assets for a user"""
+    if not user_id:
+        return {"pets": [], "cosmetics": {}, "inventory": []}
+    
+    assets = await db.get_user_assets(user_id)
+    return assets
+
+@app.post("/api/assets/pet",
+    tags=["Assets"],
+    summary="Add a pet",
+    description="Add a new pet to user's collection")
+async def add_pet(
+    user_id: Optional[UUID] = Query(None),
+    pet_type: str = Query(..., description="Type of pet"),
+    name: str = Query(..., description="Pet's name")
+):
+    """Add a pet to user's collection"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    pet_data = {
+        "type": pet_type,
+        "name": name,
+        "stats": {
+            "happiness": 100,
+            "energy": 100
+        }
+    }
+    
+    pet_id = await db.add_pet(user_id, pet_data)
+    
+    return {
+        "success": True,
+        "pet_id": pet_id,
+        "message": f"{name} has joined your family!"
+    }
+
+@app.post("/api/assets/{asset_type}/{asset_id}/equip",
+    tags=["Assets"],
+    summary="Equip an asset",
+    description="Equip or unequip an asset (pet, avatar frame, theme)")
+async def equip_asset(
+    asset_type: str,
+    asset_id: str,
+    user_id: Optional[UUID] = Query(None)
+):
+    """Equip/unequip an asset"""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID required")
+    
+    if asset_type not in ["pet", "avatar_frame", "theme"]:
+        raise HTTPException(status_code=400, detail="Invalid asset type")
+    
+    await db.equip_asset(user_id, asset_type, asset_id)
+    
+    return {
+        "success": True,
+        "asset_type": asset_type,
+        "asset_id": asset_id,
+        "equipped": True
+    }
+
+# ========== ANALYTICS ENDPOINTS ==========
+
+@app.get("/api/analytics/quiz/{quiz_id}",
+    tags=["Analytics"],
+    summary="Get quiz performance analytics",
+    description="Retrieve detailed performance statistics for a specific quiz",
+    response_model=Dict[str, Any])
+async def get_quiz_analytics(quiz_id: UUID):
+    """Get performance analytics for a specific quiz"""
+    try:
+        analytics = await db.get_quiz_analytics(quiz_id)
+        return analytics
+    except Exception as e:
+        logger.error(f"Error getting quiz analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/category/{category}",
+    tags=["Analytics"],
+    summary="Get category performance analytics",
+    description="Retrieve performance statistics for a specific category, optionally filtered by user")
+async def get_category_analytics(
+    category: str,
+    user_id: Optional[UUID] = Query(None, description="Filter by specific user")
+):
+    """Get performance analytics for a category"""
+    try:
+        analytics = await db.get_category_analytics(category, user_id)
+        return analytics
+    except Exception as e:
+        logger.error(f"Error getting category analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/user/{user_id}/strengths",
+    tags=["Analytics"],
+    summary="Get user strengths and weaknesses",
+    description="Analyze a user's performance to identify their strongest and weakest categories")
+async def get_user_strengths(
+    user_id: UUID,
+    min_attempts: int = Query(5, description="Minimum attempts in a category to include it")
+):
+    """Analyze user's strengths and weaknesses"""
+    try:
+        analysis = await db.get_user_strengths_weaknesses(user_id, min_attempts)
+        return analysis
+    except Exception as e:
+        logger.error(f"Error analyzing user strengths: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/insights",
+    tags=["Analytics"],
+    summary="Get global platform insights",
+    description="Retrieve platform-wide statistics and insights about player behavior and performance")
+async def get_global_insights():
+    """Get global platform insights"""
+    try:
+        insights = await db.get_global_insights()
+        return insights
+    except Exception as e:
+        logger.error(f"Error getting global insights: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/analytics/recommendations/{user_id}",
+    tags=["Analytics"],
+    summary="Get personalized recommendations",
+    description="Get quiz recommendations based on user's performance and preferences")
+async def get_recommendations(user_id: UUID):
+    """Get personalized quiz recommendations"""
+    try:
+        # Get user's strengths and weaknesses
+        analysis = await db.get_user_strengths_weaknesses(user_id)
+        
+        recommendations = {
+            "user_id": str(user_id),
+            "recommendations": []
+        }
+        
+        # Recommend categories where they're weak but not too weak
+        if analysis.get("weaknesses"):
+            for weakness in analysis["weaknesses"]:
+                if weakness["success_rate"] > 0.3:  # Not impossibly hard
+                    recommendations["recommendations"].append({
+                        "type": "improvement",
+                        "category": weakness["category"],
+                        "reason": f"Practice {weakness['category']} to improve your {weakness['success_rate']*100:.0f}% success rate",
+                        "difficulty": "medium"
+                    })
+        
+        # Recommend categories where they excel for confidence building
+        if analysis.get("strengths"):
+            for strength in analysis["strengths"][:1]:  # Top strength
+                recommendations["recommendations"].append({
+                    "type": "confidence",
+                    "category": strength["category"],
+                    "reason": f"You excel at {strength['category']} with {strength['success_rate']*100:.0f}% success rate",
+                    "difficulty": "hard"  # Challenge them
+                })
+        
+        # Recommend new categories they haven't tried much
+        attempted_categories = {cat["category"] for cat in analysis.get("all_categories", [])}
+        all_categories = ["science", "history", "pop_culture", "sports", "geography", "technology"]
+        
+        for category in all_categories:
+            if category not in attempted_categories:
+                recommendations["recommendations"].append({
+                    "type": "exploration",
+                    "category": category,
+                    "reason": f"Try something new! You haven't explored {category} quizzes yet",
+                    "difficulty": "easy"  # Start easy
+                })
+                break
+        
+        return recommendations
+    except Exception as e:
+        logger.error(f"Error getting recommendations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# WebSocket for real-time updates
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    await websocket.send_json({"type": "connected", "message": "Welcome to JazzyPop!"})
+    
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # Handle different message types
+            if data.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+            # TODO: Implement more message types
+    except Exception:
+        await websocket.close()
+
+
+
+# ============================================
+# Content Completion Tracking (Roaring Bitmaps)
+# ============================================
+
+from fastapi import Path
+
+@app.post("/api/content/{content_type}/{content_id}/complete",
+    tags=["Content"],
+    summary="Mark content as completed",
+    description="Generic endpoint to mark any content as completed")
+async def mark_content_completed(
+    content_type: str = Path(..., regex="^(quiz|quote|joke|pun|trivia|factoid)$", description="Content type"),
+    content_id: str = Path(..., description="Content ID"),
+    user_id: UUID = Query(..., description="User ID")
+):
+    """Mark any content as completed"""
+    async with db.pool.acquire() as conn:
+        await app.state.rb_dedup.mark_content_completed(
+            conn, str(user_id), content_type, content_id
+        )
+        
+        stats = await app.state.rb_dedup.get_user_stats(
+            conn, str(user_id), content_type
+        )
+        
+        return {
+            "success": True,
+            "content_type": content_type,
+            "content_id": content_id,
+            "stats": stats
+        }
+
+
+@app.post("/api/content/{content_type}/sets/complete",
+    tags=["Content"],
+    summary="Mark entire content set as completed",
+    description="Mark all items in a content set as completed at once")
+async def mark_content_set_completed(
+    content_type: str = Path(..., regex="^(quiz|quote|joke|pun|trivia|factoid)$", description="Content type"),
+    content_ids: List[str] = Body(..., description="List of content IDs in the set"),
+    user_id: UUID = Query(..., description="User ID")
+):
+    """Mark an entire content set as completed"""
+    async with db.pool.acquire() as conn:
+        # Mark all items in the set as completed
+        for content_id in content_ids:
+            await app.state.rb_dedup.mark_content_completed(
+                conn, str(user_id), content_type, content_id
+            )
+        
+        # Get updated stats
+        stats = await app.state.rb_dedup.get_user_stats(
+            conn, str(user_id), content_type
+        )
+        
+        return {
+            "success": True,
+            "content_type": content_type,
+            "items_completed": len(content_ids),
+            "stats": stats
+        }
+
+@app.get("/api/users/{user_id}/content-stats",
+    tags=["Users"],
+    summary="Get user content statistics",
+    description="Shows content consumption progress")
+async def get_user_content_stats(
+    user_id: UUID = Path(..., description="User ID"),
+    content_type: Optional[str] = Query(None, regex="^(quiz|quote|joke|pun|trivia)$", description="Filter by content type")
+):
+    """Get user's content consumption statistics"""
+    async with db.pool.acquire() as conn:
+        if content_type:
+            stats = await app.state.rb_dedup.get_user_stats(
+                conn, str(user_id), content_type
+            )
+            return {content_type: stats}
+        else:
+            all_stats = {}
+            for ctype in ['quiz', 'quote', 'joke', 'pun', 'trivia']:
+                all_stats[ctype] = await app.state.rb_dedup.get_user_stats(
+                    conn, str(user_id), ctype
+                )
+            return {
+                "user_id": str(user_id),
+                "stats": all_stats,
+                "summary": {
+                    "total_seen": sum(s.get('seen_count', 0) for s in all_stats.values()),
+                    "total_completed": sum(s.get('completed_count', 0) for s in all_stats.values())
+                }
+            }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

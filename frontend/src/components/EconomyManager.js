@@ -535,12 +535,15 @@ class EconomyManager {
         // TEMPORARILY DISABLED - Too aggressive with dashboard sync
         return;
         
+        /* // Commented out unreachable code - remove return above to re-enable
         // Skip validation on mobile devices - extremely low hack risk
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         if (isMobile) {
             return;
         }
+        */
         
+        /* // Commented out unreachable code - remove return above to re-enable
         // Skip if checksum not initialized yet
         if (this.stateChecksum === null) {
             console.log('Checksum not initialized, setting it now');
@@ -557,6 +560,7 @@ class EconomyManager {
             console.error('State tampering detected!');
             this.forceFullSync();
         }
+        */
     }
     
     forceFullSync() {

@@ -40,6 +40,100 @@ class FlashcardModal {
         if (window.RewardsDisplay) {
             this.rewardsDisplay = new window.RewardsDisplay();
         }
+
+        // Track all event listeners for cleanup
+        this.eventListeners = [];
+        this.dynamicElements = new Set();
+        
+        // Create challenge instance pool
+        this.initializeChallengePool();
+    }
+
+    // Initialize a pool of challenge instances
+    initializeChallengePool() {
+        this.challengePool = [];
+        this.activeChallengeInstance = null;
+        
+        // Pre-create 10 challenge instances
+        for (let i = 0; i < 10; i++) {
+            const instance = {
+                id: `challenge-instance-${i}`,
+                container: document.createElement('div'),
+                question: document.createElement('div'),
+                input: document.createElement('div'),
+                checkBtn: document.createElement('button'),
+                feedback: document.createElement('div'),
+                continueBtn: document.createElement('button'),
+                listeners: new Map(),
+                inUse: false
+            };
+            
+            // Set up the structure
+            instance.container.className = 'flashcard-challenge-container';
+            instance.container.id = instance.id;
+            instance.question.className = 'flashcard-challenge-question';
+            instance.input.className = 'flashcard-challenge-input';
+            instance.checkBtn.className = 'flashcard-check-answer-btn';
+            instance.checkBtn.textContent = 'Check Answer';
+            instance.feedback.className = 'flashcard-answer-feedback';
+            instance.continueBtn.className = 'flashcard-continue-btn';
+            instance.continueBtn.textContent = 'Continue';
+            
+            // Assemble the structure
+            instance.container.appendChild(instance.question);
+            instance.container.appendChild(instance.input);
+            instance.container.appendChild(instance.checkBtn);
+            instance.container.appendChild(instance.feedback);
+            instance.container.appendChild(instance.continueBtn);
+            
+            // Initially hide it
+            instance.container.style.display = 'none';
+            
+            this.challengePool.push(instance);
+        }
+    }
+    
+    // Get an available challenge instance from the pool
+    getChallengeInstance() {
+        // Release current instance if any
+        if (this.activeChallengeInstance) {
+            this.releaseChallengeInstance(this.activeChallengeInstance);
+        }
+        
+        // Find an unused instance
+        const instance = this.challengePool.find(inst => !inst.inUse);
+        if (!instance) {
+            console.error('No available challenge instances in pool!');
+            return null;
+        }
+        
+        instance.inUse = true;
+        this.activeChallengeInstance = instance;
+        return instance;
+    }
+    
+    // Release a challenge instance back to the pool
+    releaseChallengeInstance(instance) {
+        if (!instance) return;
+        
+        // Clear all event listeners
+        instance.listeners.forEach((listener, element) => {
+            element.removeEventListener(listener.type, listener.handler);
+        });
+        instance.listeners.clear();
+        
+        // Clear content
+        instance.question.textContent = '';
+        instance.input.innerHTML = '';
+        instance.feedback.innerHTML = '';
+        instance.container.style.display = 'none';
+        
+        // Remove from DOM if attached
+        if (instance.container.parentNode) {
+            instance.container.remove();
+        }
+        
+        instance.inUse = false;
     }
 
     // Generate unique IDs based on card type and index
@@ -49,8 +143,31 @@ class FlashcardModal {
         return `flashcard-${cardType}-${cardIndex}-${elementType}`;
     }
 
+    // Cleanup any dynamically created elements and listeners
+    cleanupDynamicContent() {
+        // Remove any tracked dynamic elements
+        this.dynamicElements.forEach(element => {
+            if (element && element.parentNode) {
+                element.remove();
+            }
+        });
+        this.dynamicElements.clear();
+
+        // Clean up any stored references
+        if (this.getSelectedWords) {
+            delete this.getSelectedWords;
+        }
+
+        // Clear any temporary DOM elements
+        const tempElements = document.querySelectorAll('.temp-popup, .xp-popup, .bonus-popup, .score-message-bar');
+        tempElements.forEach(el => el.remove());
+    }
+
     // Assign dynamic IDs to elements when loading a card
     assignDynamicIds() {
+        // Clean up before assigning new IDs
+        this.cleanupDynamicContent();
+
         // Get elements by class and assign unique IDs
         const challengeContainer = this.modal.querySelector(
             '.flashcard-challenge-container'
@@ -87,9 +204,18 @@ class FlashcardModal {
         // console.log(`Assigned dynamic IDs for card type: ${this.currentCard?.type}, index: ${this.currentIndex}`);
     }
 
+    // Helper to add event listener with tracking
+    addTrackedListener(element, type, handler) {
+        element.addEventListener(type, handler);
+        this.eventListeners.push({ element, type, handler });
+    }
+
     // Helper to get element by dynamic ID type
     getElement(elementType) {
-        return document.getElementById(this.getUniqueId(elementType));
+        const id = this.getUniqueId(elementType);
+        const element = document.getElementById(id);
+        console.log(`🔍 Getting element ${elementType} with ID: ${id}, found: ${!!element}`);
+        return element;
     }
 
     createModal() {
@@ -112,15 +238,15 @@ class FlashcardModal {
                     </div>
                 </div>
                 
-                <!-- Cumulative streak bar for quotes -->
-                <div class="quote-streak-bar" id="quoteStreakBar" style="display: none;">
+                <!-- Cumulative streak bar for quotes - TEMPORARILY COMMENTED OUT due to duplicate progress display -->
+                <!-- <div class="quote-streak-bar" id="quoteStreakBar" style="display: none;">
                     <div class="streak-flames">
                         <span class="flame-icon">🔥</span>
                     </div>
                     <div class="streak-progress">
                         <div class="streak-fill" id="streakFill"></div>
                     </div>
-                </div>
+                </div> -->
 
                 <div class="flashcard-container" id="flashcardContainer">
                     <div class="flashcard" id="flashcard">
@@ -154,7 +280,9 @@ class FlashcardModal {
                         <div class="joke-content" id="jokeContent">
                             <div class="joke-text" id="jokeText"></div>
                         </div>
-                        <div class="joke-nav">
+                        
+                        <!-- Footer for both jokes and puns - inside container -->
+                        <div class="joke-flip-footer" id="jokeFlipFooter">
                             <button class="joke-nav-btn" id="jokeNextBtn">
                                 <span class="nav-icon"><img src="./src/images/navIcons/flipCardFlipperIcon.svg" alt="Next"></span>
                             </button>
@@ -194,8 +322,10 @@ class FlashcardModal {
         const overlay = this.modal.querySelector('.flashcard-overlay');
         overlay.addEventListener('click', () => this.close());
 
-        // DEBUG: Add keyboard shortcut to skip to results
+        // DEBUG: Add keyboard shortcuts
         this.debugKeyHandler = (e) => {
+            // J shortcut removed - no longer needed
+            
             // Ctrl+Shift+R = Skip to Results (or Cmd+Shift+R on Mac)
             if (
                 (e.ctrlKey || e.metaKey) &&
@@ -342,6 +472,9 @@ class FlashcardModal {
 
     async open(config) {
         console.log('Opening flashcard modal with config:', config);
+        
+        // Store config for later reference (needed for safeguards)
+        this.config = config;
 
         // If modal is already open, close it first to reset state
         if (this.modal.classList.contains('active')) {
@@ -469,12 +602,16 @@ class FlashcardModal {
         try {
             const apiBase = window.API_URL || 'https://p0qp0q.com';
 
+            // Get user ID if available for deduplication
+            const userId = localStorage.getItem('userId');
+            const userParam = userId ? `&user_id=${userId}` : '';
+            
             // Map practice categories to the new set endpoints
             const setEndpoints = {
-                bad_puns: '/api/content/pun/sets?count=1',
-                famous_quotes: '/api/content/quote/sets?count=1',
-                knock_knock: '/api/content/joke/sets?count=1',
-                trivia_mix: '/api/content/trivia/sets?count=1'
+                bad_puns: `/api/content/pun/sets?count=1`,
+                famous_quotes: `/api/content/quote/sets?count=1`,
+                knock_knock: `/api/content/joke/sets?count=1`,
+                trivia_mix: `/api/content/trivia/sets?count=1`
             };
 
             const category = config.category || 'trivia_mix';
@@ -562,7 +699,7 @@ class FlashcardModal {
                     ) {
                         return {
                             id: card.id,
-                            category: 'Famous Quote',
+                            category: 'Say What?',
                             type: 'quote',
                             content: card.content,
                             author: card.author,
@@ -570,6 +707,8 @@ class FlashcardModal {
                             challenge: card.challenge,
                             answer: card.answer,
                             challengeType: card.challengeType,
+                            options: card.options, // For multiple-choice
+                            scrambled: card.scrambled, // For word-order
                             year: card.year,
                             theme: card.theme,
                             difficulty: card.difficulty || 'easy'
@@ -601,7 +740,14 @@ class FlashcardModal {
     async trackCardView(cardId, isCorrect = null) {
         try {
             const apiBase = window.API_URL || 'https://p0qp0q.com';
-            const userId = localStorage.getItem('userId');
+            
+            // Get userId from authPanel first, fallback to localStorage
+            let userId = null;
+            if (window.authPanel && window.authPanel.currentUserId) {
+                userId = window.authPanel.currentUserId;
+            } else {
+                userId = localStorage.getItem('userId');
+            }
 
             if (!userId) return; // Don't track for anonymous users
 
@@ -752,7 +898,7 @@ class FlashcardModal {
         const template = templates[index % templates.length];
         return {
             id: `quote-dynamic-${index}`,
-            category: 'Famous Quote',
+            category: 'Say What?',
             type: 'quote',
             ...template,
             difficulty: 'medium'
@@ -888,7 +1034,7 @@ class FlashcardModal {
             // Famous Quotes with different challenge types
             {
                 id: 'quote-1',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content: '"Be yourself; everyone else is already taken."',
                 author: 'Oscar Wilde',
                 challengeType: 'who-said-it',
@@ -899,7 +1045,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-2',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content: '"In the middle of difficulty lies opportunity."',
                 author: 'Albert Einstein',
                 challengeType: 'fill-blank',
@@ -910,7 +1056,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-3',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content:
                     '"I have a dream that one day this nation will rise up and live out the true meaning of its creed."',
                 author: 'Martin Luther King Jr.',
@@ -922,7 +1068,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-4',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content:
                     '"Life is what happens when you\'re busy making other plans."',
                 author: 'John Lennon',
@@ -946,7 +1092,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-5',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content:
                     '"The only way to do great work is to love what you do."',
                 author: 'Steve Jobs',
@@ -1056,7 +1202,7 @@ class FlashcardModal {
             // Famous Quotes
             {
                 id: 'quote-1',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content: '"Be yourself; everyone else is already taken."',
                 author: 'Oscar Wilde',
                 challengeType: 'who-said-it',
@@ -1067,7 +1213,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-2',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content: '"In the middle of difficulty lies opportunity."',
                 author: 'Albert Einstein',
                 challengeType: 'fill-blank',
@@ -1078,7 +1224,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-3',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content:
                     '"I have a dream that one day this nation will rise up and live out the true meaning of its creed."',
                 author: 'Martin Luther King Jr.',
@@ -1090,7 +1236,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-4',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content:
                     '"Life is what happens when you\'re busy making other plans."',
                 author: 'John Lennon',
@@ -1114,7 +1260,7 @@ class FlashcardModal {
             },
             {
                 id: 'quote-5',
-                category: 'Famous Quote',
+                category: 'Say What?',
                 content:
                     '"The only way to do great work is to love what you do."',
                 author: 'Steve Jobs',
@@ -1301,6 +1447,7 @@ class FlashcardModal {
 
     loadCard() {
         // console.log('🔄 loadCard() called - Index:', this.currentIndex, 'Total cards:', this.cards.length);
+        
         if (this.currentIndex >= this.cards.length) {
             this.showResults();
             return;
@@ -1313,6 +1460,12 @@ class FlashcardModal {
 
         this.currentCard = this.cards[this.currentIndex];
         this.userAnswer = null;
+        
+        // SAFEGUARD: If we're in a quote session but card type is missing, fix it
+        if (this.config?.category === 'famous_quotes' && !this.currentCard.type) {
+            console.warn('Card missing type in quote session, fixing it to "quote"');
+            this.currentCard.type = 'quote';
+        }
 
         // DEBUG: Log the current card structure
         console.log('Current card structure:', this.currentCard);
@@ -1338,7 +1491,8 @@ class FlashcardModal {
         }
 
         // Show/hide quote streak bar and regular streak indicator
-        const quoteStreakBar = document.getElementById('quoteStreakBar');
+        // TEMPORARILY COMMENTED OUT - quote streak bar is disabled
+        // const quoteStreakBar = document.getElementById('quoteStreakBar');
         const regularStreakIndicator =
             document.getElementById('streakIndicator');
         const flashcardScore = this.modal.querySelector('.flashcard-score');
@@ -1350,15 +1504,15 @@ class FlashcardModal {
         console.log('Is quote session:', isQuoteSession);
 
         if (isQuoteSession) {
-            quoteStreakBar.style.display = 'flex';
+            // quoteStreakBar.style.display = 'flex';
             regularStreakIndicator.style.display = 'none'; // Hide regular streak for quotes
             if (flashcardScore) {
-                // Force hide the entire score section with important
-                flashcardScore.style.cssText = 'display: none !important;';
+                // Don't hide score section for quotes anymore
+                flashcardScore.style.display = 'flex';
             }
-            this.updateQuoteStreak();
+            // this.updateQuoteStreak();
         } else {
-            quoteStreakBar.style.display = 'none';
+            // quoteStreakBar.style.display = 'none';
             if (flashcardScore) {
                 // Remove the forced hiding
                 flashcardScore.style.cssText = '';
@@ -1382,6 +1536,9 @@ class FlashcardModal {
             this.loadJokePage();
             return;
         }
+
+        // Get flashcard element early so we can use it
+        const flashcard = document.getElementById('flashcard');
 
         // Apply special class for word-order challenges
         if (this.currentCard.challengeType === 'word-order') {
@@ -1443,22 +1600,36 @@ class FlashcardModal {
         categoryEl.className = 'card-category';
 
         // Add theme based on card type
+        // IMPORTANT: Add class to flashcard container so CSS selectors work properly
+        // (flashcard already declared above)
+        
+        // Remove previous type classes from flashcard container
+        flashcard.classList.remove('quote-card', 'pun-card', 'knock-card', 'science-card');
+        
         if (this.currentCard.type === 'quote') {
+            flashcard.classList.add('quote-card');
             flashcardFront.classList.add('quote-card');
             categoryEl.classList.add('quote-category');
         } else if (this.currentCard.type === 'pun') {
+            flashcard.classList.add('pun-card');
             flashcardFront.classList.add('pun-card');
             categoryEl.classList.add('pun-category');
+        } else if (this.currentCard.type === 'knock-knock') {
+            flashcard.classList.add('knock-knock-card');
+            flashcardFront.classList.add('knock-knock-card');
+            categoryEl.classList.add('knock-knock-category');
         } else if (
             this.currentCard.type === 'joke' &&
             this.currentCard.category.includes('Knock')
         ) {
+            flashcard.classList.add('knock-card');
             flashcardFront.classList.add('knock-card');
             categoryEl.classList.add('knock-category');
         } else if (
             this.currentCard.category &&
             this.currentCard.category.includes('Science')
         ) {
+            flashcard.classList.add('science-card');
             flashcardFront.classList.add('science-card');
             categoryEl.classList.add('science-category');
         }
@@ -1467,6 +1638,9 @@ class FlashcardModal {
         // Transform category display for factoids
         let displayCategory = this.currentCard.category;
         let categoryIcon = null;
+        
+        // Debug: Mark which side we're on
+        console.log(`🎯 Loading FRONT of card ${this.currentIndex}, type: ${this.currentCard.type}, challengeType: ${this.currentCard.challengeType}`);
 
         if (
             this.currentCard.type === 'factoid' ||
@@ -1526,10 +1700,32 @@ class FlashcardModal {
         }
 
         // Update category display
-        categoryEl.textContent = displayCategory;
+        if (this.currentCard.type === 'quote') {
+            // Create animated SAY WHAT! with individual words
+            categoryEl.innerHTML = `
+                <span class="say-word say-word-1">SAY</span>
+                <span class="say-word say-word-2">WHAT!</span>
+            `;
+            
+            // Play fanfare sound if available
+            try {
+                this.playQuoteFanfare();
+            } catch (e) {
+                console.log('Could not play fanfare:', e);
+            }
+        } else {
+            categoryEl.textContent = displayCategory;
+        }
 
         // Display content with hero icon for factoids
         const contentEl = document.getElementById('cardContent');
+        if (!contentEl) {
+            console.error('Could not find cardContent element!');
+            return;
+        }
+        
+        // Debug: Check if we're accidentally putting challenge content on front
+        console.log(`📍 Front card content element found, about to set content for ${this.currentCard.type}`);
         if (
             categoryIcon &&
             (this.currentCard.type === 'factoid' ||
@@ -1540,8 +1736,8 @@ class FlashcardModal {
             contentEl.style.order = '1';
             contentEl.innerHTML = `
                 <div class="factoid-hero-display">
-                    <img src="${categoryIcon}" class="category-hero-icon" alt="${displayCategory}">
                     <div class="card-category">${displayCategory}</div>
+                    <img src="${categoryIcon}" class="category-hero-icon" alt="${displayCategory}">
                     <div class="factoid-text">${this.currentCard.content}</div>
                 </div>
             `;
@@ -1551,10 +1747,21 @@ class FlashcardModal {
             this.currentCard.type === 'quote' &&
             this.currentCard.author
         ) {
+            // Select a random SayWhatBot (1-5)
+            const botNumber = Math.floor(Math.random() * 5) + 1;
+            const botPath = `./src/images/SayWhatBots/sayWhat0${botNumber}-opt.svg`;
+            
+            console.log(`✅ Setting QUOTE content on FRONT: "${this.currentCard.content}"`);
             contentEl.innerHTML = `
                 <div class="quote-display">
+                    <img src="${botPath}" alt="Say What Bot" class="quote-bot-image" />
                     <div class="quote-text">${this.currentCard.content}</div>
                     <div class="quote-author">— ${this.currentCard.author}</div>
+                    <div class="quote-flip-footer">
+                        <button class="flip-icon-button quote-flip-button" aria-label="Flip card">
+                            <img src="./src/images/navIcons/flipCardFlipperIcon.svg" alt="Flip" class="flip-icon">
+                        </button>
+                    </div>
                 </div>
             `;
         } else {
@@ -1565,11 +1772,25 @@ class FlashcardModal {
             contentEl.innerHTML = `<div class="content-display">${this.currentCard.content}</div>`;
         }
 
+        // Assign dynamic IDs to elements BEFORE setupChallenge needs them
+        this.assignDynamicIds();
+        
         // Prepare the back of card based on challenge type
         this.setupChallenge();
-
-        // Assign dynamic IDs to elements AFTER setupChallenge creates them
-        this.assignDynamicIds();
+        
+        // LEGACY SYSTEM COMMENTED OUT - using clean new buttons for quotes
+        // this.updateButtonVisibility();
+        
+        // For quotes only: Create clean, dedicated submit button
+        if (this.currentCard?.type === 'quote') {
+            this.createCleanSubmitButton();
+        } else {
+            // Stop gremlin killer when not on quotes to free up resources
+            if (this.gremlinKiller) {
+                clearInterval(this.gremlinKiller);
+                this.gremlinKiller = null;
+            }
+        }
 
         // Streak display is now handled in the Show/hide quote streak bar section above
 
@@ -1580,17 +1801,12 @@ class FlashcardModal {
         const challengeEl = this.getElement('challenge');
         const checkBtn = this.getElement('checkBtn');
 
-        // Force challenge and button visible - but not for simple-flip cards
+        // Force challenge visible - but not for simple-flip cards
         if (this.currentCard.challengeType !== 'simple-flip') {
             if (challengeEl) {
                 challengeEl.style.cssText =
                     'display: block !important; opacity: 1 !important; visibility: visible !important; position: relative !important; z-index: 10000 !important;';
                 // console.log('Force showing challenge on load for:', this.getUniqueId('challenge'));
-            }
-            if (checkBtn) {
-                checkBtn.style.cssText =
-                    'display: block !important; opacity: 1 !important; visibility: visible !important; margin: 20px auto; position: relative !important; z-index: 10000 !important;';
-                // console.log('Force showing check button on load for:', this.getUniqueId('checkBtn'));
             }
         } else {
             // For simple-flip, ensure the challenge container is visible but without aggressive styling
@@ -1605,17 +1821,29 @@ class FlashcardModal {
     }
 
     setupChallenge() {
-        // console.log('🔧 setupChallenge() called for card:', this.currentCard?.id);
+        // Debug: Mark that we're setting up the BACK of the card
+        console.log(`🎯 Setting up BACK (challenge) for card ${this.currentIndex}, type: ${this.currentCard?.type}, challengeType: ${this.currentCard?.challengeType}`);
         
         // Don't setup challenge if no current card or if we're transitioning
         if (!this.currentCard || this.isTransitioning) {
             return;
         }
         
-        const questionEl = this.modal.querySelector(
+        // Re-enable submit button when showing back of card (for quotes)
+        if (this.currentCard?.type === 'quote') {
+            const submitBtn = this.modal.querySelector('.clean-quote-submit-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                console.log('Re-enabled submit button for quote challenge');
+            }
+        }
+        
+        let questionEl = this.modal.querySelector(
             '.flashcard-challenge-question'
         );
-        const inputEl = this.modal.querySelector('.flashcard-challenge-input');
+        let inputEl = this.modal.querySelector('.flashcard-challenge-input');
 
         // console.log('Setting up challenge for card:', this.currentCard);
         // console.log('Challenge text:', this.currentCard.challenge);
@@ -1628,15 +1856,66 @@ class FlashcardModal {
             if (inputEl) inputEl.style.display = 'none';
             return;
         }
+        
+        // Hide continue button for quote cards - they use check answer button instead
+        if (this.currentCard.type === 'quote') {
+            const continueBtn = this.modal.querySelector('.flashcard-continue-btn');
+            if (continueBtn) {
+                continueBtn.style.display = 'none';
+                console.log(`Hiding continue button for quote card with challenge type: ${this.currentCard.challengeType}`);
+            }
+        }
+        
+        // Ensure elements exist for quote cards
+        if (!questionEl || !inputEl) {
+            console.error('Challenge elements not found! Attempting to find/create them...', {
+                questionEl: !!questionEl,
+                inputEl: !!inputEl,
+                currentCard: this.currentCard
+            });
+            
+            // Try to find the challenge container and create missing elements
+            const challengeContainer = this.modal.querySelector('.flashcard-challenge-container');
+            if (challengeContainer) {
+                if (!questionEl) {
+                    const newQuestionEl = document.createElement('div');
+                    newQuestionEl.className = 'flashcard-challenge-question';
+                    challengeContainer.insertBefore(newQuestionEl, challengeContainer.firstChild);
+                    questionEl = newQuestionEl;
+                }
+                if (!inputEl) {
+                    const newInputEl = document.createElement('div');
+                    newInputEl.className = 'flashcard-challenge-input';
+                    challengeContainer.insertBefore(newInputEl, challengeContainer.querySelector('.flashcard-check-answer-btn'));
+                    inputEl = newInputEl;
+                }
+            } else {
+                console.error('No challenge container found! Cannot setup challenge.');
+                return;
+            }
+        }
 
         // Only set question text if element exists
         if (questionEl) {
-            questionEl.textContent =
-                this.currentCard.challenge || 'No challenge text';
+            // Special handling for word-order to make text smaller
+            if (this.currentCard.challengeType === 'word-order') {
+                questionEl.innerHTML = '<span style="font-size: 14px; font-weight: normal;">Click words in order</span>';
+            } else {
+                questionEl.textContent =
+                    this.currentCard.challenge || 'No challenge text';
+            }
+            // Ensure it's visible
+            questionEl.style.display = 'block';
+            questionEl.style.opacity = '1';
+            questionEl.style.visibility = 'visible';
+            console.log(`Set challenge question text: "${this.currentCard.challenge}"`);
+        } else {
+            console.error('Question element not found even after creation attempt!');
         }
 
         switch (this.currentCard.challengeType) {
             case 'fill-blank':
+                // Use consistent ID that checkAnswer can find
                 const fillBlankId = `${this.getUniqueId('input')}-fillBlank`;
 
                 // Clear existing content completely
@@ -1676,6 +1955,8 @@ class FlashcardModal {
                         this.checkAnswer();
                     }
                 });
+                
+                // Note: Submit button handled by updateButtonVisibility()
 
                 // console.log('✅ Input created with createElement and direct style properties');
                 // Force input visible and monitor what happens to it
@@ -1782,6 +2063,8 @@ class FlashcardModal {
                         this.checkAnswer();
                     }
                 });
+                
+                // Note: Submit button handled by updateButtonVisibility()
 
                 // Extra insurance - set styles after DOM update
                 setTimeout(() => {
@@ -1794,9 +2077,11 @@ class FlashcardModal {
                 break;
 
             case 'multiple-choice':
+                // Check if options exist, if not create them from the answer
+                const options = this.currentCard.options || this.generateOptions();
                 inputEl.innerHTML = `
                     <div class="multiple-choice-options">
-                        ${this.currentCard.options
+                        ${options
                             .map(
                                 (option, index) => `
                             <button class="mc-option" data-option="${option}">
@@ -1807,6 +2092,9 @@ class FlashcardModal {
                             .join('')}
                     </div>
                 `;
+                
+                // Button visibility now handled by updateButtonVisibility()
+                
                 // Add click handlers to options
                 setTimeout(() => {
                     inputEl.querySelectorAll('.mc-option').forEach((btn) => {
@@ -1818,9 +2106,16 @@ class FlashcardModal {
                             // Add selection to clicked option
                             btn.classList.add('selected');
                             this.userAnswer = btn.dataset.option;
+                            
+                            // Don't auto-submit - let user click submit button
                         });
                     });
                 }, 0);
+                
+                // Ensure parent flashcard expands to contain challenge content
+                setTimeout(() => {
+                    this.adjustFlashcardHeight();
+                }, 200);
                 break;
 
             case 'true-false':
@@ -1849,27 +2144,44 @@ class FlashcardModal {
                 break;
 
             case 'word-order':
-                const scrambled = [...this.currentCard.scrambled];
+                // ALWAYS generate our own scrambled words - don't trust API's "scrambled" array
+                const scrambled = this.generateScrambledWords();
+                console.log('Word-order setup:', {
+                    apiScrambled: this.currentCard.scrambled,
+                    ourScrambled: scrambled,
+                    content: this.currentCard.content
+                });
                 const wordBankId = `${this.getUniqueId('input')}-wordBank`;
                 const wordAnswerId = `${this.getUniqueId('input')}-wordAnswer`;
                 inputEl.innerHTML = `
                     <div class="word-order-container">
-                        <div class="word-bank" id="${wordBankId}">
+                        <div class="word-bank" id="${wordBankId}" style="display: grid !important; grid-template-columns: repeat(3, 1fr) !important;">
                             ${scrambled
                                 .map(
-                                    (word) => `
-                                <span class="word-chip" data-word="${word}">${word}</span>
+                                    (item) => `
+                                <span class="word-chip" data-word="${item.word || item}" data-index="${item.index || 0}">${item.display || item.word || item}</span>
                             `
                                 )
                                 .join('')}
                         </div>
                         <div class="word-answer" id="${wordAnswerId}">
-                            <div class="answer-placeholder">Drag words here...</div>
+                            <div class="answer-placeholder">Click words above to build sentence</div>
+                        </div>
+                        <div class="word-order-actions" style="display: flex; gap: 20px; margin-top: 10px; justify-content: flex-end; align-items: center;">
+                            <button class="word-order-clear-btn" id="${this.getUniqueId('wordOrderClear')}" style="padding: 12px 24px; background: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 14px; font-weight: bold; min-width: 100px;" 
+                                onmouseover="this.style.background='#c82333'" 
+                                onmouseout="this.style.background='#dc3545'">Clear</button>
+                            <button class="word-order-submit-btn" id="${this.getUniqueId('wordOrderSubmit')}" style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 14px; font-weight: bold; min-width: 120px;" 
+                                onmouseover="this.style.background='#218838'" 
+                                onmouseout="this.style.background='#28a745'">Check Answer</button>
                         </div>
                     </div>
                 `;
                 // Add drag and drop or click functionality
-                setTimeout(() => this.setupWordOrder(), 0);
+                setTimeout(() => {
+                    this.setupWordOrder();
+                    // Note: word-order has its own built-in Check Answer button
+                }, 100);
                 break;
 
             case 'simple-flip':
@@ -1955,6 +2267,7 @@ class FlashcardModal {
         const wordBank = document.getElementById(wordBankId);
         const wordAnswer = document.getElementById(wordAnswerId);
         const selectedWords = [];
+        const selectedElements = [];
 
         // Click to add words
         wordBank.addEventListener('click', (e) => {
@@ -1962,43 +2275,263 @@ class FlashcardModal {
                 e.target.classList.contains('word-chip') &&
                 !e.target.classList.contains('selected')
             ) {
+                // Mark this specific element as selected and hide it with animation
                 e.target.classList.add('selected');
                 selectedWords.push(e.target.dataset.word);
+                selectedElements.push(e.target);
+                
+                // Animate the selection - shrink and make semi-transparent
+                setTimeout(() => {
+                    e.target.style.opacity = '0.15';
+                    e.target.style.transform = 'scale(0.8)';
+                }, 50);
 
-                // Clear placeholder
-                if (wordAnswer.querySelector('.answer-placeholder')) {
-                    wordAnswer.innerHTML = '';
-                }
-
-                // Add word to answer
-                const chip = document.createElement('span');
-                chip.className = 'word-chip';
-                chip.dataset.word = e.target.dataset.word;
-                chip.textContent = e.target.dataset.word;
-                chip.addEventListener('click', () => {
-                    // Remove from answer
-                    chip.remove();
-                    e.target.classList.remove('selected');
-                    const index = selectedWords.indexOf(e.target.dataset.word);
-                    if (index > -1) selectedWords.splice(index, 1);
-
-                    // Show placeholder if empty
-                    if (wordAnswer.children.length === 0) {
-                        wordAnswer.innerHTML =
-                            '<div class="answer-placeholder">Click words to build the sentence...</div>';
-                    }
-                });
-                wordAnswer.appendChild(chip);
+                // Update answer area with plain text
+                wordAnswer.textContent = selectedWords.join(' ');
             }
         });
+        
+        // Clear button functionality
+        const clearBtn = this.modal.querySelector('.word-order-clear-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                // Reset everything - show all hidden words
+                selectedWords.length = 0;
+                selectedElements.length = 0;
+                wordBank.querySelectorAll('.word-chip').forEach(chip => {
+                    chip.classList.remove('selected');
+                    chip.style.opacity = '1';
+                    chip.style.transform = 'scale(1)';
+                });
+                wordAnswer.innerHTML = '<div class="answer-placeholder">Click words above to build sentence</div>';
+            });
+        }
+        
+        // Submit button functionality - our own custom button!
+        const submitBtn = this.modal.querySelector('.word-order-submit-btn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                console.log('Word order submit clicked!');
+                this.checkAnswer();
+            });
+        }
 
         // Store selected words for checking
         this.getSelectedWords = () => selectedWords.join(' ');
     }
 
+    // Centralized button visibility logic
+    updateButtonVisibility() {
+        // Find ALL instances of these buttons (there may be multiple)
+        const checkBtns = this.modal.querySelectorAll('.flashcard-check-answer-btn, .check-answer-btn');
+        const continueBtns = this.modal.querySelectorAll('.flashcard-continue-btn, .continue-btn');
+        
+        console.log(`updateButtonVisibility called for challengeType: ${this.currentCard?.challengeType}`);
+        console.log(`Found ${checkBtns.length} check buttons and ${continueBtns.length} continue buttons`);
+        
+        // Log button elements for debugging
+        checkBtns.forEach((btn, index) => {
+            console.log(`Check button ${index}:`, btn, 'Parent:', btn.parentElement);
+        });
+
+        // Hide ALL buttons initially
+        checkBtns.forEach(btn => {
+            btn.style.display = 'none';
+        });
+        continueBtns.forEach(btn => {
+            btn.style.display = 'none';
+        });
+
+        // Determine which button to show based on challenge type
+        switch (this.currentCard?.challengeType) {
+            case 'fill-blank':
+            case 'who-said-it':
+                // These need Check Answer button ONLY - hide continue buttons FIRST
+                continueBtns.forEach(btn => {
+                    btn.style.display = 'none';
+                    btn.style.visibility = 'hidden';
+                });
+                // Then show check buttons
+                checkBtns.forEach(btn => {
+                    btn.style.display = 'block';
+                    btn.style.visibility = 'visible';
+                    btn.style.opacity = '1';
+                    console.log(`Set check button to visible:`, btn);
+                });
+                console.log(`Showing Check Answer button for ${this.currentCard.challengeType}`);
+                break;
+                
+            case 'word-order':
+                // Word-order has its own built-in Check Answer button, hide ALL main buttons
+                checkBtns.forEach(btn => {
+                    btn.style.display = 'none';
+                    btn.style.visibility = 'hidden';
+                });
+                continueBtns.forEach(btn => {
+                    btn.style.display = 'none';
+                    btn.style.visibility = 'hidden';
+                });
+                console.log(`Hiding main buttons for ${this.currentCard.challengeType} (uses built-in button)`);
+                break;
+                
+            case 'multiple-choice':
+            case 'true-false':
+                // These auto-submit on selection - no buttons needed
+                console.log(`Hiding all buttons for ${this.currentCard.challengeType} (auto-submit)`);
+                break;
+                
+            case 'simple-flip':
+                // Factoids just need Continue button after flip
+                if (this.isFlipped) {
+                    continueBtns.forEach(btn => {
+                        btn.style.display = 'block';
+                    });
+                }
+                console.log(`Simple flip - Continue button ${this.isFlipped ? 'shown' : 'hidden'}`);
+                break;
+                
+            default:
+                // Default for unknown types - show check answer
+                checkBtns.forEach(btn => {
+                    btn.style.display = 'block';
+                });
+                console.log('Unknown challenge type - defaulting to Check Answer button');
+        }
+    }
+
+    // CLEAN NEW BUTTON SYSTEM: Simple submit button for quotes
+    createCleanSubmitButton() {
+        // Remove any existing submit button
+        const existingBtn = this.modal.querySelector('.clean-quote-submit-btn');
+        if (existingBtn) {
+            existingBtn.remove();
+        }
+        
+        // REMOVE ALL legacy buttons entirely to avoid confusion
+        const legacyBtns = this.modal.querySelectorAll('.flashcard-check-answer-btn, .check-answer-btn, .flashcard-continue-btn, .continue-btn');
+        legacyBtns.forEach(btn => {
+            btn.remove(); // Completely remove from DOM instead of just hiding
+        });
+        console.log(`Removed ${legacyBtns.length} legacy buttons for ${this.currentCard?.challengeType}`);
+        
+        // GREMLIN-PROOF: Keep removing legacy buttons that try to respawn (QUOTES ONLY)
+        if (this.gremlinKiller) {
+            clearInterval(this.gremlinKiller);
+        }
+        this.gremlinKiller = setInterval(() => {
+            // Only kill gremlins for quote cards to avoid breaking other card types
+            if (this.currentCard?.type === 'quote') {
+                const moreLegacyBtns = this.modal.querySelectorAll('.flashcard-check-answer-btn, .check-answer-btn, .flashcard-continue-btn, .continue-btn');
+                if (moreLegacyBtns.length > 0) {
+                    moreLegacyBtns.forEach(btn => btn.remove());
+                    console.log(`🔫 Killed ${moreLegacyBtns.length} respawning gremlin buttons (quotes only)`);
+                }
+            }
+        }, 100); // Check every 100ms for gremlins
+        
+        // For word-order, don't create a button since it has its own built-in
+        if (this.currentCard?.challengeType === 'word-order') {
+            console.log('Skipping clean button creation for word-order (has built-in button)');
+            return;
+        }
+        
+        // Multiple-choice should have a submit button (removed auto-submit)
+        
+        // Create clean, simple submit button
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'clean-quote-submit-btn';
+        submitBtn.textContent = 'Submit Answer';
+        submitBtn.style.cssText = `
+            display: block;
+            width: 180px;
+            margin: 15px auto;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        `;
+        
+        // Add hover effect
+        submitBtn.addEventListener('mouseenter', () => {
+            submitBtn.style.background = '#218838';
+        });
+        
+        submitBtn.addEventListener('mouseleave', () => {
+            submitBtn.style.background = '#28a745';
+        });
+        
+        // Add click handler
+        submitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            console.log(`Clean submit button clicked for ${this.currentCard.challengeType}`);
+            
+            // Disable button immediately to prevent double-clicks
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            submitBtn.style.cursor = 'not-allowed';
+            
+            this.checkAnswer();
+        });
+        
+        // Find the challenge container and add the button
+        const challengeContainer = this.modal.querySelector('.flashcard-challenge-container');
+        if (challengeContainer) {
+            challengeContainer.appendChild(submitBtn);
+            console.log(`Created clean submit button for ${this.currentCard.challengeType}`);
+        } else {
+            console.error('Could not find challenge container to add submit button');
+        }
+        
+        return submitBtn;
+    }
+
     flipCard() {
         // STEP 1: Prevent double-flipping
         if (this.isFlipped) return;
+        
+        // Debug position and dimensions for card 2
+        if (this.currentIndex === 1) { // Card 2 (0-indexed)
+            console.log(`📍 CARD 2 FLIP DEBUG - Before flip, isFlipped: ${this.isFlipped}`);
+            const flashcard = document.getElementById('flashcard');
+            const flashcardBack = flashcard?.querySelector('.flashcard-back');
+            const challengeContainer = flashcard?.querySelector('.flashcard-challenge-container');
+            const challengeQuestion = flashcard?.querySelector('.flashcard-challenge-question');
+            const challengeInput = flashcard?.querySelector('.flashcard-challenge-input');
+            const fillBlankInput = flashcard?.querySelector('.fill-blank-input');
+            
+            // Check positions and dimensions
+            const elements = [
+                { name: 'flashcard-back', el: flashcardBack },
+                { name: 'challenge-container', el: challengeContainer },
+                { name: 'challenge-question', el: challengeQuestion },
+                { name: 'challenge-input', el: challengeInput },
+                { name: 'fill-blank-input', el: fillBlankInput }
+            ];
+            
+            elements.forEach(({ name, el }) => {
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    const computed = window.getComputedStyle(el);
+                    console.log(`📐 ${name}:`, {
+                        exists: true,
+                        position: `x:${rect.x}, y:${rect.y}`,
+                        size: `w:${rect.width}, h:${rect.height}`,
+                        display: computed.display,
+                        visibility: computed.visibility,
+                        opacity: computed.opacity,
+                        zIndex: computed.zIndex,
+                        cssPosition: computed.position
+                    });
+                } else {
+                    console.log(`❌ ${name}: NOT FOUND`);
+                }
+            });
+        }
 
         const flashcard = document.getElementById('flashcard');
         // console.log('Flipping card. Current card:', this.currentCard);
@@ -2085,9 +2618,13 @@ class FlashcardModal {
                             </div>
                         </div>
                         <div class="wonder-meter-container" id="wonderMeterInline"></div>
-                        <button class="flip-icon-button flip-icon-back" aria-label="Next card">
-                            <img src="./src/images/navIcons/flipCardFlipperIcon.svg" alt="Next" class="flip-icon">
-                        </button>
+                        
+                        <!-- Footer container for flip button -->
+                        <div class="factoid-flip-footer">
+                            <button class="flip-icon-button flip-icon-back" aria-label="Next card">
+                                <img src="./src/images/navIcons/flipCardFlipperIcon.svg" alt="Next" class="flip-icon">
+                            </button>
+                        </div>
                     </div>
                 `;
 
@@ -2101,7 +2638,7 @@ class FlashcardModal {
                             !!container
                         );
                         this.showWonderMeterInline();
-                    }, 800);
+                    }, 200);
                 }, 100); // Close the setTimeout for replacing content
             }
         }
@@ -2127,7 +2664,7 @@ class FlashcardModal {
         }
 
         const checkBtn = this.getElement('checkBtn');
-        if (checkBtn) {
+        if (checkBtn && this.currentCard.challengeType !== 'multiple-choice') {
             checkBtn.style.display = 'block !important';
             console.log(
                 'Forcing check button visible after flip:',
@@ -2146,6 +2683,48 @@ class FlashcardModal {
                 input.style.display = 'block !important';
                 input.style.opacity = '1 !important';
                 input.style.visibility = 'visible !important';
+            }
+            
+            // Debug position AFTER flip for card 2
+            if (this.currentIndex === 1) {
+                console.log(`📍 CARD 2 FLIP DEBUG - AFTER flip complete`);
+                const flashcard = document.getElementById('flashcard');
+                const flashcardBack = flashcard?.querySelector('.flashcard-back');
+                const fillBlankInput = flashcard?.querySelector('.fill-blank-input');
+                
+                if (flashcardBack) {
+                    const rect = flashcardBack.getBoundingClientRect();
+                    const computed = window.getComputedStyle(flashcardBack);
+                    console.log(`📐 flashcard-back AFTER FLIP:`, {
+                        position: `x:${rect.x}, y:${rect.y}`,
+                        size: `w:${rect.width}, h:${rect.height}`,
+                        display: computed.display,
+                        visibility: computed.visibility,
+                        opacity: computed.opacity,
+                        transform: computed.transform,
+                        zIndex: computed.zIndex
+                    });
+                    
+                    // Check if it's positioned at 0,0 or has zero dimensions
+                    if (rect.x === 0 && rect.y === 0) {
+                        console.error('⚠️ Card 2 back is at 0,0 position!');
+                    }
+                    if (rect.width === 0 || rect.height === 0) {
+                        console.error('⚠️ Card 2 back has zero dimensions!');
+                    }
+                }
+                
+                if (fillBlankInput) {
+                    const rect = fillBlankInput.getBoundingClientRect();
+                    console.log(`📐 fill-blank-input AFTER FLIP:`, {
+                        position: `x:${rect.x}, y:${rect.y}`,
+                        size: `w:${rect.width}, h:${rect.height}`,
+                        exists: true,
+                        value: fillBlankInput.value
+                    });
+                } else {
+                    console.error('❌ fill-blank-input NOT FOUND after flip!');
+                }
             }
 
             // STEP 8: Double-check challenge visibility (something keeps hiding it!)
@@ -2179,7 +2758,7 @@ class FlashcardModal {
     }
 
     flipCardToFront() {
-        console.log('flipCardToFront called - flipping to front and advancing');
+        console.log('flipCardToFront called - advancing to next card');
 
         // Prevent duplicate transitions
         if (this.isTransitioning) {
@@ -2188,24 +2767,39 @@ class FlashcardModal {
         }
 
         this.isTransitioning = true;
+        
+        // Clean up any lingering bot indicators
+        const existingBots = this.modal.querySelectorAll('.bot-feedback-indicator');
+        existingBots.forEach(bot => {
+            console.log('Cleaning up lingering bot indicator');
+            bot.remove();
+        });
 
-        // First flip to front
-        const flashcard = document.getElementById('flashcard');
-        flashcard.classList.remove('flipped');
-        this.isFlipped = false;
+        // For quote cards, just advance to the next card without flipping back
+        // This prevents showing the old quote during transition
+        if (this.currentCard?.type === 'quote') {
+            console.log('Quote card - skipping flip animation, going straight to next');
+            this.isTransitioning = false;
+            this.nextCard();
+        } else {
+            // For other card types, keep the original flip behavior
+            const flashcard = document.getElementById('flashcard');
+            flashcard.classList.remove('flipped');
+            this.isFlipped = false;
 
-        // Force a reflow to ensure the browser registers the state change
-        void flashcard.offsetHeight;
+            // Force a reflow to ensure the browser registers the state change
+            void flashcard.offsetHeight;
 
-        // Wait for flip animation to complete, then pause briefly before loading next card
-        setTimeout(() => {
-            console.log('Flip animation complete, pausing before next card...');
-            // Add a small pause to let the flip settle visually
+            // Wait for flip animation to complete, then pause briefly before loading next card
             setTimeout(() => {
-                this.isTransitioning = false;
-                this.nextCard();
-            }, 200); // Small pause after flip completes
-        }, 600); // Wait for flip animation (matches CSS transition duration)
+                console.log('Flip animation complete, pausing before next card...');
+                // Add a small pause to let the flip settle visually
+                setTimeout(() => {
+                    this.isTransitioning = false;
+                    this.nextCard();
+                }, 200); // Small pause after flip completes
+            }, 600); // Wait for flip animation (matches CSS transition duration)
+        }
     }
 
     monitorElementVisibility() {
@@ -2368,9 +2962,18 @@ class FlashcardModal {
 
             case 'word-order':
                 // Get ordered words from helper function
-                userAnswer = this.getSelectedWords();
-                // Exact match required for word order
-                isCorrect = userAnswer === this.currentCard.answer;
+                if (this.getSelectedWords) {
+                    userAnswer = this.getSelectedWords();
+                    console.log(`Word-order: User selected: "${userAnswer}"`);
+                    console.log(`Word-order: Expected answer: "${this.currentCard.wordOrderAnswer}"`);
+                    // Use the word-order specific answer (truncated version)
+                    isCorrect = userAnswer === this.currentCard.wordOrderAnswer;
+                    console.log(`Word-order: Is correct: ${isCorrect}`);
+                } else {
+                    console.error('getSelectedWords function not found! Word order not properly set up.');
+                    userAnswer = '';
+                    isCorrect = false;
+                }
                 break;
 
             case 'simple-flip':
@@ -2429,15 +3032,11 @@ class FlashcardModal {
         // Track the card view with result (for progression system)
         this.trackCardView(this.currentCard.id, isCorrect);
 
-        // UI TRANSITION: Hide check button and feedback area
-        const checkBtn = this.getElement('checkBtn');
-        if (checkBtn) checkBtn.style.display = 'none';
-
-        // Also hide the actual button by class (in case dynamic ID fails)
-        const checkBtnByClass = this.modal.querySelector(
-            '.flashcard-check-answer-btn'
-        );
-        if (checkBtnByClass) checkBtnByClass.style.display = 'none';
+        // UI TRANSITION: Hide ALL check buttons after answer is submitted
+        const allCheckBtns = this.modal.querySelectorAll('.flashcard-check-answer-btn, .check-answer-btn');
+        allCheckBtns.forEach(btn => {
+            btn.style.display = 'none';
+        });
 
         // Don't show feedback area - bot indicator handles everything
         const feedbackEl = this.getElement('feedback');
@@ -2493,6 +3092,19 @@ class FlashcardModal {
     }
 
     showBotIndicator(type) {
+        // Clean up any existing bot indicators first
+        const existingBots = this.modal.querySelectorAll('.bot-feedback-indicator');
+        existingBots.forEach(bot => {
+            console.log('Removing existing bot before creating new one');
+            bot.remove();
+        });
+        
+        // Clear any existing flip timer to prevent conflicts
+        if (this.flipTimer) {
+            clearTimeout(this.flipTimer);
+            this.flipTimer = null;
+        }
+        
         // Small bot icon with checkmark/X like main game
         const botIndicator = document.createElement('div');
         botIndicator.className = 'bot-feedback-indicator';
@@ -2645,6 +3257,37 @@ class FlashcardModal {
                         Date.now() - (this.sessionStartTime || Date.now())
                 }
             );
+            
+            // Mark content as completed for deduplication
+            // Get userId from authPanel first, fallback to localStorage
+            let userId = null;
+            if (window.authPanel && window.authPanel.currentUserId) {
+                userId = window.authPanel.currentUserId;
+            } else {
+                userId = localStorage.getItem('userId');
+            }
+            
+            if (userId && this.cards.length > 0) {
+                const contentType = this.cards[0].type || 'trivia';
+                
+                // Backend expects the set ID, not individual content IDs
+                const setId = this.contentSetId;
+                if (!setId) {
+                    console.error('No content set ID available for completion tracking');
+                    return;
+                }
+                
+                try {
+                    const apiBase = window.API_URL || 'https://p0qp0q.com';
+                    await fetch(`${apiBase}/api/content/${contentType}/sets/complete?user_id=${userId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify([setId]) // Send as array with single set ID
+                    });
+                } catch (error) {
+                    console.error('Failed to mark content as completed:', error);
+                }
+            }
 
             if (result.rewards) {
                 // Show rewards using the new RewardsPopup
@@ -2939,6 +3582,16 @@ class FlashcardModal {
         if (pageContent.textClass) {
             jokeText.classList.add(pageContent.textClass);
         }
+        
+        // Apply pun-specific footer styling if this is a pun
+        const jokeFooter = document.getElementById('jokeFlipFooter');
+        if (jokeFooter) {
+            if (this.currentCard.type === 'pun') {
+                jokeFooter.className = 'pun-flip-footer';
+            } else {
+                jokeFooter.className = 'joke-flip-footer';
+            }
+        }
 
         // Apply speaker positioning to the container
         container.className = 'joke-page-container'; // Reset classes
@@ -3015,6 +3668,82 @@ class FlashcardModal {
         }
     }
 
+    playQuoteFanfare() {
+        // Use the same fanfare sounds for quotes
+        const fanfareSound = this.getRandomJokeIntroSound();
+        // Check if sound manager exists and has the play method
+        if (window.soundManager && typeof window.soundManager.play === 'function') {
+            window.soundManager.play(fanfareSound);
+        } else if (window.audioManager && typeof window.audioManager.playSound === 'function') {
+            window.audioManager.playSound(fanfareSound);
+        }
+        // If no sound manager available, just continue silently
+    }
+
+    generateOptions() {
+        // Generate multiple choice options for quotes when not provided
+        const correctAnswer = this.currentCard.answer || 'Imagination';
+        const distractors = [
+            'Knowledge', 'Experience', 'Education', 'Logic', 
+            'Memory', 'Analysis', 'Wisdom', 'Understanding',
+            'Creativity', 'Innovation', 'Intuition', 'Reasoning'
+        ];
+        
+        // Remove the correct answer from distractors if it's there
+        const filtered = distractors.filter(d => 
+            d.toLowerCase() !== correctAnswer.toLowerCase()
+        );
+        
+        // Shuffle and pick 3 distractors
+        const shuffled = filtered.sort(() => Math.random() - 0.5);
+        const selectedDistractors = shuffled.slice(0, 3);
+        
+        // Combine with correct answer and shuffle again
+        const allOptions = [...selectedDistractors, correctAnswer];
+        return allOptions.sort(() => Math.random() - 0.5);
+    }
+
+    generateScrambledWords() {
+        // Take the quote content and scramble the words
+        const quote = this.currentCard.content || this.currentCard.answer || '';
+        // Remove punctuation and split into words
+        const words = quote
+            .replace(/[.,!?;:"']/g, '') // Remove punctuation
+            .split(/\s+/) // Split by whitespace
+            .filter(word => word.length > 0); // Remove empty strings
+        
+        // Check if quote is too long for word-order challenge
+        if (words.length > 18) {
+            console.log(`Quote too long for word-order (${words.length} words). Would switch to different challenge type.`);
+            // In a full implementation, we'd switch to a different challenge type here
+            // For now, we'll just take the first 18 words
+            words.splice(18);
+        }
+        
+        // Create indexed words to handle duplicates
+        const indexedWords = words.map((word, index) => ({
+            word: word,
+            index: index,
+            display: word // Could add (1), (2) for duplicates if needed
+        }));
+        
+        // Shuffle the indexed words with Fisher-Yates for better randomization
+        const scrambled = [...indexedWords];
+        for (let i = scrambled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [scrambled[i], scrambled[j]] = [scrambled[j], scrambled[i]];
+        }
+        
+        console.log('Original words:', words);
+        console.log('Scrambled words:', scrambled.map(item => item.word));
+        
+        // Store the correct answer for checking (use the truncated version for word-order)
+        this.currentCard.wordOrderAnswer = words.join(' ');
+        console.log('Word-order correct answer set to:', this.currentCard.wordOrderAnswer);
+        
+        return scrambled;
+    }
+
     getRandomResponseSound() {
         // Trombone talk sounds for "Who's there?" responses
         const responseSounds = [
@@ -3069,13 +3798,13 @@ class FlashcardModal {
                     speaker: 'right'
                 },
                 {
-                    text: card.setupLine || 'Orange',
+                    text: card.setupLine || card.whosThere || card.whos_there || 'Orange',
                     botImage: botPair.left,
                     sound: this.getRandomJokeIntroSound(), // Add sound to setup line
                     speaker: 'left'
                 },
                 {
-                    text: `${card.setupLine || 'Orange'} who?`,
+                    text: `${card.setupLine || card.whosThere || card.whos_there || 'Orange'} who?`,
                     botImage: botPair.right,
                     sound: this.getRandomResponseSound(), // Random trombone voice
                     textClass: 'whos-there',
@@ -3083,7 +3812,7 @@ class FlashcardModal {
                 },
                 {
                     text:
-                        card.punchLine ||
+                        card.punchLine || card.punchline ||
                         "Orange you glad I didn't say banana?",
                     botImage: botPair.left,
                     sound: this.getRandomPunchlineSound(), // Random punchline stinger
@@ -3097,14 +3826,15 @@ class FlashcardModal {
             const botPair = this.getComedyBotPair();
             // Build the proper response - always repeat the full question
             let naiveResponse = "I don't know...";
-            if (card.setupLine) {
+            const setupText = card.setupLine || card.setup || card.content;
+            if (setupText) {
                 // Always repeat the full question after "I don't know"
-                naiveResponse = `I don't know, ${card.setupLine.toLowerCase()}`;
+                naiveResponse = `I don't know, ${setupText.toLowerCase()}`;
             }
 
             const pages = [
                 {
-                    text: card.setupLine || "Why don't scientists trust atoms?",
+                    text: card.setupLine || card.setup || card.content || "Why don't scientists trust atoms?",
                     botImage: botPair.left,
                     sound: this.getRandomJokeIntroSound(), // Use fanfare for setup
                     speaker: 'left'
@@ -3117,7 +3847,7 @@ class FlashcardModal {
                     speaker: 'right'
                 },
                 {
-                    text: card.punchLine || 'Because they make up everything!',
+                    text: card.punchLine || card.punchline || 'Because they make up everything!',
                     botImage: botPair.left,
                     sound: this.getRandomPunchlineSound(), // Use punchline stinger
                     textClass: 'punchline',
@@ -3156,7 +3886,7 @@ class FlashcardModal {
         const container = document.getElementById('giggleMeterContainer');
         const jokeContainer = document.getElementById('jokePageContainer');
 
-        // Hide joke page
+        // Hide joke page (footer will hide with it)
         jokeContainer.style.display = 'none';
         container.style.display = 'block';
 
@@ -3290,6 +4020,13 @@ class FlashcardModal {
         // For factoid sessions, show factoid results
         if (isFactoidSession) {
             this.showFactoidResults();
+            return;
+        }
+        
+        // For quote sessions, show quote results
+        const isQuoteSession = this.cards.some(card => card.type === 'quote' || card.category === 'famous_quotes');
+        if (isQuoteSession) {
+            this.showQuoteResults();
             return;
         }
 
@@ -3431,6 +4168,66 @@ class FlashcardModal {
         }
     }
 
+    getQuoteMessage(percentage) {
+        if (percentage === 100) {
+            return "📜 Wisdom mastered! You know your quotes!";
+        } else if (percentage >= 80) {
+            return '🎯 Excellent! Your quote knowledge is impressive!';
+        } else if (percentage >= 60) {
+            return '💡 Good work! Keep studying those famous words!';
+        } else if (percentage >= 40) {
+            return "📚 Nice effort! More quote practice ahead!";
+        } else {
+            return "🌟 Every quote master started somewhere!";
+        }
+    }
+
+    generateQuoteReviewMessage(authors, randomQuote) {
+        const openings = [
+            "Great work! You learned famous quotes from",
+            "Awesome session! You explored wisdom from", 
+            "Nice job! You discovered quotes by",
+            "Well done! You studied the words of"
+        ];
+        
+        const transitions = [
+            "My favorite was",
+            "I especially loved",
+            "This one stood out",
+            "Here's a gem"
+        ];
+        
+        const closings = [
+            "Keep collecting wisdom!",
+            "These words are timeless!",
+            "Great minds think alike!",
+            "Wisdom never goes out of style!"
+        ];
+        
+        const opening = openings[Math.floor(Math.random() * openings.length)];
+        const transition = transitions[Math.floor(Math.random() * transitions.length)];
+        const closing = closings[Math.floor(Math.random() * closings.length)];
+        
+        // Limit to 3 random authors maximum
+        let selectedAuthors = authors;
+        if (authors.length > 3) {
+            // Shuffle authors and take first 3
+            selectedAuthors = [...authors].sort(() => Math.random() - 0.5).slice(0, 3);
+        }
+        
+        // Format authors list
+        let authorList;
+        if (selectedAuthors.length === 1) {
+            authorList = selectedAuthors[0];
+        } else if (selectedAuthors.length === 2) {
+            authorList = `${selectedAuthors[0]} and ${selectedAuthors[1]}`;
+        } else {
+            authorList = `${selectedAuthors.slice(0, -1).join(', ')}, and ${selectedAuthors[selectedAuthors.length - 1]}`;
+        }
+        
+        return `${opening} ${authorList}. ${transition}: "${randomQuote.content}" - ${randomQuote.author}. ${closing}`;
+    }
+
     async showJokeResults() {
         const flashcardContainer =
             document.getElementById('flashcardContainer');
@@ -3476,27 +4273,67 @@ class FlashcardModal {
                 
                 <!-- Large black container for rewards -->
                 <div class="rewards-container-large">
-                    <div class="rewards-bar" id="rewardsBar">
+                    <div class="rewards-bar" id="rewardsBar-jokes">
                         <!-- Spinner slots will be added here -->
                     </div>
                 </div>
                 
-                <div class="results-actions">
+                <!-- Footer container for done button -->
+                <div class="results-footer" style="margin-top: 15px; padding: 10px; background: transparent; text-align: right;">
                     <button class="btn-primary done-button" onclick="window.flashcardModal.close()">Done</button>
                 </div>
             </div>
         `;
 
         // Use RewardsDisplay component to animate rewards with slot machine effect
+        console.log('DEBUG: showJokeResults - JOKE TYPE:', jokeType, 'checking rewards display:', {
+            hasRewardsDisplay: !!this.rewardsDisplay,
+            rewardsDisplayAnimating: this.rewardsDisplay ? this.rewardsDisplay.isAnimating : 'no-instance',
+            rewards: rewards,
+            jokeType: jokeType,
+            windowRewardsDisplay: !!window.RewardsDisplay
+        });
+        
         if (this.rewardsDisplay && rewards) {
-            const rewardsContainer = document.getElementById('rewardsBar');
+            const rewardsContainer = document.getElementById('rewardsBar-jokes');
+            console.log('DEBUG: JOKE TYPE:', jokeType, 'Found rewardsBar-jokes container:', !!rewardsContainer);
             if (rewardsContainer) {
+                console.log('DEBUG: JOKE TYPE:', jokeType, 'Calling rewardsDisplay.show(), isAnimating before:', this.rewardsDisplay.isAnimating);
                 setTimeout(() => {
                     this.rewardsDisplay.show(rewards, rewardsContainer, {
                         size: 'large', // Use large size for joke results
                         theme: 'dark' // Dark theme for consistency
+                    }).then(() => {
+                        console.log('DEBUG: JOKE TYPE:', jokeType, 'Rewards display complete, isAnimating after:', this.rewardsDisplay.isAnimating);
+                    }).catch(err => {
+                        console.error('DEBUG: JOKE TYPE:', jokeType, 'Rewards display failed:', err);
                     });
                 }, 300); // Small delay for visual flow
+            }
+        } else if (!this.rewardsDisplay) {
+            console.log('DEBUG: JOKE TYPE:', jokeType, 'No rewardsDisplay instance, trying to reinitialize');
+            if (window.RewardsDisplay) {
+                this.rewardsDisplay = new window.RewardsDisplay();
+                console.log('DEBUG: JOKE TYPE:', jokeType, 'Reinitialized rewardsDisplay');
+            }
+        } else if (this.rewardsDisplay.isAnimating) {
+            console.log('DEBUG: JOKE TYPE:', jokeType, 'RewardsDisplay is animating, creating fresh instance');
+            // Create a fresh instance if the current one is animating
+            if (window.RewardsDisplay) {
+                const freshRewardsDisplay = new window.RewardsDisplay();
+                const rewardsContainer = document.getElementById('rewardsBar-jokes');
+                if (rewardsContainer) {
+                    setTimeout(() => {
+                        freshRewardsDisplay.show(rewards, rewardsContainer, {
+                            size: 'large',
+                            theme: 'dark'
+                        }).then(() => {
+                            console.log('DEBUG: JOKE TYPE:', jokeType, 'Fresh rewards display complete');
+                        }).catch(err => {
+                            console.error('DEBUG: JOKE TYPE:', jokeType, 'Fresh rewards display failed:', err);
+                        });
+                    }, 300);
+                }
             }
         } else {
             // Fallback to manual display if RewardsDisplay not available
@@ -3506,7 +4343,7 @@ class FlashcardModal {
                     rewards
                 );
                 if (rewards) {
-                    const rewardsContainer = document.getElementById('rewardsBar');
+                    const rewardsContainer = document.getElementById('rewardsBar-jokes');
                     console.log(
                         'DEBUG showJokeResults: Found container:',
                         !!rewardsContainer
@@ -3734,6 +4571,19 @@ class FlashcardModal {
 
         // Add class to modal for specific styling
         this.modal.className = 'flashcard-modal active factoid-results-modal';
+        
+        // Debug modal positioning
+        const modalRect = this.modal.getBoundingClientRect();
+        const flashcardRect = flashcardContainer.getBoundingClientRect();
+        console.log('DEBUG: Modal positioning for factoids:', {
+            modalRect: { left: modalRect.left, top: modalRect.top, width: modalRect.width, height: modalRect.height },
+            flashcardRect: { left: flashcardRect.left, top: flashcardRect.top, width: flashcardRect.width, height: flashcardRect.height },
+            modalVisible: modalRect.width > 0 && modalRect.height > 0,
+            flashcardVisible: flashcardRect.width > 0 && flashcardRect.height > 0,
+            modalDisplay: window.getComputedStyle(this.modal).display,
+            modalVisibility: window.getComputedStyle(this.modal).visibility,
+            modalZIndex: window.getComputedStyle(this.modal).zIndex
+        });
 
         flashcardContainer.innerHTML = `
             <div class="results-screen factoid-results">
@@ -3743,24 +4593,113 @@ class FlashcardModal {
                 
                 <!-- Large black container for rewards -->
                 <div class="rewards-container-large">
-                    <div class="rewards-bar" id="rewardsBar">
+                    <div class="rewards-bar" id="rewardsBar-factoids">
                         <!-- Spinner slots will be added here -->
                     </div>
                 </div>
                 
-                <div class="results-actions">
+                <!-- Footer container for done button -->
+                <div class="results-footer" style="margin-top: 15px; padding: 10px; background: transparent; text-align: right;">
                     <button class="btn-primary done-button" onclick="window.flashcardModal.close()">Done</button>
                 </div>
             </div>
         `;
 
-        // Display rewards directly - add a small delay to ensure DOM is ready
-        setTimeout(() => {
-            if (rewards) {
-                const rewardsContainer = document.getElementById('rewardsBar');
+        // Use RewardsDisplay component to animate rewards with slot machine effect
+        console.log('🚨 INITIALIZATION CHECK - FACTOID TYPE: checking rewards:', {
+            hasRewardsDisplay: !!this.rewardsDisplay,
+            rewardsDisplayAnimating: this.rewardsDisplay ? this.rewardsDisplay.isAnimating : 'no-instance',
+            rewards: rewards,
+            cardType: 'factoid',
+            windowRewardsDisplay: !!window.RewardsDisplay,
+            rewardsDisplayType: typeof this.rewardsDisplay,
+            windowRewardsDisplayType: typeof window.RewardsDisplay
+        });
+        
+        // Emergency re-initialization if needed
+        if (!this.rewardsDisplay && window.RewardsDisplay) {
+            console.log('🚨 EMERGENCY REINITIALIZATION: RewardsDisplay was null, creating new instance');
+            this.rewardsDisplay = new window.RewardsDisplay();
+        }
+        
+        if (this.rewardsDisplay && rewards) {
+            const rewardsContainer = document.getElementById('rewardsBar-factoids');
+            console.log('DEBUG: FACTOID TYPE: Found rewardsBar container:', !!rewardsContainer);
+            if (rewardsContainer) {
+                console.log('DEBUG: FACTOID TYPE: rewardsContainer before RewardsDisplay.show():', {
+                    innerHTML: rewardsContainer.innerHTML,
+                    className: rewardsContainer.className,
+                    style: rewardsContainer.style.cssText,
+                    rect: rewardsContainer.getBoundingClientRect()
+                });
+                console.log('DEBUG: FACTOID TYPE: Calling rewardsDisplay.show(), isAnimating before:', this.rewardsDisplay.isAnimating);
+                // Wait for rewards container to be fully rendered and have dimensions
+                const waitForContainer = () => {
+                    // Force layout recalculation
+                    rewardsContainer.offsetHeight; 
+                    
+                    const rect = rewardsContainer.getBoundingClientRect();
+                    console.log('🔬 QUANTUM MEASUREMENT: Container check:', {
+                        rect: rect,
+                        hasWidth: rect.width > 0,
+                        hasHeight: rect.height > 0,
+                        offsetWidth: rewardsContainer.offsetWidth,
+                        offsetHeight: rewardsContainer.offsetHeight
+                    });
+                    
+                    // Only proceed if container has actual dimensions
+                    if (rect.width > 0 && rect.height > 0) {
+                        console.log('✅ CONTAINER READY: Starting slot creation');
+                        this.rewardsDisplay.show(rewards, rewardsContainer, {
+                            size: 'large',
+                            theme: 'dark'
+                        }).then(() => {
+                            console.log('DEBUG: FACTOID TYPE: Rewards display complete, isAnimating after:', this.rewardsDisplay.isAnimating);
+                        }).catch(err => {
+                            console.error('DEBUG: FACTOID TYPE: Rewards display failed:', err);
+                        });
+                    } else {
+                        console.log('⏳ CONTAINER NOT READY: Retrying in 100ms');
+                        setTimeout(waitForContainer, 100); // Retry until container is ready
+                    }
+                };
+                
+                // Start checking after initial delay
+                setTimeout(waitForContainer, 300);
+            }
+        } else if (!this.rewardsDisplay) {
+            console.log('DEBUG: FACTOID TYPE: No rewardsDisplay instance, trying to reinitialize');
+            if (window.RewardsDisplay) {
+                this.rewardsDisplay = new window.RewardsDisplay();
+                console.log('DEBUG: FACTOID TYPE: Reinitialized rewardsDisplay');
+            }
+        } else if (this.rewardsDisplay.isAnimating) {
+            console.log('DEBUG: FACTOID TYPE: RewardsDisplay is animating, creating fresh instance');
+            // Create a fresh instance if the current one is animating
+            if (window.RewardsDisplay) {
+                const freshRewardsDisplay = new window.RewardsDisplay();
+                const rewardsContainer = document.getElementById('rewardsBar-factoids');
                 if (rewardsContainer) {
-                    // Clear and populate with actual rewards
-                    rewardsContainer.innerHTML = '';
+                    setTimeout(() => {
+                        freshRewardsDisplay.show(rewards, rewardsContainer, {
+                            size: 'large',
+                            theme: 'dark'
+                        }).then(() => {
+                            console.log('DEBUG: FACTOID TYPE: Fresh rewards display complete');
+                        }).catch(err => {
+                            console.error('DEBUG: FACTOID TYPE: Fresh rewards display failed:', err);
+                        });
+                    }, 300);
+                }
+            }
+        } else {
+            // Fallback to manual display if RewardsDisplay not available
+            setTimeout(() => {
+                if (rewards) {
+                    const rewardsContainer = document.getElementById('rewardsBar-factoids');
+                    if (rewardsContainer) {
+                        // Clear and populate with actual rewards
+                        rewardsContainer.innerHTML = '';
 
                     // Use same icon mapping and slot types as jokes
                     const iconMap = {
@@ -3886,6 +4825,96 @@ class FlashcardModal {
                 }
             }
         }, 100);
+        }
+    }
+
+    async showQuoteResults() {
+        const flashcardContainer = document.getElementById('flashcardContainer');
+
+        // Update progress to show completion
+        document.getElementById('flashcardCurrentCard').textContent = this.cards.length;
+        document.getElementById('flashcardProgressFill').style.width = '100%';
+
+        // Award points and get rewards
+        const rewards = await this.awardCompletionBonus();
+
+        // Quote session results
+        const correctCount = this.quoteChallengeResults.filter(r => r.correct).length;
+        const percentage = Math.round((correctCount / this.cards.length) * 100);
+
+        // Add class to modal for specific styling
+        this.modal.className = 'flashcard-modal active quote-results-modal';
+
+        // Generate learning review message
+        const authors = [...new Set(this.cards.map(card => card.author).filter(author => author))];
+        const randomQuote = this.cards[Math.floor(Math.random() * this.cards.length)];
+        const reviewMessage = this.generateQuoteReviewMessage(authors, randomQuote);
+        
+        // Random quote bot selection from sayWhatBots optimized images
+        const quoteBots = [
+            'sayWhat01-opt.svg',
+            'sayWhat02-opt.svg', 
+            'sayWhat03-opt.svg',
+            'sayWhat04-opt.svg',
+            'sayWhat05-opt.svg'
+        ];
+        const randomBot = quoteBots[Math.floor(Math.random() * quoteBots.length)];
+        
+        flashcardContainer.innerHTML = `
+            <div class="results-screen quote-results">
+                
+                <!-- Animated Say What Title -->
+                <div class="quote-category">
+                    <span class="say-word say-word-1">SAY</span>
+                    <span class="say-word say-word-2">WHAT!</span>
+                </div>
+                
+                <!-- Giant Author Bot -->
+                <div class="results-bot-container-large">
+                    <img src="./src/images/SayWhatBots/${randomBot}" class="results-category-icon-large" alt="Quote Bot" style="width: 200px; height: 200px; margin: 10px auto; display: block; border-radius: 50%;">
+                </div>
+                
+                <div class="learning-review" style="margin: 10px; font-size: 18px; line-height: 1.6; width: calc(100% - 20px); max-width: 100%; color: #E8E8E8; text-align: left; word-wrap: break-word; box-sizing: border-box; overflow-wrap: break-word;">
+                    ${reviewMessage}
+                </div>
+                
+                <!-- Large black container for rewards -->
+                <div class="rewards-container-large">
+                    <div class="rewards-bar" id="rewardsBar-quotes">
+                        <!-- Spinner slots will be added here -->
+                    </div>
+                </div>
+                
+                <!-- Footer container for done button -->
+                <div class="results-footer" style="margin-top: 15px; padding: 10px; background: transparent; text-align: right;">
+                    <button class="btn-primary done-button" onclick="window.flashcardModal.close()">Done</button>
+                </div>
+            </div>
+        `;
+
+        // Use RewardsDisplay component to animate rewards with unique instance
+        if (this.rewardsDisplay && rewards) {
+            const rewardsContainer = document.getElementById('rewardsBar-quotes');
+            if (rewardsContainer) {
+                // Wait for container to be ready
+                const waitForContainer = () => {
+                    const rect = rewardsContainer.getBoundingClientRect();
+                    
+                    if (rect.width > 0 && rect.height > 0) {
+                        // Use existing instance but with unique container to avoid conflicts
+                        this.rewardsDisplay.show(rewards, rewardsContainer, {
+                            size: 'large',
+                            theme: 'dark',
+                            instanceId: 'quotes' // Add unique instance identifier
+                        });
+                    } else {
+                        setTimeout(waitForContainer, 100);
+                    }
+                };
+                
+                setTimeout(waitForContainer, 300);
+            }
+        }
     }
 
     restart() {
@@ -3934,6 +4963,290 @@ class FlashcardModal {
         this.loadCard();
     }
 
+    adjustFlashcardHeight() {
+        const flashcard = this.modal.querySelector('.flashcard');
+        const flashcardBack = this.modal.querySelector('.flashcard-back');
+        
+        if (!flashcard || !flashcardBack || !this.isFlipped) return;
+        
+        // Get the natural height of the back content
+        const backHeight = flashcardBack.scrollHeight;
+        const currentHeight = flashcard.offsetHeight;
+        
+        // If back content is taller than current card, expand the card
+        if (backHeight > currentHeight) {
+            flashcard.style.minHeight = `${backHeight + 40}px`; // Add some padding
+            console.log(`📏 Expanded flashcard from ${currentHeight}px to ${backHeight + 40}px`);
+        }
+    }
+
+    async open(config) {
+        // Reset state
+        this.cards = [];
+        this.currentIndex = 0;
+        this.score = 0;
+        this.streak = 0;
+        this.isFlipped = false;
+        this.currentCard = null;
+        this.jokeRatings = [];
+        this.quoteStreak = 0;
+        this.quoteChallengeResults = [];
+        this.sessionStartTime = Date.now();
+
+        // Get user_id for deduplication
+        const userId = localStorage.getItem('userId');
+        const userParam = userId ? `&user_id=${userId}` : '';
+        
+        const apiBase = window.API_URL || 'https://p0qp0q.com';
+        
+        // Map practice categories to API endpoints
+        const setEndpoints = {
+            bad_puns: `/api/content/pun/sets?count=1`,
+            famous_quotes: `/api/content/quote/sets?count=1`,
+            knock_knock: `/api/content/joke/sets?count=1`,
+            trivia_mix: `/api/content/trivia/sets?count=1`
+        };
+
+        const endpoint = setEndpoints[config.category];
+        if (!endpoint) {
+            console.error('Unknown practice category:', config.category);
+            return;
+        }
+
+        try {
+            // Show modal immediately with loading state
+            this.modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Get user ID for deduplication from authPanel
+            let userId = null;
+            let isAuthenticated = false;
+            
+            if (window.authPanel && window.authPanel.currentUserId) {
+                userId = window.authPanel.currentUserId;
+                isAuthenticated = true;
+            } else {
+                // Fallback to localStorage if authPanel not available
+                isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+                userId = isAuthenticated ? localStorage.getItem('userId') : null;
+            }
+            
+            console.log('FlashcardModal - Auth status:', isAuthenticated, 'UserId:', userId, 'Source:', window.authPanel ? 'authPanel' : 'localStorage');
+            
+            // Build URL with user_id parameter if authenticated
+            let url = `${apiBase}${endpoint}`;
+            if (userId) {
+                // Check if endpoint already has query parameters
+                const separator = endpoint.includes('?') ? '&' : '?';
+                url += `${separator}user_id=${userId}`;
+            }
+            
+            console.log('FlashcardModal - Fetching from URL:', url);
+            
+            // Fetch content from API
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch content: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // API returns an array directly, not {sets: [...]}
+            const sets = Array.isArray(data) ? data : (data.sets || []);
+            
+            if (!sets || sets.length === 0) {
+                throw new Error('No content available');
+            }
+            
+            // Process the content based on type
+            const contentSet = sets[0];
+            
+            // Store the content set ID for completion tracking
+            this.contentSetId = contentSet.id || null;
+            
+            this.cards = this.processContentSet(contentSet, config.category);
+            
+            // Start displaying cards
+            this.loadCard();
+            
+        } catch (error) {
+            console.error('Failed to load flashcards:', error);
+            this.showError('Failed to load content. Please try again.');
+            this.close();
+        }
+    }
+
+    processContentSet(contentSet, category) {
+        // Convert API response to card format expected by FlashcardModal
+        switch (category) {
+            case 'trivia_mix':
+                // API returns data.trivia array
+                console.log('DEBUG: Processing trivia_mix contentSet:', contentSet);
+                const triviaItems = contentSet.data?.trivia || contentSet.content || [];
+                console.log('DEBUG: Found trivia items:', triviaItems.length, triviaItems);
+                return triviaItems.map(item => ({
+                    id: item.id,
+                    type: 'factoid',
+                    challengeType: 'simple-flip',
+                    category: item.category || 'science',
+                    theme: item.theme || item.category || 'science',
+                    content: item.fact || item.content,
+                    answer: item.answer || item.fun_fact,
+                    detail: item.detail || item.answer || item.fun_fact
+                }));
+                
+            case 'famous_quotes':
+                // API returns data.quotes array  
+                const quoteItems = contentSet.data?.quotes || contentSet.content || [];
+                return quoteItems.map(item => ({
+                    id: item.id,
+                    type: 'quote',
+                    challengeType: item.challenge_type || 'fill-blank',
+                    content: item.content,
+                    author: item.author,
+                    challenge: item.challenge,
+                    answer: item.answer,
+                    options: item.options,
+                    scrambled_words: item.scrambled_words
+                }));
+                
+            case 'bad_puns':
+                // API returns data.puns array
+                const punItems = contentSet.data?.puns || contentSet.content || [];
+                return punItems.map(item => ({
+                    id: item.id,
+                    type: 'pun',
+                    setup: item.setup || item.content,
+                    response: item.response || item.challenge,
+                    punchline: item.punchline
+                }));
+                
+            case 'knock_knock':
+                // API returns data.jokes array
+                const jokeItems = contentSet.data?.jokes || contentSet.content || [];
+                return jokeItems.map(item => ({
+                    id: item.id,
+                    type: 'knock-knock',
+                    whosThere: item.whos_there || item.whosThere,
+                    interruption: item.interruption,
+                    punchline: item.punchline
+                }));
+                
+            default:
+                return [];
+        }
+    }
+
+    showError(message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert-error';
+        alertDiv.textContent = message;
+        alertDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #ff4444;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10000;
+        `;
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => alertDiv.remove(), 3000);
+    }
+
+    // COMMENTED OUT - This was the old generic showResults that was overriding the proper themed one
+    // async showResults() {
+    //     // Mark the content set as completed
+    //     await this.markSetCompleted();
+    //     
+    //     // Show results screen
+    //     const flashcardContainer = document.getElementById('flashcardContainer');
+    //     if (!flashcardContainer) return;
+    //     
+    //     flashcardContainer.innerHTML = `
+    //         <div class="results-screen">
+    //             <h2>Great Job!</h2>
+    //             <p>You completed all ${this.cards.length} cards!</p>
+    //             <div class="results-stats">
+    //                 <div>Score: ${this.score}/${this.cards.length}</div>
+    //                 <div>Best Streak: ${this.streak}</div>
+    //             </div>
+    //             <button class="btn-primary" onclick="window.flashcardModal.close()">Done</button>
+    //         </div>
+    //     `;
+    // }
+
+    // COMMENTED OUT - This was the old generic showJokeResults that was overriding the proper themed one
+    // async showJokeResults() {
+    //     // Mark the content set as completed
+    //     await this.markSetCompleted();
+    //     
+    //     // Show joke-specific results
+    //     const flashcardContainer = document.getElementById('flashcardContainer');
+    //     if (!flashcardContainer) return;
+    //     
+    //     const avgRating = this.jokeRatings.length > 0 
+    //         ? Math.round(this.jokeRatings.reduce((sum, r) => sum + r.rating, 0) / this.jokeRatings.length)
+    //         : 0;
+    //     
+    //     flashcardContainer.innerHTML = `
+    //         <div class="results-screen joke-results">
+    //             <h2>Comedy Show Complete!</h2>
+    //             <p>You rated ${this.jokeRatings.length} jokes</p>
+    //             <div class="results-stats">
+    //                 <div>Average Giggle Rating: ${avgRating}%</div>
+    //             </div>
+    //             <button class="btn-primary" onclick="window.flashcardModal.close()">Done</button>
+    //         </div>
+    //     `;
+    // }
+
+    async markSetCompleted() {
+        // Get userId from authPanel first, fallback to localStorage
+        let userId = null;
+        if (window.authPanel && window.authPanel.currentUserId) {
+            userId = window.authPanel.currentUserId;
+        } else {
+            userId = localStorage.getItem('userId');
+        }
+        
+        if (!userId || this.cards.length === 0) return;
+        
+        const apiBase = window.API_URL || 'https://p0qp0q.com';
+        const contentType = this.cards[0].type || 'trivia';
+        
+        // Backend expects the set ID, not individual content IDs
+        const setId = this.contentSetId;
+        if (!setId) {
+            console.error('No content set ID available for completion tracking');
+            return;
+        }
+        
+        // Map card types to API content types
+        const typeMap = {
+            'factoid': 'trivia',
+            'quote': 'quote',
+            'pun': 'pun',
+            'knock-knock': 'joke'
+        };
+        
+        const apiContentType = typeMap[contentType] || contentType;
+        
+        try {
+            await fetch(`${apiBase}/api/content/${apiContentType}/sets/complete?user_id=${userId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(contentIds)
+            });
+            console.log(`Marked ${contentIds.length} ${apiContentType} items as completed`);
+        } catch (error) {
+            console.error('Failed to mark content as completed:', error);
+        }
+    }
+
     close() {
         this.modal.classList.remove('active');
         document.body.style.overflow = '';
@@ -3942,6 +5255,21 @@ class FlashcardModal {
         if (this.debugKeyHandler) {
             document.removeEventListener('keydown', this.debugKeyHandler);
         }
+
+        // Release active challenge instance
+        if (this.activeChallengeInstance) {
+            this.releaseChallengeInstance(this.activeChallengeInstance);
+            this.activeChallengeInstance = null;
+        }
+
+        // Clean up any dynamic content
+        this.cleanupDynamicContent();
+
+        // Clean up all tracked event listeners
+        this.eventListeners.forEach(({ element, type, handler }) => {
+            element.removeEventListener(type, handler);
+        });
+        this.eventListeners = [];
 
         // Reset state
         this.cards = [];

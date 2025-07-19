@@ -55,9 +55,9 @@ class RewardsDisplay {
         // Define reward types with their display properties
         // Order matters - most valuable/rare items first
         this.rewardTypes = [
-            { type: 'hearts', icon: './src/images/power-icons/hearts.svg', color: '#ff4757', label: 'Lives' },
+            { type: 'hearts', icon: './src/images/economy-icons/heartIcon.svg', color: '#ff4757', label: 'Lives' },
             { type: 'giftBox', icon: './src/images/economy-icons/giftBox.svg', color: '#f39c12', label: 'Mystery Box' },
-            { type: 'diamonds', icon: './src/images/power-icons/diamonds.svg', color: '#00cec9', label: 'Diamonds' },
+            { type: 'diamonds', icon: './src/images/economy-icons/gemIcon.svg', color: '#00cec9', label: 'Diamonds' },
             { type: 'amethysts', icon: './src/images/economy-icons/gemIcon.svg', color: '#a29bfe', label: 'Amethysts' },
             { type: 'rubies', icon: './src/images/economy-icons/gemIcon.svg', color: '#e74c3c', label: 'Rubies' },
             { type: 'emeralds', icon: './src/images/economy-icons/gemIcon.svg', color: '#2ecc71', label: 'Emeralds' },
@@ -95,14 +95,31 @@ class RewardsDisplay {
         // Clear existing content
         this.container.innerHTML = '';
         
-        // Create rewards container
+        // Create rewards container with unique ID to avoid conflicts
         const rewardsBar = document.createElement('div');
         rewardsBar.className = `rewards-bar rewards-bar-${size} rewards-bar-${theme}`;
-        rewardsBar.id = 'rewardsBar';
+        rewardsBar.id = 'rewardsBar-' + Date.now(); // Unique ID to prevent conflicts
+        
+        // Check for existing rewardsBar elements
+        const existingBars = document.querySelectorAll('[id^="rewardsBar"]');
+        console.log('🚨 GREMLIN ALERT: Found existing rewards bars:', existingBars.length, Array.from(existingBars).map(el => ({ id: el.id, rect: el.getBoundingClientRect() })));
+        console.log('🚨 GREMLIN ALERT: Container details:', {
+            container: this.container,
+            containerRect: this.container.getBoundingClientRect(),
+            containerHTML: this.container.innerHTML
+        });
         // Override any rainbow gradient with transparent background
         rewardsBar.style.background = 'transparent';
         rewardsBar.style.backgroundImage = 'none';
         this.container.appendChild(rewardsBar);
+        
+        // Let CSS handle the styling now that DOM conflicts are resolved
+        
+        console.log('DEBUG: RewardsDisplay created new rewards-bar:', {
+            rect: rewardsBar.getBoundingClientRect(),
+            className: rewardsBar.className,
+            style: rewardsBar.style.cssText
+        });
         
         // Define the 7 slots we always want to show in order
         const slotOrder = ['xp', 'coins', 'sapphires', 'keys', 'tickets', 'giftBox', 'hearts'];
@@ -128,6 +145,13 @@ class RewardsDisplay {
             this.createRewardSlot(reward, reward.value, rewardsBar, index);
         });
         
+        // Debug: Log the actual DOM structure created
+        console.log('RewardsDisplay: Final DOM structure:', rewardsBar.innerHTML);
+        console.log('RewardsDisplay: Parent container classes:', this.container.className);
+        console.log('RewardsDisplay: Parent container innerHTML:', this.container.innerHTML);
+        
+        // Visual debugging removed - slots should display naturally now
+        
         // Debug: Check if slots were created
         setTimeout(() => {
             const slots = rewardsBar.querySelectorAll('.reward-slot');
@@ -141,7 +165,8 @@ class RewardsDisplay {
         
         // Wait for all animations to complete
         await new Promise(resolve => {
-            const totalAnimationTime = 2000 + (activeRewards.length * 200);
+            // Updated timing: spin time + deceleration + stagger delays
+            const totalAnimationTime = 2500 + (slotsToShow.length * 200);
             setTimeout(() => {
                 this.isAnimating = false;
                 resolve();
@@ -153,38 +178,79 @@ class RewardsDisplay {
      * Create a single reward slot with animation
      */
     createRewardSlot(rewardType, value, container, index) {
+        console.log(`DEBUG: createRewardSlot called for ${rewardType.type} with value ${value}`);
+        console.log('DEBUG: Container exists:', !!container);
+        console.log('DEBUG: Container tagName:', container?.tagName);
+        
         const slot = document.createElement('div');
-        slot.className = 'reward-slot';
+        slot.className = value > 0 ? 'reward-slot' : 'reward-slot unearned';
+        
+        console.log('DEBUG: Slot element created:', !!slot);
         
         // Get dynamic color based on value
         const dynamicColor = this.getDynamicColor(rewardType.type, value);
         
-        // Apply color filter for gems and coins
-        const needsFilter = ['sapphires', 'emeralds', 'rubies', 'amethysts', 'diamonds', 'coins'].includes(rewardType.type);
+        // Don't apply filters - let the original icon colors show through
         let filterStyle = '';
-        if (needsFilter) {
-            filterStyle = `brightness(0) saturate(100%) ${this.getValueBasedFilter(rewardType.type, value)}`;
-        }
         
-        // Special handling for XP with gradient effect
-        if (rewardType.type === 'xp') {
-            filterStyle = this.getXPGradientFilter(value);
-        }
-        
-        slot.innerHTML = `
-            <div class="slot-reel" id="reel-${rewardType.type}">
-                ${this.createSlotItems(rewardType.icon, rewardType.type, filterStyle)}
+        const slotHTML = `
+            <div class="slot-window">
+                <div class="slot-reel" id="reel-${rewardType.type}">
+                    ${this.createSlotItems(rewardType.icon, rewardType.type, filterStyle)}
+                </div>
             </div>
-            <div class="reward-value" id="value-${rewardType.type}" style="color: ${dynamicColor}">+0</div>
-            <div class="reward-label">${rewardType.label}</div>
+            <div class="reward-value" id="value-${rewardType.type}">0</div>
         `;
         
-        container.appendChild(slot);
+        console.log('DEBUG: Slot HTML:', slotHTML);
+        slot.innerHTML = slotHTML;
         
-        // Animate the slot after a delay
+        console.log('DEBUG: About to append slot to container');
+        container.appendChild(slot);
+        console.log('DEBUG: Container children after append:', container.children.length);
+        
+        // Immediate position check
+        const immediateRect = slot.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        console.log(`DEBUG: IMMEDIATE POSITION for ${rewardType.type}:`, {
+            slotRect: { left: immediateRect.left, top: immediateRect.top, width: immediateRect.width, height: immediateRect.height },
+            containerRect: { left: containerRect.left, top: containerRect.top, width: containerRect.width, height: containerRect.height },
+            slotVisible: immediateRect.width > 0 && immediateRect.height > 0,
+            containerVisible: containerRect.width > 0 && containerRect.height > 0,
+            slotIndex: index,
+            slotZIndex: window.getComputedStyle(slot).zIndex,
+            slotPosition: window.getComputedStyle(slot).position,
+            slotDisplay: window.getComputedStyle(slot).display,
+            slotVisibility: window.getComputedStyle(slot).visibility,
+            slotOpacity: window.getComputedStyle(slot).opacity
+        });
+        
+        // Log slot position for debugging
         setTimeout(() => {
-            this.animateSlot(slot, rewardType.type, value, index);
-        }, 300 + (index * 100)); // Stagger the starts
+            const rect = slot.getBoundingClientRect();
+            const window = slot.querySelector('.slot-window');
+            const windowRect = window ? window.getBoundingClientRect() : null;
+            console.log(`Slot ${rewardType.type} (index ${index}):`, {
+                slotPosition: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+                windowPosition: windowRect ? { left: windowRect.left, top: windowRect.top, width: windowRect.width, height: windowRect.height } : 'no window',
+                value: value,
+                earned: value > 0
+            });
+        }, 50);
+        
+        // Animate slots with earned rewards
+        if (value > 0) {
+            console.log(`🎰 SLOT ANIMATION: Starting animation for ${rewardType.type} with value ${value}`);
+            // Start animation after a delay
+            setTimeout(() => {
+                console.log(`🎰 SLOT ANIMATION: Animating ${rewardType.type} now!`);
+                this.animateSlot(slot, rewardType.type, value, index);
+            }, 300 + (index * 100)); // Stagger the starts
+        } else {
+            // Mark unearned slots immediately
+            slot.classList.add('unearned');
+            console.log(`🎰 SLOT ANIMATION: ${rewardType.type} marked as unearned (value: ${value})`);
+        }
     }
     
     /**
@@ -192,11 +258,21 @@ class RewardsDisplay {
      */
     createSlotItems(icon, type, filterStyle) {
         let items = '';
-        // Create 5 identical items for smooth spinning
+        // Create random items for spinning effect
+        const allIcons = [
+            './src/images/economy-icons/xpIcon.svg',
+            './src/images/economy-icons/coinIcon.svg',
+            './src/images/economy-icons/gemIcon.svg',
+            './src/images/economy-icons/keyIcon.svg',
+            './src/images/economy-icons/ticketIcon.svg',
+            './src/images/economy-icons/giftBox.svg',
+            './src/images/economy-icons/heartIcon.svg'
+        ];
+        
+        // Create 5 random items for the spin
         for (let i = 0; i < 5; i++) {
-            // Apply filter as a style attribute if provided
-            const styleAttr = filterStyle ? `style="filter: ${filterStyle};"` : '';
-            items += `<div class="slot-item"><img src="${icon}" alt="${type}" ${styleAttr}></div>`;
+            const randomIcon = allIcons[Math.floor(Math.random() * allIcons.length)];
+            items += `<div class="slot-item"><img src="${randomIcon}" alt="spinning"></div>`;
         }
         return items;
     }
@@ -208,15 +284,56 @@ class RewardsDisplay {
         const reel = slot.querySelector('.slot-reel');
         const valueEl = slot.querySelector('.reward-value');
         
+        // Get the actual reward icon and filter
+        const rewardType = this.rewardTypes.find(r => r.type === type);
+        const dynamicColor = this.getDynamicColor(type, value);
+        
+        // Don't apply filters - use original icon colors
+        let filterStyle = '';
+        
         // Start spinning
         reel.classList.add('spinning');
         
-        // Stop spinning and show value
+        // Stop spinning with deceleration effect
         setTimeout(() => {
             reel.classList.remove('spinning');
-            reel.classList.add('stopped');
-            valueEl.textContent = `+${value}`;
-            valueEl.classList.add('show');
+            reel.classList.add('stopping');
+            
+            // Swap to the actual icon just before stopping
+            setTimeout(() => {
+                // Replace the reel content with the actual earned icon centered
+                reel.innerHTML = `
+                    <div class="slot-item final-item">
+                        <img src="${rewardType.icon}" alt="${type}">
+                    </div>
+                `;
+                
+                // Reset transform to show the single centered icon
+                reel.style.transform = 'translateY(0)';
+                reel.style.top = '5px'; // Ensure it stays in the visible area
+                reel.classList.remove('stopping');
+                
+                // Debug: Check final position
+                const finalImg = reel.querySelector('img');
+                if (finalImg) {
+                    setTimeout(() => {
+                        const imgRect = finalImg.getBoundingClientRect();
+                        console.log(`Final position for ${type}:`, {
+                            visible: imgRect.width > 0 && imgRect.height > 0,
+                            position: { left: imgRect.left, top: imgRect.top, width: imgRect.width, height: imgRect.height },
+                            src: finalImg.src,
+                            parent: reel.getBoundingClientRect()
+                        });
+                    }, 100);
+                }
+                
+                // Show value after the swap
+                setTimeout(() => {
+                    valueEl.textContent = `${value}`;
+                    valueEl.classList.add('show');
+                    // Don't set color inline - let CSS handle it
+                }, 200);
+            }, 600); // Just before the deceleration completes
             
             // Add celebration effect for high-value rewards
             if (value >= 100 || type === 'hearts' || type === 'giftBox') {

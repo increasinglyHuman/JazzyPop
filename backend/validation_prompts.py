@@ -195,14 +195,11 @@ FINAL QUALITY CRITERIA:
 7. ✓ Entertaining/engaging element present
 
 SCORING RULES:
-- Each criterion = 1 point (max 7 points)
-- 6-7 points = APPROVE
-- 4-5 points = REVISE (specific fixes needed)
-- 0-3 points = REJECT
-
-For quiz sets: If < 5/10 questions pass, reject entire set
-
-CRITICAL INSTRUCTIONS FOR YOUR RESPONSE:
+- If item 1 Correct answer is NOT accurate, score is 0 Reject question
+- Each remaining criterion = 1 point (max 6 points)
+- 5-6 points = APPROVE
+- 0-4 points = REJECT
+ITICAL INSTRUCTIONS FOR YOUR RESPONSE:
 1. You MUST return ONLY valid JSON
 2. Your response MUST start with {{ and end with }}
 3. Do NOT include ANY text before the opening {{

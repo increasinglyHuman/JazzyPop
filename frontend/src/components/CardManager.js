@@ -107,9 +107,13 @@ class CardManager {
             const quizLimit = window.cardConfig ? window.cardConfig.getQuizLimit() : 10;
             // console.log('Fetching cards from:', `${apiBase}/api/cards/active?limit=${quizLimit}`);
             
+            // Get user ID if available for deduplication
+            const userId = localStorage.getItem('userId');
+            const userParam = userId ? `&user_id=${userId}` : '';
+            
             // Fetch actual quiz sets instead of promotional cards
             // Note: If this endpoint doesn't exist yet, fall back to cards/active
-            let response = await fetch(`${apiBase}/api/content/quiz/sets?count=${quizLimit}`);
+            let response = await fetch(`${apiBase}/api/content/quiz/sets?count=${quizLimit}${userParam}`);
             
             // If the new endpoint doesn't exist, try the old one
             if (!response.ok && response.status === 404) {
@@ -1153,7 +1157,7 @@ class CardManager {
             },
             {
                 category: 'famous_quotes',
-                title: 'Famous Quotes Challenge',
+                title: 'Say What?',
                 description: 'Who said what? Test your knowledge of memorable words from history!',
                 cardCount: 10
             },

@@ -2,7 +2,10 @@
 JazzyPop Backend API
 Main FastAPI application
 """
-from fastapi import FastAPI, HTTPException, Depends, Query, WebSocket
+from dotenv import load_dotenv
+load_dotenv()
+
+from fastapi import FastAPI, HTTPException, Depends, Query, WebSocket, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -10,13 +13,17 @@ from datetime import datetime, timedelta
 import os
 import json
 import logging
+import asyncio
 from uuid import UUID, uuid4
 from contextlib import asynccontextmanager
 
 # Import our modules
 from database import db
+from roaring_bitmap_dedup import RoaringBitmapDeduplication
 from audio_service import audio_service
 from auth_utils import hash_password, verify_password, validate_password_strength, validate_email_format, generate_username_from_email
+from auth_password_reset import router as password_reset_router
+from email_service import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +31,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Startup
     await db.connect()
+    # Initialize roaring bitmap deduplication
+    rb_dedup = RoaringBitmapDeduplication()
+    async with db.pool.acquire() as conn:
+        await rb_dedup.initialize_user_bitmaps(conn)
+    app.state.rb_dedup = rb_dedup
+    logger.info("Roaring bitmap deduplication initialized")
     yield
     # Shutdown
     await db.disconnect()
@@ -103,6 +116,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],  # Add this to expose all headers
 )
+
+# Include routers
+app.include_router(password_reset_router)
 
 # Pydantic models with enhanced documentation
 class ContentBase(BaseModel):
@@ -232,6 +248,7 @@ class AuthResponse(BaseModel):
     is_new_user: bool = Field(..., description="Whether this is a newly created user")
     display_name: str = Field(..., description="User's display name")
     avatar_id: str = Field(..., description="User's avatar ID")
+    needs_age_verification: bool = Field(False, description="Whether user needs to verify age for COPPA compliance")
     migrated_data: bool = Field(..., description="Whether session data was migrated")
 
 class RegisterRequest(BaseModel):
@@ -239,6 +256,8 @@ class RegisterRequest(BaseModel):
     email: str = Field(..., description="User email address", example="user@example.com")
     password: str = Field(..., description="User password (min 8 chars)", min_length=8, example="SecurePass123")
     display_name: str = Field(..., description="Display name", example="John Doe")
+    birthdate: str = Field(..., description="Date of birth (YYYY-MM-DD)", example="2010-01-01")
+    terms_accepted: bool = Field(..., description="Terms of service acceptance")
     session_id: Optional[str] = Field(None, description="Current session ID for migration")
 
 class LoginRequest(BaseModel):
@@ -440,7 +459,8 @@ async def get_quiz_sets(
     category: Optional[str] = Query(default=None, description="Filter by category"),
     mode: str = Query(default="random", description="Mode selection: random, poqpoq, chaos, zen, speed"),
     order: str = Query(default="random", description="Order: random, newest, oldest"),
-    include_variations: bool = Query(default=True, description="Include mode variations")
+    include_variations: bool = Query(default=True, description="Include mode variations"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
 ) -> List[Dict[str, Any]]:
     """
     Get multiple quiz sets with filtering options
@@ -557,6 +577,298 @@ async def get_quiz_sets(
         
         return results
 
+@app.get("/api/content/pun/sets")
+async def get_pun_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of pun sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get pun sets for practice activities
+    
+    - count: Number of pun sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="pun",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "pun", item['id']
+                )
+            
+            return results
+            
+            # If no unseen content, fall back to random content
+            if not results:
+                logger.info(f"User {user_id} has seen all pun content, falling back to random selection")
+                # Continue to the original logic below instead of returning empty
+            else:
+                return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'pun_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            pun_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(pun_data)
+        
+        return results
+
+@app.get("/api/content/quote/sets")
+async def get_quote_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of quote sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get quote sets for practice activities
+    
+    - count: Number of quote sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="quote",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "quote", item['id']
+                )
+            
+            return results
+            
+            # If no unseen content, fall back to random content
+            if not results:
+                logger.info(f"User {user_id} has seen all quote content, falling back to random selection")
+                # Continue to the original logic below instead of returning empty
+            else:
+                return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'quote_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            quote_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(quote_data)
+        
+        return results
+
+@app.get("/api/content/joke/sets")
+async def get_joke_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of joke sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get joke sets (knock-knock jokes) for practice activities
+    
+    - count: Number of joke sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="joke",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "joke", item['id']
+                )
+            
+            return results
+            
+            # If no unseen content, fall back to random content
+            if not results:
+                logger.info(f"User {user_id} has seen all joke content, falling back to random selection")
+                # Continue to the original logic below instead of returning empty
+            else:
+                return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'joke_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            joke_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(joke_data)
+        
+        return results
+
+@app.get("/api/content/trivia/sets")
+async def get_trivia_sets(
+    count: int = Query(default=1, ge=1, le=10, description="Number of trivia sets to return"),
+    order: str = Query(default="random", description="Order: random, newest, oldest"),
+    user_id: Optional[UUID] = Query(default=None, description="User ID for deduplication")
+) -> List[Dict[str, Any]]:
+    """
+    Get trivia sets (factoids) for practice activities
+    
+    - count: Number of trivia sets to return (1-10)
+    - order: How to sort results (random, newest first, oldest first)
+    """
+    async with db.pool.acquire() as conn:
+        # Handle deduplication for logged-in users
+        if user_id and hasattr(app.state, 'rb_dedup'):
+            results = await app.state.rb_dedup.get_unseen_content(
+                conn,
+                content_type="trivia",
+                user_id=str(user_id),
+                count=count
+            )
+            
+            # Mark as seen
+            for item in results:
+                await app.state.rb_dedup.mark_content_seen(
+                    conn, str(user_id), "trivia", item['id']
+                )
+            
+            return results
+            
+            # If no unseen content, fall back to random content
+            if not results:
+                logger.info(f"User {user_id} has seen all trivia content, falling back to random selection")
+                # Continue to the original logic below instead of returning empty
+            else:
+                return results
+        
+        # Original logic for anonymous users (continues below)
+        # Build query
+        query_parts = [
+            "SELECT id, type, data, metadata, created_at",
+            "FROM content",
+            "WHERE type = 'trivia_set'",
+            "AND is_active = true"
+        ]
+        
+        # Add ordering
+        if order == "newest":
+            query_parts.append("ORDER BY created_at DESC")
+        elif order == "oldest":
+            query_parts.append("ORDER BY created_at ASC")
+        else:  # random
+            query_parts.append("ORDER BY RANDOM()")
+        
+        query_parts.append("LIMIT $1")
+        
+        # Execute query
+        query = " ".join(query_parts)
+        rows = await conn.fetch(query, count)
+        
+        results = []
+        for row in rows:
+            trivia_data = {
+                "id": str(row["id"]),
+                "type": row["type"],
+                "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                "metadata": json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+                "created_at": row["created_at"].isoformat()
+            }
+            results.append(trivia_data)
+        
+        return results
+
 # ========== AUTHENTICATION ENDPOINTS ==========
 
 @app.post("/api/auth/google",
@@ -571,12 +883,29 @@ async def google_auth(auth_request: GoogleAuthRequest):
     try:
         # Check if user exists by google_id or email
         async with db.pool.acquire() as conn:
-            # First try by email (google_id column might not exist)
-            existing_user = await conn.fetchrow("""
-                SELECT id, display_name, avatar_id 
-                FROM users 
-                WHERE email = $1
-            """, auth_request.email)
+            # Check if google_id column exists
+            has_google_id = await conn.fetchval("""
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'users' 
+                    AND column_name = 'google_id'
+                )
+            """)
+            
+            if has_google_id:
+                # Try by google_id first, then email
+                existing_user = await conn.fetchrow("""
+                    SELECT id, display_name, avatar_id, google_id 
+                    FROM users 
+                    WHERE google_id = $1 OR email = $2
+                """, auth_request.google_id, auth_request.email)
+            else:
+                # Fallback to email only
+                existing_user = await conn.fetchrow("""
+                    SELECT id, display_name, avatar_id 
+                    FROM users 
+                    WHERE email = $1
+                """, auth_request.email)
             
             if existing_user:
                 # User exists - return their info
@@ -584,6 +913,12 @@ async def google_auth(auth_request: GoogleAuthRequest):
                 is_new_user = False
                 display_name = existing_user['display_name']
                 avatar_id = existing_user['avatar_id']
+                
+                # Update google_id if missing
+                if has_google_id and not existing_user.get('google_id'):
+                    await conn.execute("""
+                        UPDATE users SET google_id = $1 WHERE id = $2
+                    """, auth_request.google_id, existing_user['id'])
             else:
                 # Create new user
                 # Generate username from email
@@ -601,15 +936,26 @@ async def google_auth(auth_request: GoogleAuthRequest):
                 avatar_id = f"avatar_{random.randint(1, 10):02d}"
                 
                 # Create the user
-                user_id = await conn.fetchval("""
-                    INSERT INTO users (
-                        username, email, display_name, avatar_id, 
-                        is_anonymous, created_at
-                    )
-                    VALUES ($1, $2, $3, $4, FALSE, NOW())
-                    RETURNING id
-                """, username, auth_request.email, auth_request.name, 
-                    avatar_id)
+                if has_google_id:
+                    user_id = await conn.fetchval("""
+                        INSERT INTO users (
+                            username, email, display_name, avatar_id, google_id,
+                            is_anonymous, created_at
+                        )
+                        VALUES ($1, $2, $3, $4, $5, FALSE, NOW())
+                        RETURNING id
+                    """, username, auth_request.email, auth_request.name, 
+                        avatar_id, auth_request.google_id)
+                else:
+                    user_id = await conn.fetchval("""
+                        INSERT INTO users (
+                            username, email, display_name, avatar_id, 
+                            is_anonymous, created_at
+                        )
+                        VALUES ($1, $2, $3, $4, FALSE, NOW())
+                        RETURNING id
+                    """, username, auth_request.email, auth_request.name, 
+                        avatar_id)
                 
                 # Initialize user_progress
                 await conn.execute("""
@@ -676,12 +1022,21 @@ async def google_auth(auth_request: GoogleAuthRequest):
                             user_id, auth_request.session_id
                         )
             
+            # Check if user has birthdate (for COPPA compliance)
+            has_birthdate = False
+            if existing_user:
+                birthdate_check = await conn.fetchval("""
+                    SELECT birthdate IS NOT NULL FROM users WHERE id = $1
+                """, user_id)
+                has_birthdate = birthdate_check or False
+            
             return AuthResponse(
                 user_id=str(user_id),
                 is_new_user=is_new_user,
                 display_name=display_name,
                 avatar_id=avatar_id,
-                migrated_data=migrated_data
+                migrated_data=migrated_data,
+                needs_age_verification=not has_birthdate
             )
             
     except Exception as e:
@@ -711,6 +1066,22 @@ async def register(register_request: RegisterRequest):
         password_valid, password_msg = validate_password_strength(register_request.password)
         if not password_valid:
             raise HTTPException(status_code=400, detail=password_msg)
+        
+        # Verify age (must be 13 or older for COPPA compliance)
+        from datetime import datetime, date
+        try:
+            birth_date = datetime.strptime(register_request.birthdate, "%Y-%m-%d").date()
+            today = date.today()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            
+            if age < 13:
+                raise HTTPException(status_code=400, detail="You must be 13 years or older to create an account")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Please use YYYY-MM-DD")
+        
+        # Verify terms acceptance
+        if not register_request.terms_accepted:
+            raise HTTPException(status_code=400, detail="You must accept the terms of service")
         
         # Hash the password
         password_hash = hash_password(register_request.password)
@@ -745,12 +1116,12 @@ async def register(register_request: RegisterRequest):
             user_id = await conn.fetchval("""
                 INSERT INTO users (
                     username, email, password_hash, display_name, 
-                    avatar_id, is_anonymous, created_at
+                    avatar_id, birthdate, terms_accepted_at, is_anonymous, created_at
                 )
-                VALUES ($1, $2, $3, $4, $5, FALSE, NOW())
+                VALUES ($1, $2, $3, $4, $5, $6, NOW(), FALSE, NOW())
                 RETURNING id
             """, username, normalized_email, password_hash, 
-                register_request.display_name, avatar_id)
+                register_request.display_name, avatar_id, birth_date)
             
             # Initialize user_progress
             await conn.execute("""
@@ -807,6 +1178,23 @@ async def register(register_request: RegisterRequest):
                         "UPDATE sessions SET user_id = $1 WHERE id = $2",
                         user_id, register_request.session_id
                     )
+            
+            # Send welcome email to new user
+            try:
+                email_sent = await asyncio.create_task(
+                    asyncio.to_thread(
+                        email_service.send_welcome_email,
+                        normalized_email,
+                        register_request.display_name
+                    )
+                )
+                if email_sent:
+                    logger.info(f"Welcome email sent to {normalized_email}")
+                else:
+                    logger.warning(f"Failed to send welcome email to {normalized_email}")
+            except Exception as e:
+                # Don't fail registration if email fails
+                logger.error(f"Error sending welcome email: {e}")
             
             return AuthResponse(
                 user_id=str(user_id),
@@ -876,6 +1264,45 @@ async def login(login_request: LoginRequest):
         raise HTTPException(status_code=500, detail="Login failed")
 
 
+@app.post("/api/auth/logout",
+    tags=["Authentication"],
+    summary="Logout user",
+    description="Clear user session and invalidate auth tokens")
+async def logout(
+    user_id: Optional[UUID] = Query(None, description="User ID"),
+    session_id: Optional[str] = Query(None, description="Session ID")
+):
+    """Handle user logout"""
+    try:
+        if user_id:
+            async with db.pool.acquire() as conn:
+                # Clear any server-side session data
+                await conn.execute("""
+                    UPDATE sessions 
+                    SET expires_at = NOW(), 
+                        data = jsonb_set(data, '{logged_out}', 'true'::jsonb)
+                    WHERE user_id = $1 OR id = $2
+                """, user_id, session_id)
+                
+                # Log the logout event
+                logger.info(f"User {user_id} logged out")
+        
+        return {
+            "status": "success",
+            "message": "Logged out successfully",
+            "redirect": "/"
+        }
+        
+    except Exception as e:
+        logger.error(f"Logout error: {e}")
+        # Even if error, return success to clear client state
+        return {
+            "status": "success",
+            "message": "Logged out",
+            "redirect": "/"
+        }
+
+
 @app.post("/api/users/profile",
     tags=["Users"],
     summary="Create or update user profile",
@@ -889,6 +1316,84 @@ async def create_or_update_profile(profile: UserProfile):
         "display_name": profile.display_name,
         "avatar_id": profile.avatar_id
     }
+
+# User Profile Update endpoint
+@app.patch("/api/users/{user_id}/profile",
+    tags=["Users"],
+    summary="Update user profile",
+    description="Update user's avatar and/or display name")
+async def update_user_profile(user_id: str, updates: dict):
+    """Update user profile fields"""
+    try:
+        # Validate user_id is a valid UUID
+        import uuid
+        try:
+            uuid.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid user ID format")
+        
+        # Build update query dynamically based on provided fields
+        update_fields = []
+        values = []
+        
+        if 'avatar_id' in updates:
+            update_fields.append(f"avatar_id = ${len(values) + 2}")
+            values.append(updates['avatar_id'])
+            
+        if 'display_name' in updates:
+            update_fields.append(f"display_name = ${len(values) + 2}")
+            values.append(updates['display_name'])
+            
+        if 'birthdate' in updates:
+            # Validate birthdate for COPPA compliance (13+ years)
+            from datetime import datetime, date
+            try:
+                birthdate = datetime.strptime(updates['birthdate'], '%Y-%m-%d').date()
+                today = date.today()
+                age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+                
+                if age < 13:
+                    raise HTTPException(status_code=400, detail="User must be 13 or older")
+                    
+                update_fields.append(f"birthdate = ${len(values) + 2}")
+                values.append(birthdate)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid birthdate format")
+            
+        if not update_fields:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+            
+        # Always update the updated_at timestamp
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        
+        # Execute the update
+        async with db.pool.acquire() as conn:
+            query = f"""
+                UPDATE users 
+                SET {', '.join(update_fields)}
+                WHERE id = $1
+                RETURNING id, username, email, display_name, avatar_id
+            """
+            
+            result = await conn.fetchrow(query, user_id, *values)
+            
+            if not result:
+                raise HTTPException(status_code=404, detail="User not found")
+                
+            return {
+                "id": str(result['id']),
+                "username": result['username'],
+                "email": result['email'],
+                "display_name": result['display_name'],
+                "avatar_id": result['avatar_id']
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update user profile: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update profile")
+
 
 @app.get("/api/users/{user_id}/progress")
 async def get_user_progress(user_id: UUID):
@@ -954,9 +1459,39 @@ async def get_active_cards(limit: int = 10):
         }
 
 # Flashcard endpoints
+@app.get("/api/flashcards")
+async def get_flashcards_simple(
+    category: str = Query("trivia_mix", description="Flashcard category"),
+    count: int = Query(10, description="Number of flashcards to return"),
+    user_id: Optional[str] = Query(None, description="Optional user ID for progression tracking")
+):
+    """GET endpoint for flashcards - simpler for CORS and browser access"""
+    try:
+        logger.info(f"GET flashcards: category={category}, count={count}, user_id={user_id}")
+        flashcards = await db.get_flashcard_content(category, count, user_id)
+        
+        if not flashcards:
+            logger.warning(f"No flashcards found for category {category}, generating dynamic content")
+            flashcards = await generate_dynamic_flashcards(category, count)
+        else:
+            logger.info(f"Found {len(flashcards)} flashcards from database")
+        
+        return {"cards": flashcards}
+    except Exception as e:
+        logger.error(f"Error in get_flashcards_simple: {str(e)}", exc_info=True)
+        return {
+            "cards": [{
+                "id": f"fallback-{i}",
+                "category": category,
+                "type": "trivia",
+                "content": f"Fallback {category} content {i}",
+                "difficulty": "medium"
+            } for i in range(min(count, 3))]
+        }
+
 @app.post("/api/flashcards")
 async def get_flashcards(request: Dict[str, Any]):
-    """Get flashcards for practice mode with progression tracking"""
+    """POST endpoint for flashcards - supports complex queries and maintains backward compatibility"""
     category = request.get("category", "trivia_mix")
     count = request.get("count", 10)
     user_id = request.get("user_id")  # Optional user ID for progression tracking
@@ -1639,6 +2174,132 @@ async def get_content_feedback(content_id: UUID):
     summary = await player_feedback_system.get_content_feedback_summary(content_id)
     return summary
 
+@app.post("/api/content/quiz/generate-questions")
+async def patch_quiz_set(request: Dict[str, Any]):
+    """Generate missing questions for an existing quiz set"""
+    set_id = request.get("set_id")
+    count = request.get("count", 1)
+    
+    if not set_id:
+        raise HTTPException(status_code=400, detail="set_id is required")
+    
+    if count < 1 or count > 9:
+        raise HTTPException(status_code=400, detail="count must be between 1 and 9")
+    
+    try:
+        # Load the existing quiz set
+        async with db.pool.acquire() as conn:
+            quiz_set = await conn.fetchrow("""
+                SELECT id, type, data, metadata
+                FROM content
+                WHERE id = $1 AND type = 'quiz_set'
+            """, UUID(set_id))
+            
+            if not quiz_set:
+                raise HTTPException(status_code=404, detail="Quiz set not found")
+            
+            # Parse the data
+            data = json.loads(quiz_set["data"]) if isinstance(quiz_set["data"], str) else quiz_set["data"]
+            existing_questions = data.get("questions", [])
+            
+            # Extract context from the existing set
+            category = data.get("category", request.get("category", "general"))
+            difficulty = data.get("difficulty", request.get("difficulty", "medium"))
+            title = data.get("title", "")
+            
+            # Generate the missing questions using the quiz generator
+            from quiz_set_generator import QuizSetGenerator
+            generator = QuizSetGenerator()
+            
+            new_questions = []
+            start_num = len(existing_questions) + 1
+            
+            for i in range(count):
+                question_num = start_num + i
+                # Generate a question that matches the set's style
+                question = await generator.generate_quiz_question(category, question_num)
+                if question:
+                    new_questions.append(question)
+                await asyncio.sleep(0.5)  # Rate limiting
+            
+            # Merge with existing questions
+            all_questions = existing_questions + new_questions
+            
+            # Update the data
+            data["questions"] = all_questions[:10]  # Ensure max 10 questions
+            
+            # Save back to database
+            await conn.execute("""
+                UPDATE content
+                SET data = $1,
+                    updated_at = $2
+                WHERE id = $3
+            """, json.dumps(data), datetime.utcnow(), UUID(set_id))
+            
+            logger.info(f"Patched quiz set {set_id} with {len(new_questions)} new questions")
+            
+            return {
+                "success": True,
+                "set_id": set_id,
+                "questions_added": len(new_questions),
+                "total_questions": len(data["questions"])
+            }
+            
+    except Exception as e:
+        logger.error(f"Error patching quiz set: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate questions: {str(e)}")
+
+@app.get("/api/admin/content/{content_type}")
+async def get_all_content_by_type(
+    content_type: str,
+    limit: int = Query(5000, description="Maximum number of items to return"),
+    offset: int = Query(0, description="Number of items to skip")
+):
+    """Admin endpoint to fetch all content of a specific type - for database viewer"""
+    try:
+        async with db.pool.acquire() as conn:
+            # Validate content type
+            valid_types = ['quiz_set', 'pun_set', 'quote_set', 'joke_set', 'trivia_set']
+            if content_type not in valid_types:
+                raise HTTPException(status_code=400, detail=f"Invalid content type. Must be one of: {valid_types}")
+            
+            # Fetch content
+            rows = await conn.fetch("""
+                SELECT id, type, data, metadata, tags, created_at, updated_at
+                FROM content
+                WHERE type = $1
+                ORDER BY created_at DESC
+                LIMIT $2 OFFSET $3
+            """, content_type, limit, offset)
+            
+            # Also get total count
+            total = await conn.fetchval("""
+                SELECT COUNT(*) FROM content WHERE type = $1
+            """, content_type)
+            
+            content = []
+            for row in rows:
+                content.append({
+                    "id": str(row["id"]),
+                    "type": row["type"],
+                    "data": json.loads(row["data"]) if isinstance(row["data"], str) else row["data"],
+                    "metadata": json.loads(row["metadata"]) if row["metadata"] and isinstance(row["metadata"], str) else row["metadata"],
+                    "tags": row["tags"],
+                    "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                    "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None
+                })
+            
+            return {
+                "content": content,
+                "total": total,
+                "limit": limit,
+                "offset": offset
+            }
+            
+    except Exception as e:
+        logger.error(f"Error fetching content type {content_type}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch content: {str(e)}")
+
 @app.get("/api/feedback/user/{user_id}/stats",
     tags=["Feedback"],
     summary="Get user feedback statistics",
@@ -1986,6 +2647,100 @@ async def websocket_endpoint(websocket: WebSocket):
             # TODO: Implement more message types
     except Exception:
         await websocket.close()
+
+
+
+# ============================================
+# Content Completion Tracking (Roaring Bitmaps)
+# ============================================
+
+from fastapi import Path
+
+@app.post("/api/content/{content_type}/{content_id}/complete",
+    tags=["Content"],
+    summary="Mark content as completed",
+    description="Generic endpoint to mark any content as completed")
+async def mark_content_completed(
+    content_type: str = Path(..., regex="^(quiz|quote|joke|pun|trivia|factoid)$", description="Content type"),
+    content_id: str = Path(..., description="Content ID"),
+    user_id: UUID = Query(..., description="User ID")
+):
+    """Mark any content as completed"""
+    async with db.pool.acquire() as conn:
+        await app.state.rb_dedup.mark_content_completed(
+            conn, str(user_id), content_type, content_id
+        )
+        
+        stats = await app.state.rb_dedup.get_user_stats(
+            conn, str(user_id), content_type
+        )
+        
+        return {
+            "success": True,
+            "content_type": content_type,
+            "content_id": content_id,
+            "stats": stats
+        }
+
+
+@app.post("/api/content/{content_type}/sets/complete",
+    tags=["Content"],
+    summary="Mark entire content set as completed",
+    description="Mark all items in a content set as completed at once")
+async def mark_content_set_completed(
+    content_type: str = Path(..., regex="^(quiz|quote|joke|pun|trivia|factoid)$", description="Content type"),
+    content_ids: List[str] = Body(..., description="List of content IDs in the set"),
+    user_id: UUID = Query(..., description="User ID")
+):
+    """Mark an entire content set as completed"""
+    async with db.pool.acquire() as conn:
+        # Mark all items in the set as completed
+        for content_id in content_ids:
+            await app.state.rb_dedup.mark_content_completed(
+                conn, str(user_id), content_type, content_id
+            )
+        
+        # Get updated stats
+        stats = await app.state.rb_dedup.get_user_stats(
+            conn, str(user_id), content_type
+        )
+        
+        return {
+            "success": True,
+            "content_type": content_type,
+            "items_completed": len(content_ids),
+            "stats": stats
+        }
+
+@app.get("/api/users/{user_id}/content-stats",
+    tags=["Users"],
+    summary="Get user content statistics",
+    description="Shows content consumption progress")
+async def get_user_content_stats(
+    user_id: UUID = Path(..., description="User ID"),
+    content_type: Optional[str] = Query(None, regex="^(quiz|quote|joke|pun|trivia)$", description="Filter by content type")
+):
+    """Get user's content consumption statistics"""
+    async with db.pool.acquire() as conn:
+        if content_type:
+            stats = await app.state.rb_dedup.get_user_stats(
+                conn, str(user_id), content_type
+            )
+            return {content_type: stats}
+        else:
+            all_stats = {}
+            for ctype in ['quiz', 'quote', 'joke', 'pun', 'trivia']:
+                all_stats[ctype] = await app.state.rb_dedup.get_user_stats(
+                    conn, str(user_id), ctype
+                )
+            return {
+                "user_id": str(user_id),
+                "stats": all_stats,
+                "summary": {
+                    "total_seen": sum(s.get('seen_count', 0) for s in all_stats.values()),
+                    "total_completed": sum(s.get('completed_count', 0) for s in all_stats.values())
+                }
+            }
 
 if __name__ == "__main__":
     import uvicorn

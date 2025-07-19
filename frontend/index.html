@@ -25,9 +25,12 @@
         <link rel="apple-touch-icon" href="./src/images/p0qp0q-clean.svg" />
 
         <!-- Google Fonts -->
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Barrio&family=Bungee&family=Kablammo&display=swap" rel="stylesheet">
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Barrio&family=Bungee&family=Kablammo&display=swap"
+            rel="stylesheet"
+        />
 
         <!-- External CSS Files -->
         <link rel="stylesheet" href="./src/styles/base/reset.css" />
@@ -38,10 +41,19 @@
             rel="stylesheet"
             href="./src/styles/components/profile-selector.css?v=20250108"
         />
-        <link rel="stylesheet" href="./src/styles/components/card.css?v=20250104" />
-        <link rel="stylesheet" href="./src/styles/components/card-economics-new.css?v=20250104e" />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/card.css?v=20250104"
+        />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/card-economics-new.css?v=20250104e"
+        />
         <link rel="stylesheet" href="./src/styles/components/settings.css" />
-        <link rel="stylesheet" href="./src/styles/components/quiz-modal.css?v=20250104" />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/quiz-modal.css?v=20250104"
+        />
         <link
             rel="stylesheet"
             href="./src/styles/components/flashcard-modal.css"
@@ -56,11 +68,32 @@
             href="./src/styles/components/herding-game.css"
         />
         <link rel="stylesheet" href="./src/styles/components/alert-modal.css" />
-        <link rel="stylesheet" href="./src/styles/components/rewards-popup.css?v=20250104" />
-        <link rel="stylesheet" href="./src/styles/components/rewards-display.css" />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/auth-age-verification.css"
+        />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/age-verification-modal.css"
+        />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/profile-edit-modal.css"
+        />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/rewards-popup.css?v=20250104"
+        />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/rewards-display.css"
+        />
         <link rel="stylesheet" href="./src/styles/components/event-dots.css" />
         <link rel="stylesheet" href="./src/styles/components/joke-pages.css" />
-        <link rel="stylesheet" href="./src/styles/components/wonder-meter.css" />
+        <link
+            rel="stylesheet"
+            href="./src/styles/components/wonder-meter.css"
+        />
     </head>
     <body>
         <div class="app">
@@ -231,7 +264,7 @@
         <div class="avatar-selector-overlay" id="avatarSelectorOverlay">
             <div class="avatar-selector">
                 <div class="avatar-selector-header">
-                    <h3>Your Profile</h3>
+                    <h3>Who are you?</h3>
                     <button class="close-btn" onclick="closeAvatarSelector()">
                         ✕
                     </button>
@@ -242,18 +275,27 @@
                     <!-- Profile Fields -->
                     <div class="profile-fields">
                         <!-- Show user info if logged in -->
-                        <div id="userInfoSection" style="display: none;">
+                        <div id="userInfoSection" style="display: none">
                             <div class="user-info-display">
                                 <h4 id="userDisplayName">Anonymous Player</h4>
                                 <p id="userEmailDisplay" class="user-email"></p>
-                                <button class="logout-btn" onclick="handleLogout()">Sign Out</button>
+                                <button
+                                    class="logout-btn"
+                                    onclick="handleLogout()"
+                                >
+                                    Sign Out
+                                </button>
                             </div>
                         </div>
 
                         <!-- Auth section for non-logged in users -->
                         <div id="authSection">
                             <!-- Message area -->
-                            <div id="authMessage" class="auth-message" style="display: none;"></div>
+                            <div
+                                id="authMessage"
+                                class="auth-message"
+                                style="display: none"
+                            ></div>
 
                             <!-- Login Form -->
                             <div class="auth-login-section active">
@@ -269,7 +311,9 @@
                                         />
                                     </div>
                                     <div class="field-group">
-                                        <label for="loginPassword">Password</label>
+                                        <label for="loginPassword"
+                                            >Password</label
+                                        >
                                         <input
                                             type="password"
                                             id="loginPassword"
@@ -277,22 +321,36 @@
                                             required
                                         />
                                     </div>
-                                    <button type="submit" class="auth-submit-btn">Sign In</button>
+                                    <button
+                                        type="submit"
+                                        class="auth-submit-btn"
+                                    >
+                                        Sign In
+                                    </button>
                                 </form>
-                                
+
                                 <div class="auth-links">
-                                    <a href="#" data-auth-mode="forgot">Forgot password?</a>
+                                    <a href="#" data-auth-mode="forgot"
+                                        >Forgot password?</a
+                                    >
                                     <span>•</span>
-                                    <a href="#" data-auth-mode="register">Create account</a>
+                                    <a href="#" data-auth-mode="register"
+                                        >Create account</a
+                                    >
                                 </div>
                             </div>
 
                             <!-- Register Form -->
                             <div class="auth-register-section">
                                 <h4>Create your JazzyPop account</h4>
-                                <form id="registerForm" onsubmit="return false;">
+                                <form
+                                    id="registerForm"
+                                    onsubmit="return false;"
+                                >
                                     <div class="field-group">
-                                        <label for="registerName">Display Name</label>
+                                        <label for="registerName"
+                                            >Display Name</label
+                                        >
                                         <input
                                             type="text"
                                             id="registerName"
@@ -310,20 +368,71 @@
                                         />
                                     </div>
                                     <div class="field-group">
-                                        <label for="registerPassword">Password</label>
+                                        <label for="registerPassword"
+                                            >Password</label
+                                        >
                                         <input
                                             type="password"
                                             id="registerPassword"
                                             placeholder="8+ chars, mixed case, number"
                                             required
                                         />
-                                        <small class="password-hint">Min 8 chars, uppercase, lowercase, number</small>
+                                        <small class="password-hint"
+                                            >Min 8 chars, uppercase, lowercase,
+                                            number</small
+                                        >
                                     </div>
-                                    <button type="submit" class="auth-submit-btn">Create Account</button>
+                                    <div class="field-group">
+                                        <label for="registerBirthdate"
+                                            >Date of Birth</label
+                                        >
+                                        <input
+                                            type="date"
+                                            id="registerBirthdate"
+                                            required
+                                            max=""
+                                        />
+                                        <small class="age-hint"
+                                            >You must be 13 or older to create
+                                            an account</small
+                                        >
+                                    </div>
+                                    <div class="field-group checkbox-group">
+                                        <label class="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                id="registerTerms"
+                                                required
+                                            />
+                                            <span
+                                                >I confirm I am 13 years or
+                                                older and agree to the
+                                                <a
+                                                    href="/TOS/terms-of-service.html"
+                                                    target="_blank"
+                                                    >Terms of Service</a
+                                                >
+                                                and
+                                                <a
+                                                    href="/TOS/privacy-policy.html"
+                                                    target="_blank"
+                                                    >Privacy Policy</a
+                                                ></span
+                                            >
+                                        </label>
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        class="auth-submit-btn"
+                                    >
+                                        Create Account
+                                    </button>
                                 </form>
-                                
+
                                 <div class="auth-links">
-                                    <a href="#" data-auth-mode="login">Already have an account?</a>
+                                    <a href="#" data-auth-mode="login"
+                                        >Already have an account?</a
+                                    >
                                 </div>
                             </div>
 
@@ -340,11 +449,18 @@
                                             required
                                         />
                                     </div>
-                                    <button type="submit" class="auth-submit-btn">Send Reset Email</button>
+                                    <button
+                                        type="submit"
+                                        class="auth-submit-btn"
+                                    >
+                                        Send Reset Email
+                                    </button>
                                 </form>
-                                
+
                                 <div class="auth-links">
-                                    <a href="#" data-auth-mode="login">Back to sign in</a>
+                                    <a href="#" data-auth-mode="login"
+                                        >Back to sign in</a
+                                    >
                                 </div>
                             </div>
 
@@ -356,7 +472,9 @@
                                 class="google-signin-btn"
                                 onclick="signInWithGoogle()"
                             >
-                                <span style="font-size: 18px; margin-right: 8px">🇬</span>
+                                <span style="font-size: 18px; margin-right: 8px"
+                                    >🇬</span
+                                >
                                 Sign in with Google
                             </button>
                             <!-- Google Sign-In Button Container -->
@@ -414,6 +532,8 @@
         <script src="./src/config/CardConfig.js"></script>
         <script src="./src/core/SoundManager.js"></script>
         <script src="./src/components/AuthPanel.js"></script>
+        <script src="./src/components/AgeVerificationModal.js"></script>
+        <script src="./src/components/ProfileEditModal.js"></script>
         <script src="./src/components/AlertModal.js"></script>
         <script src="./src/components/RewardsPopup.js"></script>
         <script src="./src/components/RewardsDisplay.js"></script>
@@ -429,7 +549,7 @@
         <script src="./src/components/QuizFeedbackPopup.js"></script>
         <script src="./src/components/GiggleMeter.js"></script>
         <script src="./src/components/WonderMeter.js"></script>
-        <script src="./src/components/FlashcardModal.js"></script>
+        <script src="./src/components/FlashcardModal.js?v=20250117"></script>
         <script src="./src/components/HerdingGame.js"></script>
         <script src="./src/scripts/dashboard.js"></script>
     </body>

@@ -22,6 +22,22 @@ jazzyPopArchives
 JazzyPopArchitecture_specs
 kawaii-quiz-backend
 
+# Project documentation and temporary files
+STREAMING_PLAN_TWITCH/
+pythonScriptsJuly8/
+PracticeModalScreenshots/
+CLAUDE.local.md
+FLASHCARD_REPEAT_PREVENTION_PLAN.md
+SLOT_SPINNER_SUCCESS.md
+deploy_checklist.md
+
+# Security - don't expose admin tools
+database_viewer.html
+
+# Session handoff files
+SESSION_HANDOFF_*.md
+ARCHIVE_SESSION_HANDOFF_*.md
+
 # Data files
 data/*.json
 !data/.gitkeep

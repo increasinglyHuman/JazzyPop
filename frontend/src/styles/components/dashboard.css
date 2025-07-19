@@ -392,7 +392,7 @@ body {
     background: var(--bg-card);
     border-top: 1px solid var(--border);
     /* padding: 8px 0; */
-    padding: 2px 0; /* Minimal padding */
+    padding: 5px 0; /* Increased by 6px total (3px top + 3px bottom) */
     z-index: 100;
 }
 
@@ -426,11 +426,11 @@ body {
 
 .nav-icon {
     /* font-size: 24px; */
-    font-size: 20px; /* Reduced from 24px to 20px */
-    width: 40px;
-    height: 40px;
-    max-width: 40px; /* Prevent scaling on larger screens */
-    max-height: 40px; /* Prevent scaling on larger screens */
+    font-size: 22px; /* Slightly increased for taller nav bar */
+    width: 44px;
+    height: 44px;
+    max-width: 44px; /* Prevent scaling on larger screens */
+    max-height: 44px; /* Prevent scaling on larger screens */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -481,16 +481,16 @@ body {
     }
     
     .nav-icon {
-        width: 40px !important; /* Force icon size */
-        height: 40px !important;
-        max-width: 40px !important;
-        max-height: 40px !important;
+        width: 44px !important; /* Force icon size to match base size */
+        height: 44px !important;
+        max-width: 44px !important;
+        max-height: 44px !important;
     }
     
     .nav-icon img {
-        width: 100% !important; /* Fill the 40px container */
+        width: 100% !important; /* Fill the 44px container */
         height: 100% !important;
-        max-width: 40px !important;
-        max-height: 40px !important;
+        max-width: 44px !important;
+        max-height: 44px !important;
     }
 }

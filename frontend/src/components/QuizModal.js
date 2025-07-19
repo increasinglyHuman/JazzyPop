@@ -15,7 +15,9 @@ class QuizModal {
         this.mode = 'poqpoq'; // Default mode
         this.score = 0;
         this.correctAnswers = 0;
-        this.rewardsDisplay = null; // Reusable rewards display component
+        this.userAnswers = []; // Track user's answers for learning review
+        this.correctAnswersList = []; // Track correct answers the user got right
+        // REMOVED: this.rewardsDisplay = null; // Don't create a shared instance - create unique ones per quiz
         this.quizStartTime = null; // Track quiz start time
         this.timeSpent = 0; // Total time spent on quiz
         this.init();
@@ -29,10 +31,7 @@ class QuizModal {
         // Create modal structure
         this.createModal();
         
-        // Initialize rewards display component
-        if (window.RewardsDisplay) {
-            this.rewardsDisplay = new window.RewardsDisplay();
-        }
+        // REMOVED: Don't initialize rewards display here - create unique instances per quiz completion
         
         // Listen for mode changes
         window.addEventListener('modeChanged', (e) => {
@@ -148,6 +147,19 @@ class QuizModal {
         
         // Clear effects
         this.clearEffects();
+        
+        // Clean up rewards display instance if it exists
+        if (this.currentRewardsDisplay) {
+            // Clear the container to remove any lingering DOM elements
+            if (this.currentRewardsContainerId) {
+                const rewardsContainer = document.getElementById(this.currentRewardsContainerId);
+                if (rewardsContainer) {
+                    rewardsContainer.innerHTML = '';
+                }
+                this.currentRewardsContainerId = null;
+            }
+            this.currentRewardsDisplay = null;
+        }
     }
 
     async loadQuizData(quizData) {
@@ -155,6 +167,12 @@ class QuizModal {
             // Show loading state briefly
             document.getElementById('questionText').textContent = 'Loading quiz...';
             document.getElementById('answersContainer').innerHTML = '';
+            
+            // Ensure submit button is visible when starting new quiz
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.style.display = '';
+            }
             
             // Apply mode effects based on quiz mode
             if (quizData.mode && ['chaos', 'zen', 'speed', 'poqpoq'].includes(quizData.mode)) {
@@ -182,9 +200,21 @@ class QuizModal {
 
     async loadQuiz(quizId) {
         try {
+            // Reset tracking for new quiz
+            this.correctAnswers = 0;
+            this.userAnswers = [];
+            this.correctAnswersList = [];
+            this.currentQuestionIndex = 0;
+            
             // Show loading state
             document.getElementById('questionText').textContent = 'Loading quiz...';
             document.getElementById('answersContainer').innerHTML = '';
+            
+            // Ensure submit button is visible when starting new quiz
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.style.display = '';
+            }
             
             // Get completed quizzes to avoid repeats
             const completedQuizzes = JSON.parse(localStorage.getItem('completedQuizzes') || '[]');
@@ -305,8 +335,12 @@ class QuizModal {
         // Display answers
         this.displayAnswers(currentQ.answers);
         
-        // Reset button
-        document.getElementById('submitBtn').textContent = 'Skip';
+        // Reset button and ensure it's visible
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+            submitBtn.textContent = 'Skip';
+            submitBtn.style.display = ''; // Clear any inline display:none
+        }
         
         // Start timer if in speed mode
         if (this.mode === 'speed') {
@@ -390,6 +424,8 @@ class QuizModal {
             
             // Store current question data BEFORE any index changes
             const currentQuestionData = this.currentQuizSet.data.questions[this.currentQuestionIndex];
+            console.log('📋 Current question data:', currentQuestionData);
+            console.log('📋 Answer structure:', currentQuestionData.answers?.[0]);
             const selectedAnswerData = {
                 text: this.selectedAnswer.textContent,
                 id: this.selectedAnswer.dataset.answerId
@@ -397,6 +433,26 @@ class QuizModal {
             
             // Update button
             btn.textContent = isCorrect ? '✓' : '❌';
+            
+            // Store correct answer immediately if user got it right
+            if (isCorrect && currentQuestionData && currentQuestionData.answers) {
+                // Find the correct answer from the answers array
+                const correctAnswer = currentQuestionData.answers.find(answer => answer.correct === true);
+                if (correctAnswer) {
+                    // Store question context with answer
+                    const qaContext = {
+                        question: currentQuestionData.question,
+                        answer: correctAnswer.text,
+                        explanation: currentQuestionData.explanation
+                    };
+                    console.log('✅ Storing Q&A:', qaContext);
+                    this.correctAnswersList.push(qaContext);
+                } else {
+                    console.log('❌ Could not find correct answer in answers array');
+                }
+            } else {
+                console.log('❌ Not storing answer - isCorrect:', isCorrect, 'has data:', !!currentQuestionData, 'has answers:', !!(currentQuestionData?.answers));
+            }
             
             // Show feedback after delay so player can see which answer was correct
             setTimeout(() => {
@@ -536,6 +592,7 @@ class QuizModal {
         // Increment correct answer count
         if (isCorrect) {
             this.correctAnswers++;
+            // Note: Correct answer is already stored in submitAnswer() before the index changes
         }
         
         // Track the answer with the API
@@ -976,6 +1033,7 @@ class QuizModal {
             'language': './src/images/categories/language.svg',
             'language_evolution': './src/images/categories/language.svg',
             'famous_lies': './src/images/categories/famous_lies.svg',
+            'ancient_architecture': './src/images/categories/history.svg', // Use history bot for ancient architecture
             'general': './src/images/categories/general.svg'
         };
         
@@ -986,6 +1044,9 @@ class QuizModal {
     // Removed showLevelUp - now handled by EconomyManager
     
     async showQuizComplete() {
+        console.log('🎯 QUIZ COMPLETE - showQuizComplete called');
+        console.log('Correct answers collected:', this.correctAnswersList);
+        
         // Calculate final score
         const totalQuestions = this.currentQuizSet.data.questions.length;
         const percentage = Math.round((this.correctAnswers / totalQuestions) * 100);
@@ -1014,6 +1075,23 @@ class QuizModal {
             
             economyResult = await window.economyManager.processQuizComplete(quizData);
             
+            // Mark quiz set as completed for deduplication
+            const userId = localStorage.getItem('userId');
+            if (userId && this.currentQuizSet) {
+                const quizIds = this.currentQuizSet.data.questions.map(q => this.currentQuizSet.id);
+                
+                try {
+                    const apiBase = window.API_URL || 'https://p0qp0q.com';
+                    await fetch(`${apiBase}/api/content/quiz/sets/complete?user_id=${userId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(quizIds)
+                    });
+                } catch (error) {
+                    console.error('Failed to mark quiz as completed:', error);
+                }
+            }
+            
             if (!economyResult.success && economyResult.needsHearts) {
                 // Show no hearts message
                 document.getElementById('questionText').textContent = 'No Hearts!';
@@ -1038,24 +1116,29 @@ class QuizModal {
         const category = this.currentQuizSet.data.category || 'General';
         const categoryDisplay = category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ');
         
+        // COMMENTED OUT - OLD SCORE-BASED MESSAGES
         // Victory message variations based on score
-        const victoryMessages = {
-            perfect: [`${categoryDisplay} Mastered!`, `${categoryDisplay} Champion!`, `Perfect ${categoryDisplay} Score!`],
-            great: [`${categoryDisplay} Quiz Aced!`, `${categoryDisplay} Expert!`, `Crushed the ${categoryDisplay} Quiz!`],
-            good: [`${categoryDisplay} Quiz Complete!`, `${categoryDisplay} Knowledge Gained!`, `Nice ${categoryDisplay} Run!`],
-            needsWork: [`${categoryDisplay} Practice Complete`, `${categoryDisplay} Learning Progress`, `${categoryDisplay} Experience Gained`]
-        };
+        // const victoryMessages = {
+        //     perfect: [`${categoryDisplay} Mastered!`, `${categoryDisplay} Champion!`, `Perfect ${categoryDisplay} Score!`],
+        //     great: [`${categoryDisplay} Quiz Aced!`, `${categoryDisplay} Expert!`, `Crushed the ${categoryDisplay} Quiz!`],
+        //     good: [`${categoryDisplay} Quiz Complete!`, `${categoryDisplay} Knowledge Gained!`, `Nice ${categoryDisplay} Run!`],
+        //     needsWork: [`${categoryDisplay} Practice Complete`, `${categoryDisplay} Learning Progress`, `${categoryDisplay} Experience Gained`]
+        // };
+        // 
+        // let messageType = 'needsWork';
+        // if (percentage === 100) messageType = 'perfect';
+        // else if (percentage >= 80) messageType = 'great';
+        // else if (percentage >= 60) messageType = 'good';
+        // 
+        // const messages = victoryMessages[messageType];
+        // const victoryMessage = messages[Math.floor(Math.random() * messages.length)];
         
-        let messageType = 'needsWork';
-        if (percentage === 100) messageType = 'perfect';
-        else if (percentage >= 80) messageType = 'great';
-        else if (percentage >= 60) messageType = 'good';
+        // Generate learning review message with correct answers
+        const learningMessage = this.generateQuizReviewMessage(category, categoryDisplay);
         
-        const messages = victoryMessages[messageType];
-        const victoryMessage = messages[Math.floor(Math.random() * messages.length)];
-        
-        // Update header with larger text
-        document.getElementById('questionText').innerHTML = `<span style="font-size: 1.5em; font-weight: bold;">${victoryMessage}</span>`;
+        // Update header with category title
+        const categoryTitle = this.getCategoryTitle(category);
+        document.getElementById('questionText').innerHTML = `<span style="font-size: 1.5em; font-weight: bold;">${categoryTitle}</span>`;
         
         // Hide the quiz content background gradient
         const quizContent = this.modal.querySelector('.quiz-content');
@@ -1063,73 +1146,257 @@ class QuizModal {
             quizContent.style.background = 'transparent';
         }
         
+        // Add quiz-results-modal class for proper styling
+        this.modal.className = 'quiz-modal active quiz-results-modal';
+        
+        // Hide the Skip button during results
+        const submitBtn = document.getElementById('submitBtn');
+        if (submitBtn) {
+            submitBtn.style.display = 'none';
+        }
+        
+        // COMMENTED OUT - OLD LAYOUT WITH SCORES
         // Create new layout with bot at top, stats below, and rewards separate
+        // document.getElementById('answersContainer').innerHTML = `
+        //     <div class="quiz-complete-layout" style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin: 20px 0;">
+        //         <!-- Category Bot at Top -->
+        //         <div class="category-bot" style="margin-bottom: 10px;">
+        //             <img src="${this.getCategoryBotImage(category)}" alt="${categoryDisplay} Bot" 
+        //                  style="width: 240px; height: 240px; object-fit: contain;">
+        //         </div>
+        //         
+        //         <!-- Score and Accuracy Box -->
+        //         <div class="stats-box" style="display: flex; gap: 30px; justify-content: center; 
+        //                                       background: rgba(255, 255, 255, 0.1); 
+        //                                       border-radius: 12px; padding: 20px 40px; 
+        //                                       border: 1px solid rgba(255, 255, 255, 0.2);">
+        //             <div class="result-stat" style="text-align: center;">
+        //                 <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7; margin-bottom: 5px; text-transform: uppercase;">Score</span>
+        //                 <span class="stat-value" style="display: block; font-size: 2em; font-weight: bold; color: white;">${this.correctAnswers}/${totalQuestions}</span>
+        //             </div>
+        //             <div class="stat-divider" style="width: 1px; background: rgba(255, 255, 255, 0.2); margin: 0 10px;"></div>
+        //             <div class="result-stat" style="text-align: center;">
+        //                 <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7; margin-bottom: 5px; text-transform: uppercase;">Accuracy</span>
+        //                 <span class="stat-value" style="display: block; font-size: 2em; font-weight: bold; color: white;">${percentage}%</span>
+        //             </div>
+        //         </div>
+        //         
+        //         <!-- Rewards in Dark Box -->
+        //         <div class="rewards-box" style="width: 100%; max-width: 500px; 
+        //                                         background: rgba(0, 0, 0, 0.6); 
+        //                                         border-radius: 12px; padding: 20px; 
+        //                                         border: 1px solid rgba(255, 255, 255, 0.1);
+        //                                         text-align: center;">
+        //             <!-- Container for reward spinners with unique ID -->
+        //             <div id="rewardsBar-quiz-${Date.now()}" class="rewards-bar" style="min-height: 100px;"></div>
+        //         </div>
+        //     </div>
+        // `;
+        
+        // NEW FLASHCARD-STYLE LAYOUT
+        // console.log('QUIZ COMPLETION: Using NEW flashcard-style layout');
         document.getElementById('answersContainer').innerHTML = `
-            <div class="quiz-complete-layout" style="display: flex; flex-direction: column; align-items: center; gap: 20px; margin: 20px 0;">
+            <div class="results-screen quiz-results">
                 <!-- Category Bot at Top -->
-                <div class="category-bot" style="margin-bottom: 10px;">
+                <div class="results-bot-container-large">
                     <img src="${this.getCategoryBotImage(category)}" alt="${categoryDisplay} Bot" 
-                         style="width: 240px; height: 240px; object-fit: contain;">
+                         style="width: 200px; height: 200px; margin: 10px auto; display: block;">
                 </div>
                 
-                <!-- Score and Accuracy Box -->
-                <div class="stats-box" style="display: flex; gap: 30px; justify-content: center; 
-                                              background: rgba(255, 255, 255, 0.1); 
-                                              border-radius: 12px; padding: 20px 40px; 
-                                              border: 1px solid rgba(255, 255, 255, 0.2);">
-                    <div class="result-stat" style="text-align: center;">
-                        <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7; margin-bottom: 5px; text-transform: uppercase;">Score</span>
-                        <span class="stat-value" style="display: block; font-size: 2em; font-weight: bold; color: white;">${this.correctAnswers}/${totalQuestions}</span>
-                    </div>
-                    <div class="stat-divider" style="width: 1px; background: rgba(255, 255, 255, 0.2); margin: 0 10px;"></div>
-                    <div class="result-stat" style="text-align: center;">
-                        <span class="stat-label" style="display: block; font-size: 0.9em; opacity: 0.7; margin-bottom: 5px; text-transform: uppercase;">Accuracy</span>
-                        <span class="stat-value" style="display: block; font-size: 2em; font-weight: bold; color: white;">${percentage}%</span>
+                <!-- Learning Review Message -->
+                <div class="learning-review" style="margin: 10px; font-size: 18px; line-height: 1.6; width: calc(100% - 20px); max-width: 100%; color: #E8E8E8; text-align: left; word-wrap: break-word; box-sizing: border-box; overflow-wrap: break-word;">
+                    ${learningMessage}
+                </div>
+                
+                <!-- Large black container for rewards -->
+                <div class="rewards-container-large">
+                    <div class="rewards-bar" id="rewardsBar-quiz-${Date.now()}" style="min-height: 100px;">
+                        <!-- Spinner slots will be added here -->
                     </div>
                 </div>
                 
-                <!-- Rewards in Dark Box -->
-                <div class="rewards-box" style="width: 100%; max-width: 500px; 
-                                                background: rgba(0, 0, 0, 0.6); 
-                                                border-radius: 12px; padding: 20px; 
-                                                border: 1px solid rgba(255, 255, 255, 0.1);
-                                                text-align: center;">
-                    <!-- Container for reward spinners -->
-                    <div id="quizRewardsBar" style="min-height: 100px;"></div>
+                <!-- Footer container for done button -->
+                <div class="results-footer" style="margin-top: 15px; padding: 10px; background: transparent; text-align: right;">
+                    <button class="btn-primary done-button" onclick="window.quizModal.close()">${this.getRandomDoneText()}</button>
                 </div>
             </div>
         `;
         
         // Display rewards using RewardsDisplay component
-        console.log('Quiz complete - economyResult:', economyResult);
-        if (this.rewardsDisplay && economyResult && economyResult.rewards) {
-            console.log('Displaying rewards:', economyResult.rewards);
-            const rewardsContainer = document.getElementById('quizRewardsBar');
+        // console.log('Quiz complete - economyResult:', economyResult);
+        // console.log('Quiz rewards from API:', economyResult?.rewards);
+        
+        // Create a unique RewardsDisplay instance for this quiz completion
+        if (window.RewardsDisplay && economyResult && economyResult.rewards) {
+            // console.log('Displaying rewards:', economyResult.rewards);
+            // console.log('Rewards breakdown:', {
+            //     xp: economyResult.rewards.xp || 0,
+            //     coins: economyResult.rewards.coins || 0,
+            //     sapphires: economyResult.rewards.sapphires || 0,
+            //     keys: economyResult.rewards.keys || 0,
+            //     tickets: economyResult.rewards.tickets || 0,
+            //     giftBox: economyResult.rewards.giftBox || 0,
+            //     hearts: economyResult.rewards.hearts || 0
+            // });
+            // Find the rewards container with the dynamic ID
+            const rewardsContainers = document.querySelectorAll('[id^="rewardsBar-quiz-"]');
+            const rewardsContainer = rewardsContainers[rewardsContainers.length - 1]; // Get the most recent one
+            
             if (rewardsContainer) {
+                // Store the container ID for cleanup
+                this.currentRewardsContainerId = rewardsContainer.id;
+                
+                // Create a unique instance with a timestamp to avoid DOM conflicts
+                const uniqueRewardsDisplay = new window.RewardsDisplay();
+                
                 setTimeout(() => {
-                    this.rewardsDisplay.show(economyResult.rewards, rewardsContainer, {
+                    uniqueRewardsDisplay.show(economyResult.rewards, rewardsContainer, {
                         size: 'medium',
                         theme: 'dark'
                     });
                 }, 300); // Delay for visual flow
+                
+                // Clean up the rewards display when quiz modal closes
+                this.currentRewardsDisplay = uniqueRewardsDisplay;
             } else {
                 console.error('Rewards container not found');
             }
         } else {
             console.log('Cannot display rewards - missing components:', {
-                hasRewardsDisplay: !!this.rewardsDisplay,
+                hasRewardsDisplay: !!window.RewardsDisplay,
                 hasEconomyResult: !!economyResult,
                 hasRewards: !!(economyResult && economyResult.rewards)
             });
         }
         
+        // COMMENTED OUT - OLD BUTTON CODE (using Done button in footer now)
         // Change button to "Close"
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.textContent = 'Close';
-        submitBtn.onclick = () => {
-            this.close();
-            // Let user pick a new quiz from the dashboard
+        // const submitBtn = document.getElementById('submitBtn');
+        // submitBtn.textContent = 'Close';
+        // submitBtn.onclick = () => {
+        //     this.close();
+        //     // Let user pick a new quiz from the dashboard
+        // };
+    }
+    
+    getCategoryTitle(category) {
+        // Map category to fun titles
+        const titles = {
+            general: "General Knowledge Quest!",
+            science: "Science Adventure!",
+            history: "History Journey!",
+            geography: "Geography Explorer!",
+            entertainment: "Entertainment Extravaganza!",
+            sports: "Sports Spectacular!",
+            technology: "Tech Trivia!",
+            literature: "Literary Adventure!",
+            music: "Musical Journey!",
+            animals: "Animal Kingdom!",
+            pop_culture: "Pop Culture Party!"
         };
+        
+        return titles[category] || "Knowledge Quest Complete!";
+    }
+    
+    generateQuizReviewMessage(category, categoryDisplay) {
+        console.log('📝 Quiz Review - Answers collected:', this.correctAnswersList);
+        
+        // Use the tracked correct answers
+        let correctAnswers = [...this.correctAnswersList];
+        
+        // Limit to 3 answers
+        if (correctAnswers.length > 3) {
+            // Shuffle and take 3
+            correctAnswers = correctAnswers.sort(() => Math.random() - 0.5).slice(0, 3);
+        }
+        
+        // If no correct answers, get some random explanations from the quiz
+        if (correctAnswers.length === 0) {
+            const questions = this.currentQuizSet.data.questions;
+            // Get 3 random questions with explanations
+            const randomQuestions = [...questions]
+                .filter(q => q.explanation) // Only questions with explanations
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 3);
+            
+            for (const question of randomQuestions) {
+                if (question.explanation) {
+                    correctAnswers.push({
+                        question: question.question,
+                        explanation: question.explanation
+                    });
+                }
+            }
+        }
+        
+        // JazzyPop style message components
+        const openings = [
+            `Way to go! That was an awesome ${categoryDisplay} session!`,
+            `Great job! You explored ${categoryDisplay} like a pro!`,
+            `Fantastic work! Your ${categoryDisplay} knowledge is growing!`,
+            `Nice one! You tackled that ${categoryDisplay} quiz with style!`,
+            `Boom! You just leveled up your ${categoryDisplay} game!`
+        ];
+        
+        const learningIntros = [
+            "Here's a fun fact you discovered:",
+            "You learned something cool:",
+            "Check out this fact you uncovered:",
+            "Here's what you found out:",
+            "You discovered this gem:"
+        ];
+        
+        const motivations = [
+            "Keep that brain buzzing!",
+            "Your knowledge is your superpower!",
+            "Every quiz makes you smarter!",
+            "Learning is the best adventure!",
+            "You're building an amazing brain library!",
+            "Knowledge unlocked - you're unstoppable!",
+            "Your curiosity is your strength!",
+            "Smart cookies like you go far!"
+        ];
+        
+        // Build the message
+        const opening = openings[Math.floor(Math.random() * openings.length)];
+        const motivation = motivations[Math.floor(Math.random() * motivations.length)];
+        
+        let learningPoints = "";
+        if (correctAnswers.length > 0) {
+            // Pick just ONE random Q&A to highlight
+            const randomQA = correctAnswers[Math.floor(Math.random() * correctAnswers.length)];
+            const intro = learningIntros[Math.floor(Math.random() * learningIntros.length)];
+            
+            // Use the full explanation
+            if (randomQA.explanation) {
+                learningPoints = `${intro} ${randomQA.explanation}`;
+            } else {
+                // Fallback if somehow no explanation
+                learningPoints = `You gave it your best shot!`;
+            }
+        } else {
+            // Generic message if no correct answers
+            learningPoints = `You gave it your best shot!`;
+        }
+        
+        return `${opening} ${learningPoints} ${motivation}`;
+    }
+    
+    getRandomDoneText() {
+        const doneTexts = [
+            "Cool!",
+            "Gotcha!",
+            "Awesome!",
+            "Got it!",
+            "Sweet!",
+            "Nice!",
+            "Rad!",
+            "Wicked!",
+            "Boom!",
+            "Neat!"
+        ];
+        
+        return doneTexts[Math.floor(Math.random() * doneTexts.length)];
     }
 }
 

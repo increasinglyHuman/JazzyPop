@@ -1,0 +1,35 @@
+{
+  "question": "What's the coolest simple experiment you can do at home?",
+  "answers": [
+    {
+      "id": "a",
+      "text": "Bake a cake in the microwave",
+      "correct": false
+    },
+    {
+      "id": "b",
+      "text": "Make a volcano erupt with baking soda and vinegar!",
+      "correct": true
+    },
+    {
+      "id": "c",
+      "text": "Grow a pet rock from scratch",
+      "correct": false
+    },
+    {
+      "id": "d",
+      "text": "Fly a kite made of paper clips and string",
+      "correct": false
+    }
+  ],
+  "explanation": "Mixing baking soda and vinegar creates a fun chemical reaction that makes a bubbly volcano! It's a classic simple experiment that's super cool to watch. You can even decorate your volcano with paint or other craft supplies. Making a volcano is a great way to learn about science while having tons of fun at home!",
+  "mode": "zen",
+  "difficulty": "low",
+  "tags": [
+    "simple_experiments",
+    "science",
+    "chemistry",
+    "volcano",
+    "zen"
+  ]
+}

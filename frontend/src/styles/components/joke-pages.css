@@ -10,6 +10,7 @@
     max-width: 400px; /* More conservative mobile constraint */
     margin: 0 auto; /* Center the container */
     height: 100%;
+    max-height: 100vh; /* Prevent exceeding viewport */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -19,7 +20,8 @@
     background: #1f2c34; /* Solid dark background matching quiz modal */
     border-radius: 20px;
     position: relative;
-    overflow: hidden;
+    overflow-y: auto; /* Allow vertical scrolling when needed */
+    overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 /* Removed sine wave decorations for performance */
@@ -46,6 +48,25 @@
         height: 280px; /* Still large on mobile */
         margin-bottom: 15px;
     }
+}
+
+/* Dynamic sizing for long content */
+.joke-page-container.long-content .joke-bot-container {
+    width: 240px; /* Slightly smaller for long jokes */
+    height: 240px;
+}
+
+.joke-page-container.very-long-content .joke-bot-container {
+    width: 200px; /* Even smaller for very long jokes */
+    height: 200px;
+}
+
+.joke-page-container.long-content .joke-text {
+    font-size: 24px; /* Slightly smaller text */
+}
+
+.joke-page-container.very-long-content .joke-text {
+    font-size: 20px; /* Even smaller for very long text */
 }
 
 /* Joke card for conversation layout */
@@ -130,10 +151,13 @@
     font-size: 28px;
     font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.4;
+    line-height: 1.3; /* Tighter line height saves vertical space */
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
     transition: opacity 0.3s ease;
     animation: textPop 0.4s ease-out;
+    word-break: break-word; /* Allow breaking long words */
+    width: 100%; /* Use full available width */
+    padding: 0 10px; /* Small padding for edge spacing */
 }
 
 @keyframes textPop {
@@ -155,7 +179,8 @@
     display: inline-block;
     animation: wordSpotlight 3s ease-out both; /* Increased to 3 seconds */
     transform-origin: center bottom; /* Anchor at bottom for better effect */
-    margin: 0 2px; /* Small margin for better readability during animation */
+    margin: 0 1px; /* Reduced margin to allow more words per line */
+    white-space: nowrap; /* Prevent individual words from breaking */
 }
 
 @keyframes wordSpotlight {
@@ -533,6 +558,25 @@
 
     .joke-text.punchline {
         font-size: 26px;
+    }
+
+    /* Responsive sizing for mobile too */
+    .joke-page-container.long-content .joke-bot-container {
+        width: 120px;
+        height: 120px;
+    }
+
+    .joke-page-container.very-long-content .joke-bot-container {
+        width: 100px;
+        height: 100px;
+    }
+
+    .joke-page-container.long-content .joke-text {
+        font-size: 20px;
+    }
+
+    .joke-page-container.very-long-content .joke-text {
+        font-size: 18px;
     }
 
     .joke-nav {

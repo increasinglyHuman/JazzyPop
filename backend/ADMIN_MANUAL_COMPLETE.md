@@ -20,7 +20,97 @@ ps aux | grep python | grep main.py
 sudo lsof -i :8000
 ```
 
+### Complete Startup Sequence
+
+#### Full System Startup (After Server Reboot)
+```bash
+# 1. Ensure all services are enabled for auto-start
+sudo systemctl enable jazzypop-backend
+sudo systemctl enable jazzypop-generators
+sudo systemctl enable jazzypop-monitor
+sudo systemctl enable jazzypop-quiz-generator
+sudo systemctl enable jazzypop-validation  # IMPORTANT: Validation worker
+
+# 2. Start all services in order
+sudo systemctl start jazzypop-backend      # Main API (includes uvicorn server)
+sleep 5                                    # Give it time to initialize
+sudo systemctl start jazzypop-validation   # Validation worker
+sudo systemctl start jazzypop-quiz-generator # Content generation
+sudo systemctl start jazzypop-generators   # Other generators
+sudo systemctl start jazzypop-monitor      # Monitoring last
+
+# 3. Verify all services are running
+sudo systemctl status jazzypop-backend
+sudo systemctl status jazzypop-validation
+sudo systemctl status jazzypop-quiz-generator
+
+# 4. Check for any failed services
+systemctl list-units --failed | grep jazzypop
+
+# 5. Monitor initial logs
+sudo journalctl -u jazzypop-backend -f &
+sudo journalctl -u jazzypop-validation -f &
+# Press Ctrl+C to stop following logs
+```
+
 ### Starting/Stopping Services
+
+#### Clean Shutdown Procedure (IMPORTANT!)
+The system has aggressive auto-restart mechanisms. For a clean shutdown:
+
+```bash
+# 1. First, find and stop any crash recovery processes
+ps aux | grep crash_recovery | grep -v grep
+# If found, kill it: sudo kill [PID]
+
+# 2. Check for duplicate monitors
+ps aux | grep duplicate_monitor | grep -v grep
+# If found, kill it: sudo kill [PID]
+
+# 3. Disable auto-restart temporarily
+sudo systemctl disable jazzypop-backend
+sudo systemctl disable jazzypop-generators
+sudo systemctl disable jazzypop-monitor
+sudo systemctl disable jazzypop-quiz-generator
+sudo systemctl disable jazzypop-validation
+
+# 4. Stop all services
+sudo systemctl stop jazzypop-backend
+sudo systemctl stop jazzypop-generators
+sudo systemctl stop jazzypop-monitor
+sudo systemctl stop jazzypop-quiz-generator
+sudo systemctl stop jazzypop-validation
+
+# 5. Kill any remaining processes
+sudo pkill -f "python.*main.py"
+sudo pkill -f "python.*generator.py"
+sudo pkill -f "python.*monitor"
+
+# 6. Verify clean shutdown
+ps aux | grep python | grep -E "main|generator|monitor" | grep -v grep
+# Should return nothing
+
+# To re-enable auto-start later:
+sudo systemctl enable jazzypop-backend
+sudo systemctl enable jazzypop-generators
+sudo systemctl enable jazzypop-monitor
+sudo systemctl enable jazzypop-quiz-generator
+sudo systemctl enable jazzypop-validation
+
+# To list all JazzyPop services:
+ls -la /etc/systemd/system/jazzypop-*.service
+systemctl list-units --all | grep -i jazz
+```
+
+#### Service Descriptions
+- **jazzypop-backend**: Main FastAPI backend service (includes uvicorn server via main.py)
+- **jazzypop-generators**: Content generation services
+- **jazzypop-monitor**: System monitoring and health checks
+- **jazzypop-quiz-generator**: Quiz content generator (v3 with kid-safe filtering)
+- **jazzypop-validation**: Triple validation worker (processes pending quiz sets)
+
+Note: The jazzypop-api service has been archived as it's redundant. The main.py script 
+automatically starts uvicorn when run, so a separate uvicorn service is not needed.
 
 #### Backend API Service
 ```bash

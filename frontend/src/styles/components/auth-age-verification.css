@@ -1,0 +1,68 @@
+/* Age Verification Styles for Auth Forms */
+
+/* Checkbox group styling */
+.auth-panel .checkbox-group {
+    margin: 1rem 0;
+}
+
+.auth-panel .checkbox-label {
+    display: flex;
+    align-items: center;  /* Changed from flex-start to center for better alignment */
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.auth-panel .checkbox-label input[type="checkbox"] {
+    /* Removed margin-top to keep checkbox aligned with text */
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.auth-panel .checkbox-label span {
+    line-height: 1.4;
+}
+
+.auth-panel .checkbox-label a {
+    color: var(--accent-purple);
+    text-decoration: underline;
+}
+
+.auth-panel .checkbox-label a:hover {
+    color: var(--accent-purple-dark, #9333ea);
+}
+
+/* Date input styling */
+.auth-panel input[type="date"] {
+    padding: 0.75rem;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* Age hint styling */
+.auth-panel .age-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Set max date to ensure user must be 13+ */
+.auth-panel input[type="date"]:focus {
+    outline: 2px solid var(--accent-purple);
+    outline-offset: 2px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+    .auth-panel .checkbox-label {
+        font-size: 0.85rem;
+    }
+    
+    .auth-panel .checkbox-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+    }
+}

@@ -22,12 +22,19 @@ class AuthPanel {
         return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
-    async handleEmailAuth(email, password, displayName = null) {
+    async handleEmailAuth(email, password, displayName = null, birthdate = null) {
         try {
             const endpoint = this.mode === 'login' ? '/api/auth/login' : '/api/auth/register';
             const body = this.mode === 'login' 
                 ? { email, password }
-                : { email, password, display_name: displayName, session_id: this.sessionId };
+                : { 
+                    email, 
+                    password, 
+                    display_name: displayName, 
+                    birthdate: birthdate,
+                    terms_accepted: true,
+                    session_id: this.sessionId 
+                  };
 
             console.log('Sending auth request to:', `${this.API_URL}${endpoint}`);
             // Don't log request body - it contains passwords!
@@ -97,6 +104,57 @@ class AuthPanel {
         localStorage.setItem('avatarId', authData.avatar_id);
         localStorage.setItem('isAuthenticated', 'true');
         
+        // Check if this is a Google user who needs age verification
+        if (authData.needs_age_verification) {
+            // Show age verification modal
+            setTimeout(() => {
+                this.close();
+                if (window.ageVerificationModal) {
+                    window.ageVerificationModal.show(authData.user_id, () => {
+                        // After verification, continue with normal flow
+                        this.completeAuthSuccess(authData);
+                    });
+                }
+            }, 500);
+            return;
+        }
+        
+        // Normal flow for users with age already verified
+        this.completeAuthSuccess(authData);
+    }
+    
+    completeAuthSuccess(authData) {
+        // Check if this is a new user who needs profile setup
+        if (authData.is_new_user && window.profileEditModal) {
+            // Close auth panel first
+            this.close();
+            
+            // Show profile setup modal
+            setTimeout(() => {
+                window.profileEditModal.show(
+                    authData.user_id,
+                    {
+                        display_name: authData.display_name,
+                        avatar_id: authData.avatar_id
+                    },
+                    (profile) => {
+                        // Profile saved, continue with normal flow
+                        this.finalizeAuth(authData, profile);
+                    },
+                    true // isNewUser flag
+                );
+            }, 500);
+            return;
+        }
+        
+        // Normal flow for existing users
+        this.finalizeAuth(authData);
+    }
+    
+    finalizeAuth(authData, updatedProfile = null) {
+        // Use updated profile if provided, otherwise use auth data
+        const profile = updatedProfile || authData;
+        
         // Update UI
         this.updateProfileDisplay();
         
@@ -117,12 +175,12 @@ class AuthPanel {
         if (authData.migrated_data) {
             this.showMessage('Welcome! Your progress has been saved to your account.', 'success');
         } else if (authData.is_new_user) {
-            this.showMessage('Welcome to JazzyPop! Your account has been created.', 'success');
+            this.showMessage(`Welcome to JazzyPop, ${profile.display_name}!`, 'success');
         } else {
-            this.showMessage('Welcome back!', 'success');
+            this.showMessage(`Welcome back, ${profile.display_name}!`, 'success');
         }
 
-        // Close auth panel after short delay
+        // Close auth panel after short delay if still open
         setTimeout(() => this.close(), 1500);
     }
 
@@ -228,6 +286,58 @@ class AuthPanel {
         }
     }
 
+    async logout() {
+        try {
+            const userId = localStorage.getItem('userId');
+            const sessionId = localStorage.getItem('sessionId');
+            
+            // Call backend logout endpoint
+            await fetch(`${this.API_URL}/api/auth/logout?user_id=${userId}&session_id=${sessionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            // Clear all auth data from localStorage
+            const authKeys = ['userId', 'displayName', 'avatarId', 'isAuthenticated', 
+                             'googleId', 'userEmail', 'userName', 'isGoogleUser'];
+            authKeys.forEach(key => localStorage.removeItem(key));
+            
+            // Reset to anonymous session
+            this.currentUserId = null;
+            this.sessionId = this.generateSessionId();
+            localStorage.setItem('sessionId', this.sessionId);
+            
+            // Update UI
+            this.updateProfileDisplay();
+            
+            // Update auth status in dashboard
+            if (window.checkAuthStatus) {
+                window.checkAuthStatus();
+            }
+            
+            // Show success message
+            this.showMessage('Logged out successfully', 'success');
+            
+            // Refresh the page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Even if backend fails, clear local data
+            this.clearLocalAuth();
+            window.location.reload();
+        }
+    }
+
+    clearLocalAuth() {
+        // Helper to clear all auth data
+        const authKeys = ['userId', 'displayName', 'avatarId', 'isAuthenticated', 
+                         'googleId', 'userEmail', 'userName', 'isGoogleUser'];
+        authKeys.forEach(key => localStorage.removeItem(key));
+    }
+
     open() {
         const overlay = document.getElementById('authPanelOverlay');
         if (overlay) {
@@ -252,7 +362,7 @@ class AuthPanel {
             });
 
             google.accounts.id.renderButton(
-                document.getElementById('googleSignInButton'),
+                document.getElementById('googleSignInDiv'),
                 { 
                     theme: 'outline', 
                     size: 'large',
@@ -266,7 +376,21 @@ class AuthPanel {
         this.bindEvents();
     }
 
+    setMaxBirthdate() {
+        // Set max date to 13 years ago from today
+        const birthdateInput = document.getElementById('registerBirthdate');
+        if (birthdateInput) {
+            const today = new Date();
+            const maxDate = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
+            const maxDateStr = maxDate.toISOString().split('T')[0];
+            birthdateInput.setAttribute('max', maxDateStr);
+        }
+    }
+
     bindEvents() {
+        // Set max birthdate for age verification
+        this.setMaxBirthdate();
+        
         // Login form
         const loginForm = document.getElementById('loginForm');
         if (loginForm) {
@@ -290,12 +414,20 @@ class AuthPanel {
                 const email = document.getElementById('registerEmail').value;
                 const password = document.getElementById('registerPassword').value;
                 const displayName = document.getElementById('registerName').value;
+                const birthdate = document.getElementById('registerBirthdate').value;
+                const termsAccepted = document.getElementById('registerTerms').checked;
                 
-                console.log('Register form submitted:', { email, displayName });
+                console.log('Register form submitted:', { email, displayName, birthdate });
                 
                 // Check if fields are empty
-                if (!email || !password || !displayName) {
+                if (!email || !password || !displayName || !birthdate) {
                     this.showMessage('Please fill in all fields', 'error');
+                    return;
+                }
+                
+                // Check terms acceptance
+                if (!termsAccepted) {
+                    this.showMessage('You must accept the terms of service', 'error');
                     return;
                 }
                 
@@ -313,7 +445,7 @@ class AuthPanel {
                 
                 this.showMessage('Creating account...', 'info');
                 
-                const result = await this.handleEmailAuth(email, password, displayName);
+                const result = await this.handleEmailAuth(email, password, displayName, birthdate);
                 if (!result.success) {
                     this.showMessage(result.error, 'error');
                 }

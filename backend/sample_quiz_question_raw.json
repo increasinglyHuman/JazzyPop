@@ -1,0 +1,34 @@
+{
+  "question": "\ud83e\udd8f Which reggae rhinoceros in a musical likes to eat pizza? \ud83c\udf55",
+  "answers": [
+    {
+      "id": "a",
+      "text": "Raphael the Rhinoceros",
+      "correct": false
+    },
+    {
+      "id": "b",
+      "text": "Rockin' Rhino Ringo",
+      "correct": true
+    },
+    {
+      "id": "c",
+      "text": "Sneezy the Silly Snorting Rhino",
+      "correct": false
+    },
+    {
+      "id": "d",
+      "text": "Horny the Hippo (who's definitely not a rhino!)",
+      "correct": false
+    }
+  ],
+  "explanation": "Rockin' Rhino Ringo is the coolest reggae rhino in town! He loves to dance, sing, and eat lots of delicious pizza. What a fun, silly character! \ud83c\udfb6\ud83e\udd8f\ud83c\udf55",
+  "mode": "chaos",
+  "difficulty": "super_low",
+  "tags": [
+    "cartoon_characters",
+    "chaos",
+    "wild",
+    "unhinged"
+  ]
+}

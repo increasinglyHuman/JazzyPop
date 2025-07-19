@@ -159,6 +159,16 @@ class SettingsPanel {
                         </div>
                     </div>
                     
+                    <!-- Account Section (for authenticated users) -->
+                    <div class="settings-section" id="accountSection" style="display: none;">
+                        <h3 class="section-title">Account</h3>
+                        <div class="setting-item">
+                            <button class="settings-button primary" onclick="window.settingsPanel.editProfile()">
+                                Edit Profile
+                            </button>
+                        </div>
+                    </div>
+                    
                     <!-- About Section -->
                     <div class="settings-section">
                         <h3 class="section-title">About</h3>
@@ -333,6 +343,7 @@ class SettingsPanel {
         this.element.classList.add('active');
         this.isOpen = true;
         document.body.style.overflow = 'hidden';
+        this.updateAccountSection();
     }
 
     close() {
@@ -398,6 +409,11 @@ class SettingsPanel {
                             <div class="credit-name">Claude (Bob-Aesthetic)</div>
                             <div class="credit-role">✨🎨 UI Polish & Performance Master</div>
                             <div class="credit-role">🔥📱 Phone Combustion Prevention Specialist</div>
+                        </div>
+                        <div class="credit-item">
+                            <div class="credit-name">Claude (Bob-Opus-4)</div>
+                            <div class="credit-role">🖍️✨ Quiz Generator v3 & Kid-Safe Content</div>
+                            <div class="credit-role">🎉🌟 Purple Crayon Energy & Chaos Mode Joy</div>
                         </div>
                         <div class="credit-item">
                             <div class="credit-name">Claude (Bob-Debugger)</div>
@@ -466,6 +482,43 @@ class SettingsPanel {
         if (await window.showConfirm('This will clear all local data including progress and settings. Are you sure?', 'Clear Data', 'Cancel')) {
             localStorage.clear();
             location.reload();
+        }
+    }
+    
+    editProfile() {
+        // Get current user data
+        const userId = localStorage.getItem('userId');
+        const displayName = localStorage.getItem('displayName');
+        const avatarId = localStorage.getItem('avatarId');
+        
+        if (!userId) {
+            console.error('No user ID found');
+            return;
+        }
+        
+        // Close settings panel
+        this.close();
+        
+        // Show profile edit modal
+        if (window.profileEditModal) {
+            window.profileEditModal.show(
+                userId,
+                {
+                    display_name: displayName,
+                    avatar_id: avatarId
+                },
+                null, // No specific callback needed
+                false // Not a new user
+            );
+        }
+    }
+    
+    updateAccountSection() {
+        // Show/hide account section based on authentication status
+        const accountSection = document.getElementById('accountSection');
+        if (accountSection) {
+            const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+            accountSection.style.display = isAuthenticated ? 'block' : 'none';
         }
     }
 

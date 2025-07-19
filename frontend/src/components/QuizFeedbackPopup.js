@@ -16,9 +16,6 @@ class QuizFeedbackPopup {
         this.popup.innerHTML = `
             <div class="quiz-feedback-overlay"></div>
             <div class="quiz-feedback-content">
-                <div class="feedback-bot-container">
-                    <img class="feedback-bot-image" src="" alt="Feedback Bot">
-                </div>
                 <div class="feedback-message-container">
                     <h3 class="feedback-title"></h3>
                     <p class="feedback-message"></p>
@@ -116,6 +113,7 @@ class QuizFeedbackPopup {
                 background: #ff4757;
             }
             
+            /* Bot container removed to save vertical space on mobile
             .feedback-bot-container {
                 text-align: center;
                 margin-bottom: 20px;
@@ -128,7 +126,7 @@ class QuizFeedbackPopup {
                 width: 240px;
                 height: 240px;
                 animation: bounce 0.6s ease-out;
-            }
+            } */
             
             .feedback-message-container {
                 text-align: center;
@@ -264,12 +262,6 @@ class QuizFeedbackPopup {
         } = options;
 
         this.isShowing = true;
-        
-        // Update bot image
-        const botImage = this.popup.querySelector('.feedback-bot-image');
-        botImage.src = isCorrect 
-            ? './src/images/checkmark-bot.svg' 
-            : './src/images/not-bot.svg';
         
         // Update content style
         const content = this.popup.querySelector('.quiz-feedback-content');

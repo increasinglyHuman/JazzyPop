@@ -18,6 +18,17 @@
     height: 100% !important;
 }
 
+/* Disable electric green focus outlines in flashcard modal */
+.flashcard-modal *:focus,
+.flashcard-modal *:focus-visible {
+    outline: none !important;
+}
+
+.flashcard-modal *::selection {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: inherit !important;
+}
+
 .flashcard-modal.active {
     display: block !important;
     pointer-events: auto;
@@ -36,20 +47,24 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 450px;
-    max-height: 90vh;
+    width: 90%; /* Responsive width */
+    min-width: 280px; /* Mobile-friendly minimum */
+    max-width: 385px; /* Match dashboard card width for consistency */
+    height: auto; /* Shrink to content height */
     background: var(--bg-app);
     border-radius: var(--radius-lg);
     overflow: visible; /* Changed to visible for proper 3D transforms */
     animation: slideIn 0.3s ease;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start; /* Start from top */
+    padding: 5px; /* Minimal padding */
 }
 
 /* Header */
 .flashcard-header {
-    padding: 20px;
+    padding: 15px 30px;
+    margin: 0 0 10px 0; /* Just 10px bottom margin */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -115,28 +130,27 @@
 
 /* Flashcard Container */
 .flashcard-container {
-    flex: 1;
-    padding: 40px 20px;
+    flex: 0 1 auto; /* Don't force flex growth - size to content */
+    padding: 0 10px 20px 10px; /* Reduced left/right padding from 20px to 10px */
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Changed from center to flex-start */
     justify-content: center;
-    /* Practice mode background pattern */
-    background-image: 
-        radial-gradient(circle at 20% 50%, rgba(88, 204, 2, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 80% 50%, rgba(28, 176, 246, 0.05) 0%, transparent 50%);
+    /* Removed gradient for cleaner look */
+    background: transparent;
     position: relative;
-    min-height: 500px;
+    min-height: auto; /* Let content determine height */
     overflow: visible;
 }
 
 .flashcard {
-    width: 100%;
-    max-width: 350px;
-    height: 400px;
+    width: 85%; /* 85% of container width */
+    min-width: 280px; /* Mobile-friendly minimum */ 
+    max-width: 385px; /* Match dashboard card width for consistency */
+    height: auto; /* Let content determine height */
     position: relative;
     cursor: pointer;
     filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.3));
-    margin: 0 auto;
+    margin: 0 auto; /* Center horizontally, let header margin handle vertical spacing */
     transform-style: preserve-3d;
     transition: transform 0.6s;
     z-index: 1;
@@ -144,8 +158,7 @@
 
 .flashcard.simple-flip {
     overflow: visible !important;
-    height: 650px;
-    min-height: 650px;
+    height: auto; /* Let content determine height */
 }
 
 .flashcard.flipped {
@@ -169,22 +182,25 @@
 
 .flashcard-front,
 .flashcard-back {
-    position: absolute;
+    position: absolute; /* Keep absolute for flip animation */
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    right: 0; /* Add right: 0 to contain width */
+    width: 100%; /* Full width of parent */
+    height: auto; /* Auto height to fit content */
+    min-height: 300px; /* Reasonable minimum */
     border-radius: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 30px;
+    padding: 10px; /* Further reduced padding */
     text-align: center;
     box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.05);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    overflow: hidden;
+    overflow: visible; /* Changed to visible to allow growth */
+    box-sizing: border-box; /* Include padding in width */
 }
 
 /* Allow proper layout for simple-flip backs */
@@ -192,19 +208,26 @@
     overflow-y: auto;
     overflow-x: hidden;
     justify-content: flex-start;
-    padding: 15px;
+    padding: 20px 10px; /* More headroom and footroom */
     display: flex;
     flex-direction: column;
 }
 
 .flashcard-front {
-    /* Soft gradient with practice theme colors */
-    background: linear-gradient(145deg, #2d4356, #1f2c34);
-    border: 2px solid rgba(88, 204, 2, 0.3);
-    position: absolute;
-    overflow: hidden;
+    /* Flat color instead of gradient for consistency */
+    background: var(--bg-elevated, #3A4F63);
+    border: none; /* No border */
+    position: relative; /* Changed from absolute to let it size naturally */
+    overflow: visible; /* Allow content to grow */
     z-index: 2;
     backface-visibility: hidden;
+    transform: rotateY(0deg);
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%;
+    height: auto; /* Grow with content */
+    display: flex;
+    flex-direction: column;
 }
 
 .flashcard.flipped .flashcard-front {
@@ -219,24 +242,28 @@
 }
 
 .flashcard-back {
-    /* Softer gradient for back */
-    background: linear-gradient(145deg, #1a2332, #2d3b4d);
+    /* Flat color to match front */
+    background: #2d4356;
     color: white;
-    border: 2px solid rgba(88, 204, 2, 0.3);
+    border: none; /* No border */
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    min-height: 100%; /* Changed to min-height */
+    height: auto; /* Allow growth */
     transform: rotateY(180deg);
     backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     border-radius: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 30px;
+    justify-content: flex-start; /* Start from top, don't center */
+    padding: 10px; /* Reduced padding to minimize nesting accumulation */
     text-align: center;
+    box-sizing: border-box;
+    overflow: visible; /* Allow growth */
 }
 
 /* Special handling for simple-flip backs */
@@ -320,13 +347,15 @@
 
 /* Wonder Meter container on factoid backs - ultra compact */
 #wonderMeterInline {
-    position: relative;
+    position: relative; /* Changed from absolute to flow with content */
     width: 100%;
-    height: 40px;
+    height: 60px; /* Slightly taller for better visibility */
     display: flex;
     align-items: center;
-    margin: 0;
-    padding: 0;
+    margin: 20px 0; /* Margin to separate from content */
+    padding: 10px 20px; /* Some padding */
+    background: rgba(30, 40, 50, 0.5); /* Semi-transparent background */
+    border-radius: 20px;
 }
 
 /* Make Wonder Meter content ultra compact */
@@ -403,22 +432,36 @@
 }
 
 #wonderMeterInline .slider-container::before {
-    content: "🤔" !important;
+    content: "" !important;
     position: absolute !important;
-    left: -25px !important;
+    left: -35px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
-    font-size: 24px !important;
+    width: 32px !important;
+    height: 32px !important;
+    background-image: url('../../images/navIcons/thinkingEmoji.svg') !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+    filter: none !important; /* No filters on white SVGs */
+    opacity: 1 !important;
     z-index: 10 !important;
 }
 
 #wonderMeterInline .slider-container::after {
-    content: "😎" !important;
+    content: "" !important;
     position: absolute !important;
-    right: -30px !important;
+    right: -40px !important;
     top: 50% !important;
     transform: translateY(-50%) !important;
-    font-size: 24px !important;
+    width: 32px !important;
+    height: 32px !important;
+    background-image: url('../../images/navIcons/sunglassesEmogi.svg') !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    background-size: contain !important;
+    filter: none !important; /* No filters on white SVGs */
+    opacity: 1 !important;
     z-index: 10 !important;
 }
 
@@ -488,12 +531,436 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--primary);
-    margin-bottom: 10px;
-    padding: 6px 16px;
+    margin: 2px 0; /* Tiny margins */
+    padding: 2px 10px; /* Minimal padding */
     background: rgba(88, 204, 2, 0.1);
     border-radius: 20px;
     position: relative;
     z-index: 2;
+}
+
+/* Remove bubble for quote cards */
+.quote-card .card-category {
+    background: none;
+    border-radius: 0;
+    padding: 0;
+}
+
+/* Bigger category tag for quotes - Gen Z vibes */
+.quote-category {
+    font-family: 'Kablammo', cursive; /* Explosive, dynamic Gen Z font */
+    font-size: 48px; /* Super sized */
+    padding: 0; /* No bubble */
+    margin: 15px 0 20px 0; /* Good spacing */
+    font-weight: 400; /* Let the font do the work */
+    color: #FFFFFF; /* Pure white */
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: none; /* No shadow - just clean white */
+    transform: none; /* No rotation - straight up */
+    background: none; /* Remove bubble background */
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+/* Individual animated words for SAY WHAT! */
+.say-word {
+    display: inline-block;
+    animation: sayWhatIntro 2.5s ease-out forwards;
+    transform-origin: center;
+}
+
+.say-word-1 {
+    animation-delay: 0s;
+}
+
+.say-word-2 {
+    animation-delay: 0.1s;
+}
+
+/* Initial giant entrance animation that settles down */
+@keyframes sayWhatIntro {
+    0% {
+        transform: scale(2.5) rotate(-15deg);
+        opacity: 0;
+    }
+    10% {
+        transform: scale(2.2) rotate(10deg);
+        opacity: 1;
+    }
+    20% {
+        transform: scale(1.8) rotate(-5deg);
+    }
+    30% {
+        transform: scale(1.4) rotate(3deg);
+    }
+    40% {
+        transform: scale(1.2) rotate(-2deg);
+    }
+    50% {
+        transform: scale(1) rotate(0deg);
+    }
+    /* After settling, add subtle continuous animation */
+    100% {
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+/* After intro animation completes, apply subtle continuous throb */
+.say-word {
+    animation: sayWhatIntro 2.5s ease-out forwards,
+               sayWhatThrob 2s ease-in-out 2.5s infinite;
+}
+
+/* Subtle continuous throb animation */
+@keyframes sayWhatThrob {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+    }
+    25% {
+        transform: scale(1.1) rotate(-2deg);
+    }
+    50% {
+        transform: scale(1.05) rotate(1deg);
+    }
+    75% {
+        transform: scale(1.08) rotate(-1deg);
+    }
+}
+
+/* Quote card front specific padding (not margin since it's absolutely positioned) */
+.flashcard-front.quote-card {
+    padding: 15px 20px; /* Much less padding inside the card */
+}
+
+/* Add some top spacing specifically for the quote category */
+.quote-card .quote-category:first-child {
+    margin-top: 15px; /* Extra breathing room at top */
+}
+
+/* Reset unwanted spacing from nested elements */
+.flashcard-modal * {
+    box-sizing: border-box;
+}
+
+/* More specific reset - don't reset header and container margins */
+.flashcard-modal p,
+.flashcard-modal span {
+    margin: 0;
+    padding: 0;
+}
+
+/* Reset only specific divs, not all divs */
+.flashcard-content > div:not(.flashcard-header):not(.flashcard-container) {
+    margin: 0;
+    padding: 0;
+}
+
+/* Quote card specific styles */
+.quote-card .card-challenge {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    height: 100%;
+}
+
+.quote-card .challenge-question {
+    color: white !important;
+    font-size: 24px !important;
+    margin-bottom: 30px !important;
+}
+
+.quote-card .challenge-input {
+    width: 100%;
+    max-width: 400px;
+}
+
+.quote-card .flashcard-back {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    background: var(--bg-elevated, #3A4F63) !important; /* Ensure visible background */
+    color: white !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Force quote challenge content visible */
+.quote-card.flipped .flashcard-back,
+.quote-card.flipped .flashcard-challenge-container,
+.quote-card.flipped .flashcard-challenge-question,
+.quote-card.flipped .flashcard-challenge-input,
+.quote-card.flipped .flashcard-check-answer-btn,
+.quote-card.flipped .card-challenge {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 10 !important;
+}
+
+/* Ensure the card-challenge div inside flashcard-back is visible */
+.quote-card .flashcard-back .card-challenge {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    width: 100%;
+    opacity: 1 !important;
+    visibility: visible !important;
+    position: relative !important;
+    z-index: 20 !important;
+    color: white !important;
+    padding: 20px;
+}
+
+/* Make sure all challenge elements are visible on quote cards */
+.quote-card .flashcard-back .flashcard-challenge-container,
+.quote-card .flashcard-back .challenge-question,
+.quote-card .flashcard-back .challenge-input,
+.quote-card .flashcard-back .flashcard-check-answer-btn,
+.quote-card.flipped .flashcard-back .flashcard-challenge-container,
+.quote-card.flipped .flashcard-back .challenge-question,
+.quote-card.flipped .flashcard-back .challenge-input,
+.quote-card.flipped .flashcard-back .flashcard-check-answer-btn {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    position: relative !important;
+    z-index: 100 !important;
+}
+
+/* Debug: Force all challenge containers to be visible for quotes */
+.quote-card.flipped .card-challenge,
+.quote-card.flipped .card-challenge * {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Ensure proper flip animation for all cards */
+.flashcard.flipped {
+    transform: rotateY(180deg);
+}
+
+/* When flipped, hide front and show back */
+.flashcard.flipped .flashcard-front {
+    backface-visibility: hidden;
+    transform: rotateY(0deg);
+}
+
+.flashcard.flipped .flashcard-back {
+    backface-visibility: visible;
+    transform: rotateY(0deg);
+}
+
+.quote-card .flashcard-front {
+    position: relative !important; /* Let it size to content */
+    width: 100% !important;
+    height: auto !important; /* Grow with content */
+    backface-visibility: hidden !important;
+    border-radius: var(--radius-lg);
+}
+
+.quote-card .flashcard-back {
+    position: absolute !important;
+    width: 100% !important;
+    height: 100% !important;
+    top: 0 !important;
+    left: 0 !important;
+    backface-visibility: hidden !important;
+    border-radius: var(--radius-lg);
+    /* REMOVED transform: rotateY(180deg) - quote cards use fade, not 3D flip */
+    background: var(--bg-elevated, #3A4F63) !important;
+    padding: 30px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Remove this duplicate - handled below */
+
+/* REMOVED - This was causing the mirror effect! */
+
+/* Quote cards use fade transition instead of 3D flip to avoid mirroring issues */
+.quote-card .flashcard {
+    transform-style: flat !important;
+    -webkit-transform-style: flat !important;
+}
+
+/* Quote card backs start hidden */
+.quote-card .flashcard-back {
+    transform: none !important;
+    -webkit-transform: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    z-index: 1 !important;
+    transition: opacity 0.3s ease, visibility 0.3s ease !important;
+}
+
+/* Quote card fronts start visible */
+.quote-card .flashcard-front {
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 2 !important;
+    transition: opacity 0.3s ease, visibility 0.3s ease !important;
+}
+
+/* Override the general .flashcard.flipped rule for quote cards - no rotation */
+.flashcard.quote-card.flipped {
+    transform: none !important;
+    -webkit-transform: none !important;
+}
+
+/* When flipped, swap visibility */
+.quote-card.flipped .flashcard-front {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    z-index: 1 !important;
+}
+
+.quote-card.flipped .flashcard-back {
+    opacity: 1 !important;
+    visibility: visible !important;
+    z-index: 2 !important;
+    display: flex !important;
+    background: var(--bg-elevated, #3A4F63) !important;
+}
+
+/* COMMENTED OUT DUPLICATE RULES TO PREVENT CONFLICTS
+/* When quote card is flipped, show the back (no rotation needed since back starts at 0deg) */
+/* .quote-card.flipped .flashcard-back { */
+    /* Just show it - no transform needed */
+    /* transform: none !important; */
+    /* -webkit-transform: none !important; */
+    /* opacity: 1 !important; */
+    /* visibility: visible !important; */
+    /* display: flex !important; */
+    /* z-index: 100 !important; */
+    /* background: var(--bg-elevated, #3A4F63) !important; */
+/* } */
+
+/* Remove any additional transforms on the back when flipped */
+/* .quote-card.flipped .flashcard-back { */
+    /* No additional transform needed - the container rotation handles it */
+    /* z-index: 10 !important; */
+    /* opacity: 1 !important; */
+    /* visibility: visible !important; */
+    /* display: flex !important; */
+    /* background: var(--bg-elevated, #3A4F63) !important; */
+/* } */
+
+/* Specific rule to counter any hiding */
+/* .flashcard.quote-card.flipped .flashcard-back { */
+    /* display: flex !important; */
+    /* opacity: 1 !important; */
+    /* visibility: visible !important; */
+/* } */
+
+/* Force the challenge container to be visible on quote cards */
+.quote-card .flashcard-back .card-challenge {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* DUPLICATE - COMMENTED OUT
+.quote-card.flipped .flashcard-front {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    z-index: 1 !important;
+}
+*/
+
+/* Ensure the back face is properly positioned */
+/* .quote-card .flashcard-back { */
+    /* background: var(--bg-elevated, #3A4F63) !important; */
+    /* color: white !important; */
+/* } */
+
+/* NUCLEAR OPTION: Force all quote card back content visible */
+.quote-card.flipped .flashcard-back,
+.quote-card.flipped .flashcard-back *,
+.quote-card.flipped .flashcard-back .card-challenge,
+.quote-card.flipped .flashcard-back .flashcard-challenge-container,
+.quote-card.flipped .flashcard-back .challenge-question,
+.quote-card.flipped .flashcard-back .challenge-input,
+.quote-card.flipped .flashcard-back .check-answer-btn,
+.quote-card.flipped .flashcard-back .flashcard-check-answer-btn {
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+}
+
+/* Ensure flexbox elements use flex display */
+.quote-card.flipped .flashcard-back,
+.quote-card.flipped .flashcard-back .card-challenge,
+.quote-card.flipped .flashcard-back .flashcard-challenge-container {
+    display: flex !important;
+}
+
+/* Ensure quote card back challenge is properly styled */
+.quote-card .flashcard-challenge-container,
+.quote-card.flipped .flashcard-challenge-container {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+
+/* Prevent quote cards from having their challenge hidden */
+.quote-card .flashcard-back .card-challenge,
+.quote-card.flipped .flashcard-back .card-challenge {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.quote-card .flashcard-challenge-question {
+    color: white !important;
+    font-size: 24px !important;
+    margin-bottom: 15px !important; /* Reduced from 30px to 15px */
+    text-align: left;
+    min-height: 40px !important;
+    display: block !important;
+}
+
+/* Ensure quote challenges are visible */
+/* .quote-card .flashcard-check-answer-btn {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    margin: 30px auto 20px auto !important;
+    max-width: 200px;
+} */
+/* Button visibility now controlled by JavaScript updateButtonVisibility() */
+
+/* Hide continue button on quote cards - they use check answer button */
+/* .quote-card .flashcard-continue-btn {
+    display: none !important;
+} */
+/* Button visibility now controlled by JavaScript updateButtonVisibility() */
+
+/* Space out multiple choice options */
+.quote-card .multiple-choice-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.quote-card .mc-option {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
 }
 
 .category-icon {
@@ -508,27 +975,37 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 15px;
+    gap: 5px; /* Minimal gap */
     width: 100%;
     position: relative;
-    margin-top: 0;
-    padding: 20px 10px;
+    margin: 0;
+    padding: 0; /* No padding - items handle their own */
+    /* Removed height: 100% to allow flex growth */
+}
+
+/* Force category to top of factoid cards */
+.simple-flip .factoid-hero-display .card-category {
+    position: relative;
+    margin: 0 0 5px 0; /* Just tiny bottom margin */
 }
 
 .category-hero-icon {
-    width: 300px;
-    height: 300px;
+    width: 320px;
+    height: 320px;
     object-fit: contain;
     margin: 0;
+    flex-shrink: 0; /* Don't let it shrink */
 }
 
 .factoid-text {
-    font-size: 20px;
-    line-height: 1.5;
-    text-align: left;
+    font-size: 18px;
+    line-height: 1.3;
+    text-align: left; /* Already left aligned */
+    flex: 1; /* Take remaining space */
+    overflow-y: auto; /* Allow scroll if needed */
+    padding: 5px 15px 70px; /* Bottom padding for flip button space */
+    margin: 0; /* No margins */
     color: var(--text-primary);
-    margin: 0;
-    padding: 0;
     width: 100%;
 }
 
@@ -607,19 +1084,123 @@
     font-size: 20px;
     line-height: 1.5;
     color: var(--text-primary);
-    margin: 20px 0;
+    margin: 0; /* Remove margin */
+}
+
+.quote-display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Left align content */
+    justify-content: flex-start; /* Start from top instead of center */
+    padding: 0; /* Remove padding - let elements handle their own spacing */
+    height: auto; /* Don't force height */
+    width: 100%;
+}
+
+/* Reduce padding specifically for quote cards */
+.quote-card .flashcard-front {
+    padding: 5px; /* Minimal padding for quote cards */
+}
+
+/* Hide the original flip button for quote cards */
+.quote-card .flip-icon-button:not(.quote-flip-button) {
+    display: none !important;
+}
+
+/* Quote flip footer - dedicated space for flip button */
+.quote-flip-footer {
+    display: flex;
+    justify-content: flex-end; /* Right-align the button */
+    align-items: center;
+    width: 100%; /* Full width to enable right alignment */
+    padding: 15px 0;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quote-flip-footer .quote-flip-button {
+    position: relative; /* Normal flow instead of absolute */
+    bottom: auto;
+    right: auto;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0.9;
+}
+
+.quote-flip-footer .quote-flip-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+    opacity: 1;
+}
+
+.quote-flip-footer .flip-icon {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(1); /* Make icon white */
+}
+
+/* Fix quote card back containment when flipped - HIGHEST SPECIFICITY */
+.flashcard.quote-card.flipped {
+    height: auto !important;
+    min-height: auto !important;
+}
+
+.flashcard.quote-card.flipped .flashcard-back {
+    position: relative !important; /* Use normal flow instead of absolute */
+    top: auto !important;
+    left: auto !important;
+    transform: none !important; /* No 3D transform */
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+}
+
+/* Hide front when quote card is flipped */
+.flashcard.quote-card.flipped .flashcard-front {
+    display: none !important;
+}
+
+.quote-bot-image {
+    width: 260px;
+    height: 260px;
+    object-fit: contain;
+    margin: 0; /* No margin around image */
+    opacity: 0.9;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
 }
 
 .quote-display .quote-text {
     font-size: 22px;
     font-style: italic;
-    margin-bottom: 16px;
+    margin: 0 0 10px 0; /* Reduced bottom margin */
+    line-height: 1.4;
+    text-align: left; /* Left justify the quote */
+    width: 100%; /* Full width */
 }
 
 .quote-display .quote-author {
     font-size: 16px;
     opacity: 0.8;
     font-style: normal;
+    margin: 0; /* No margin */
+    text-align: left; /* Left justify author too */
+    width: 100%; /* Full width */
 }
 
 .content-display {
@@ -705,7 +1286,8 @@
     visibility: visible !important;
     position: relative !important;
     z-index: 101 !important;
-    margin: 20px auto !important;
+    margin: 40px auto !important; /* More top margin to move it up */
+    margin-right: 30px !important; /* Add right buffer to shift left */
     padding: 12px 24px !important;
     background: var(--primary) !important;
     color: var(--bg-dark) !important;
@@ -771,6 +1353,42 @@
     gap: 12px;
     max-width: 400px;
     margin: 0 auto;
+}
+
+/* Mobile adjustments for flashcard sizing */
+@media (max-width: 600px) {
+    .flashcard-content {
+        width: 95vw; /* Use viewport width */
+        min-width: 280px; /* Smaller mobile minimum */
+        max-width: 95vw; /* Don't exceed viewport */
+    }
+    
+    .flashcard {
+        width: 95%; /* More of screen width on mobile */
+        min-width: 280px; /* Mobile-friendly minimum */
+        max-width: 100%; /* Don't exceed parent */
+        margin: 0 auto;
+        height: auto !important; /* NEVER EVER EVER USE FIXED HEIGHT - breaks flexbox containment */
+        min-height: auto !important; /* Remove any fixed minimums */
+    }
+    
+    .multiple-choice-options {
+        max-width: 100%; /* Use full card width on mobile */
+        padding: 0 10px; /* Small padding */
+    }
+    
+    .results-screen {
+        padding: 10px; /* Further reduced padding on mobile */
+        width: 100%;
+        max-width: 100%;
+        min-width: auto; /* Remove any minimum width constraints */
+    }
+    
+    .rewards-container-large {
+        width: 95%; /* Use percentage instead of fixed 400px */
+        max-width: 95%; /* Ensure it fits within mobile viewport */
+        margin: 0 auto; /* Center it */
+    }
 }
 
 .mc-option {
@@ -849,33 +1467,50 @@
 
 /* Word order challenge */
 .word-order-container {
-    max-width: 400px;
+    max-width: 500px;
     margin: 0 auto;
+    padding: 10px 0;
+}
+
+/* Specific styles for quote word-order challenges */
+.quote-card .word-order-container .flashcard-challenge-question {
+    font-size: 14px !important;
+    font-weight: normal !important;
+    margin-bottom: 10px !important;
 }
 
 .word-bank {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 20px;
-    min-height: 80px;
-    padding: 16px;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px;
+    justify-items: center;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 12px;
     border: 2px dashed rgba(255, 255, 255, 0.3);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.05);
 }
 
+/* Ensure word chips work well in grid */
+.word-bank .word-chip {
+    width: 100%;
+    max-width: 120px;
+    text-align: center;
+}
+
 .word-chip {
-    padding: 8px 16px;
+    padding: 6px 12px;
     background: rgba(255, 255, 255, 0.2);
     border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 20px;
+    border-radius: 16px;
     color: white;
-    font-weight: 600;
+    font-weight: 500;
+    font-size: 14px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
     user-select: none;
+    white-space: nowrap;
 }
 
 .word-chip:hover {
@@ -889,16 +1524,21 @@
 }
 
 .word-answer {
-    min-height: 80px;
-    padding: 16px;
+    min-height: 60px;
+    padding: 12px 16px;
     border: 2px solid rgba(255, 255, 255, 0.5);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.1);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-    justify-content: center;
+    font-size: 16px;
+    line-height: 1.5;
+    color: white;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.word-answer:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .answer-placeholder {
@@ -906,17 +1546,30 @@
     font-style: italic;
 }
 
+/* Remove bubble styling for words in answer area */
 .word-answer .word-chip {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: white;
+    display: inline;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0 4px;
+    font-size: inherit;
+    font-weight: normal;
 }
 
 /* Answer check container */
 .answer-check {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    z-index: 10;
+    position: relative;
+    margin-top: 20px;
+    text-align: center;
+    z-index: 1000;
+}
+
+/* Ensure answer-check is visible on quote cards */
+.quote-card .answer-check {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 /* Check answer button */
@@ -1260,7 +1913,7 @@
 /* Results Screen */
 .results-screen {
     text-align: center;
-    padding: 40px;
+    padding: 3px;
 }
 
 .results-screen h2 {
@@ -1345,7 +1998,8 @@
     }
     
     .flashcard {
-        height: 350px;
+        height: auto; /* Remove fixed height - let content determine height */
+        min-height: auto; /* Remove fixed minimum too */
     }
     
     .card-question {
@@ -1534,11 +2188,11 @@
 
 /* Flip icon button */
 .flip-icon-button {
-    position: fixed;
-    bottom: 80px;
+    position: absolute;
+    bottom: 20px; /* More space from bottom */
     right: 20px;
-    width: 40px;
-    height: 40px;
+    width: 60px; /* Bigger button */
+    height: 60px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 50%;
@@ -1547,7 +2201,8 @@
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
-    padding: 8px;
+    padding: 12px;
+    z-index: 100;
 }
 
 .flip-icon-button:hover {
@@ -1573,7 +2228,7 @@
     visibility: visible !important;
     z-index: 1000;
     position: absolute;
-    bottom: 20px;
+    bottom: 20px; /* Same position as front */
     right: 20px;
 }
 
@@ -1672,7 +2327,7 @@
     display: flex;
     justify-content: flex-end;
     margin-top: 40px;
-    padding: 0 20px;
+    padding: 0 20px 20px; /* Added bottom padding */
 }
 
 .factoid-results .btn-primary {
@@ -1703,20 +2358,14 @@
     background: transparent \!important;
 }
 
-/* Make flashcard modal reasonable height */
-.flashcard {
-    min-height: 350px;
-    max-height: 500px;
-    height: auto;
-}
+/* REMOVED - conflicting with main .flashcard styles */
 
 .flashcard-front,
 .flashcard-back {
-    min-height: 350px;
-    max-height: 500px;
+    /* Removed min-height to allow natural sizing */
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start; /* Changed from space-between */
     position: relative;
 }
 
@@ -1724,9 +2373,9 @@
 .card-content {
     flex-grow: 1;
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Start from top */
     justify-content: center;
-    padding: 20px;
+    padding: 0; /* Remove padding */
     text-align: center;
     font-size: 26px !important;
     line-height: 1.4;
@@ -1745,10 +2394,12 @@
 .factoid-back-wrapper {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start; /* Start from top */
     width: 100%;
-    height: 100%;
+    min-height: 550px; /* Ensure space for wonder meter and button */
+    position: relative; /* For absolute positioning of children */
     flex: 1;
+    /* Removed height: 100% to allow growth */
 }
 
 /* Factoid back display */
@@ -1756,9 +2407,11 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 5px; /* Minimal gap */
     width: 100%;
-    padding: 10px;
+    padding: 5px; /* Minimal padding */
+    flex: 1 1 auto; /* Grow and shrink as needed */
+    min-height: 0; /* Allow proper flex shrinking */
 }
 
 
@@ -1775,15 +2428,15 @@
 }
 
 .factoid-detail-label {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--primary);
-    padding: 6px 16px;
+    padding: 3px 12px;
     background: rgba(88, 204, 2, 0.1);
     border-radius: 20px;
-    margin-bottom: 10px;
+    margin: 0 0 5px 0; /* Only small bottom margin */
     position: relative;
     z-index: 2;
 }
@@ -1793,19 +2446,20 @@
     z-index: 2;
     color: white !important;
     opacity: 1 !important;
-    font-size: 16px;
-    line-height: 1.5;
-    text-align: left;
-    padding: 0 20px;
+    font-size: 20px; /* Default font size for better readability */
+    line-height: 1.4;
+    text-align: left; /* Left align */
+    padding: 10px 20px;
     max-width: 100%;
     overflow-y: auto;
-    max-height: 200px;
+    max-height: 300px; /* More space for text */
+    flex: 1; /* Take available space */
 }
 
-/* Hide check answer button for factoids */
-.flashcard-back .check-answer-btn,
-.flashcard-back .flashcard-check-answer-btn {
-    display: none \!important;
+/* Hide check answer button ONLY for factoids/simple-flip cards */
+.flashcard.simple-flip .flashcard-back .check-answer-btn,
+.flashcard.simple-flip .flashcard-back .flashcard-check-answer-btn {
+    display: none !important;
 }
 
 /* Specifically hide it for simple-flip cards */
@@ -1837,9 +2491,106 @@
 /* Flip icon on back of cards */
 .flip-icon-back {
     position: absolute !important;
-    bottom: 20px !important;
+    bottom: 20px !important; /* Match front positioning */
     right: 20px !important;
-    z-index: 10;
+    z-index: 100;
+}
+
+/* Factoid flip footer - similar to quote flip footer */
+.factoid-flip-footer {
+    width: 100%;
+    padding: 10px 15px;
+    margin-top: auto; /* Push to bottom */
+    border-top: 1px solid rgba(255, 255, 255, 0.1); /* Cute thin line separator */
+    display: flex;
+    justify-content: flex-end; /* Right align the button */
+    align-items: center;
+    background: transparent;
+}
+
+.factoid-flip-footer .flip-icon-button {
+    position: relative !important;
+    bottom: auto !important;
+    right: auto !important;
+    background: transparent !important; /* Remove dark spot */
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+    margin-left: auto; /* Push button to the right */
+}
+
+.factoid-flip-footer .flip-icon-button:hover {
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+    opacity: 1;
+}
+
+.factoid-flip-footer .flip-icon {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(1); /* Make icon white */
+}
+
+/* For factoids, puns, and knock-knocks - restructure front to have footer */
+.flashcard[data-challenge-type="simple-flip"] .flashcard-front,
+.flashcard.pun-card .flashcard-front,
+.flashcard.knock-knock-card .flashcard-front {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.flashcard[data-challenge-type="simple-flip"] .flashcard-front .card-content,
+.flashcard.pun-card .flashcard-front .card-content,
+.flashcard.knock-knock-card .flashcard-front .card-content {
+    flex: 1; /* Take up available space */
+}
+
+/* Move flip button on all three card types to footer-style positioning */
+.flashcard[data-challenge-type="simple-flip"] .flashcard-front .flip-icon-button,
+.flashcard.pun-card .flashcard-front .flip-icon-button,
+.flashcard.knock-knock-card .flashcard-front .flip-icon-button {
+    position: relative !important;
+    bottom: auto !important;
+    right: auto !important;
+    margin-top: auto; /* Push to bottom */
+    margin-left: auto; /* Right align */
+    margin-right: 15px;
+    margin-bottom: 15px;
+    background: transparent !important;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+}
+
+/* Add separator line above flip button for all three card types */
+.flashcard[data-challenge-type="simple-flip"] .flashcard-front::after,
+.flashcard.pun-card .flashcard-front::after,
+.flashcard.knock-knock-card .flashcard-front::after {
+    content: "";
+    width: calc(100% - 30px);
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 15px auto 0;
+    order: 2; /* Place before the button */
+}
+
+.flashcard[data-challenge-type="simple-flip"] .flashcard-front .flip-icon-button,
+.flashcard.pun-card .flashcard-front .flip-icon-button,
+.flashcard.knock-knock-card .flashcard-front .flip-icon-button {
+    order: 3; /* Place after the separator */
 }
 
 /* Also hide it based on card container content */
@@ -1898,21 +2649,17 @@
     z-index: 10;
 }
 
-/* Factoid text improvements */
-.factoid-detail-label {
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--primary);
-    margin-bottom: 15px;
-}
+/* Factoid text improvements - REMOVED duplicate, using above definition */
 
 .factoid-twist {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 15px;
-    padding: 20px;
+    background: transparent; /* No box */
+    border-radius: 0;
+    padding: 10px 20px;
     min-height: 120px;
+    font-size: 24px; /* Bigger text - this is the main feature */
+    line-height: 1.4;
+    color: white;
+    text-align: left; /* Left align for consistency */
 }
 
 /* Hide any rainbow elements in factoid results */
@@ -2006,16 +2753,16 @@
 
 /* Large rewards container - belt style */
 .rewards-container-large {
-    width: 400px;
+    width: 100%;
     max-width: calc(100% - 20px);
-    height: 120px;
+    height: 80px; /* Reduced height */
     background: #000000;
     border-radius: 0;
     margin: 5px auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px;
+    padding: 3px; /* Reduced padding */
     position: relative;
     z-index: 5;
 }
@@ -2228,18 +2975,35 @@
     margin-bottom: 30px !important;  /* Space for value text */
 }
 
-/* Ensure reward values are visible in results modals */
+/* All flashcard results should keep values INSIDE slots (not absolute positioned outside) */
 .knock-knock-results-modal .reward-value,
 .pun-results-modal .reward-value,
 .factoid-results-modal .reward-value {
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
     opacity: 1 !important;
     visibility: visible !important;
     display: block !important;
-    position: absolute !important;
-    bottom: -25px !important;
+    text-align: center !important;
+    margin-top: 2px !important;
     font-size: 16px !important;
     font-weight: bold !important;
     text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+}
+
+/* Quote results should keep values INSIDE slots (not absolute positioned outside) */
+.quote-results-modal .reward-value {
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    text-align: center !important;
+    margin-top: 2px !important;
 }
 
 /* Ensure images are visible */
@@ -2301,9 +3065,9 @@
 
 /* Done button positioning */
 .done-button {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
+    position: relative;
+    margin: 0 auto;
+    display: block;
     min-width: 120px;
 }
 

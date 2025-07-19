@@ -62,7 +62,7 @@ async def _get_random_flashcards(self, category: str, limit: int) -> List[Dict[s
         'famous_quotes': ['quote', 'quote_set'],
         'bad_puns': ['pun', 'pun_set'],
         'knock_knock': ['joke', 'joke_set'],
-        'trivia_mix': ['fact', 'trivia', 'trivia_set', 'quote', 'quote_set']
+        'trivia_mix': ['trivia', 'trivia_set']
     }
     
     content_type = type_map.get(category, ['trivia', 'trivia_set'])

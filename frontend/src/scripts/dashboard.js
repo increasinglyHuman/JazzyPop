@@ -442,38 +442,19 @@ function updateUserDisplay() {
 
 // Handle Google sign-in response
 async function handleGoogleSignIn(response) {
-    try {
-        // Decode the JWT token to get user info
-        const base64Url = response.credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        const userInfo = JSON.parse(jsonPayload);
-        
-        // Update local storage with Google user info
-        localStorage.setItem('userName', userInfo.name || 'Google User');
-        localStorage.setItem('userEmail', userInfo.email || '');
-        localStorage.setItem('userPicture', userInfo.picture || '');
-        localStorage.setItem('googleId', userInfo.sub);
-        localStorage.setItem('isGoogleUser', 'true');
-        
-        // Update UI
-        updateUserDisplay();
-        
-        // Close avatar selector if open
-        closeAvatarSelector();
-        
-        // Show success message
-        showToast('Successfully signed in with Google!', 'success');
-        
-        // Sync with backend (when implemented)
-        await syncGoogleUser(response.credential);
-        
-    } catch (error) {
-        console.error('Error handling Google sign-in:', error);
-        showToast('Failed to sign in with Google', 'error');
+    // Use AuthPanel to handle the Google auth properly
+    if (window.authPanel) {
+        const result = await window.authPanel.handleGoogleAuth(response);
+        if (!result.success) {
+            showToast('Failed to sign in with Google', 'error');
+        } else {
+            // Update any additional UI elements specific to dashboard
+            updateUserDisplay();
+            closeAvatarSelector();
+        }
+    } else {
+        console.error('AuthPanel not initialized');
+        showToast('Authentication system not ready', 'error');
     }
 }
 
@@ -501,34 +482,11 @@ async function syncGoogleUser(credential) {
 
 // Updated sign-in function for button click
 function signInWithGoogle() {
-    
-    // Try rendering the button instead
-    const buttonDiv = document.getElementById('googleSignInDiv');
-    if (buttonDiv && typeof google !== 'undefined' && google.accounts) {
-        // Clear any existing content
-        buttonDiv.innerHTML = '';
-        
-        // Render the Google button
-        google.accounts.id.renderButton(
-            buttonDiv,
-            { 
-                theme: 'filled_blue',
-                size: 'large',
-                width: 250,
-                text: 'signin_with',
-                shape: 'rectangular'
-            }
-        );
-        
-        // Auto-click the rendered button
-        setTimeout(() => {
-            const googleButton = buttonDiv.querySelector('div[role="button"]');
-            if (googleButton) {
-                googleButton.click();
-            }
-        }, 100);
+    // Use the Google Sign-In prompt which will trigger the callback
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+        google.accounts.id.prompt();
     } else {
-        console.warn('Google Sign-In not initialized or button div not found');
+        console.warn('Google Sign-In not initialized');
         showToast('Google Sign-In is not available', 'error');
     }
 }
@@ -545,7 +503,7 @@ function closeAvatarSelector(event) {
 }
 
 // Select avatar
-function selectAvatar(avatarId) {
+async function selectAvatar(avatarId) {
     // Update the current avatar
     currentAvatar = avatarId;
     localStorage.setItem('selectedAvatar', avatarId);
@@ -558,10 +516,53 @@ function selectAvatar(avatarId) {
         opt.classList.toggle('selected', opt.dataset.avatarId === avatarId);
     });
     
+    // Update avatar on backend if user is authenticated
+    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    if (isAuthenticated) {
+        await updateUserProfile({ avatar_id: avatarId });
+    }
+    
     // Don't close immediately - let user see their selection
     setTimeout(() => {
         closeAvatarSelector();
     }, 500);
+}
+
+// Update user profile on backend
+async function updateUserProfile(updates) {
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+        console.error('No user ID found');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${window.API_URL}/api/users/${userId}/profile`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updates)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to update profile: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Profile updated successfully:', data);
+        
+        // Update local storage if display_name was changed
+        if (updates.display_name) {
+            localStorage.setItem('displayName', updates.display_name);
+            updateUserDisplay();
+        }
+        
+        return data;
+    } catch (error) {
+        console.error('Failed to update profile:', error);
+        // Don't throw - just log the error so UI remains responsive
+    }
 }
 
 // Sync user profile with backend
@@ -1127,23 +1128,31 @@ function checkAuthStatus() {
 
 // Handle logout
 function handleLogout() {
-    // Clear auth data
-    localStorage.removeItem('userId');
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('displayName');
-    localStorage.removeItem('avatarId');
-    
-    // Reset to session-based economy
-    if (window.economyManager) {
-        window.economyManager.setUserId(null);
-    }
-    
-    // Update UI
-    checkAuthStatus();
-    
-    // Show message
+    // Use the AuthPanel logout method which handles everything
     if (window.authPanel) {
-        window.authPanel.showMessage('You have been signed out', 'info');
+        window.authPanel.logout();
+    } else {
+        // Fallback if authPanel not available
+        // Clear auth data
+        localStorage.removeItem('userId');
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('displayName');
+        localStorage.removeItem('avatarId');
+        localStorage.removeItem('googleId');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('isGoogleUser');
+        
+        // Reset to session-based economy
+        if (window.economyManager) {
+            window.economyManager.setUserId(null);
+        }
+        
+        // Update UI
+        checkAuthStatus();
+        
+        // Reload page
+        window.location.reload();
     }
 }
 

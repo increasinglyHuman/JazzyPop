@@ -161,8 +161,22 @@
 }
 
 .badge-difficulty {
-    background: var(--primary);
-    color: white;
+    /* background: var(--primary); */
+    background: rgba(0, 0, 0, 0.25) !important; /* 25% opaque black background */
+    color: white !important;
+    backdrop-filter: blur(4px); /* Subtle blur for better integration */
+    /* Make 25% larger than standard badge */
+    font-size: 13.75px !important; /* 11px * 1.25 */
+    padding: 5px 10px !important; /* 4px * 1.25, 8px * 1.25 */
+}
+
+/* Override theme-specific badge styling for difficulty badges */
+.generic-card.theme-zen .badge-difficulty,
+.generic-card.theme-speed .badge-difficulty,
+.generic-card.theme-chaos .badge-difficulty {
+    background: rgba(0, 0, 0, 0.25) !important;
+    background-color: rgba(0, 0, 0, 0.25) !important;
+    color: white !important;
 }
 
 .badge-time {

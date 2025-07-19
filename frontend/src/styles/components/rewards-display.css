@@ -9,6 +9,50 @@
     padding: 20px;
 }
 
+/* Override the black background from flashcard-modal.css */
+.rewards-container-large {
+    background: rgba(0, 0, 0, 0.3) !important; /* 30% black instead of solid */
+    backdrop-filter: blur(5px);
+    display: flex !important; /* Ensure it's a flex container */
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Ensure any rewards-bar with timestamp ID also gets proper styling */
+.rewards-container-large [id^="rewardsBar"] {
+    min-height: 70px !important; /* Reduced height to match container */
+    width: 100% !important; /* Use full available width */
+    max-width: 100% !important; /* Use all available space */
+    display: flex !important;
+    gap: 3px !important; /* Optimized gap for 7 slots */
+    align-items: center !important; /* Center vertically */
+    justify-content: center !important;
+    flex-wrap: nowrap !important; /* Prevent wrapping */
+    overflow: visible !important; /* Don't clip slots */
+}
+
+/* Optimize slots for exactly 7 rewards maximum */
+.rewards-container-large [id^="rewardsBar"] .reward-slot {
+    width: 42px !important; /* Optimized for 7 slots: 7×42 + 6×3 = 312px total */
+    height: 60px !important; /* Reduced height */
+    min-width: 42px !important;
+    padding: 0px !important; /* Remove internal padding */
+    flex-shrink: 0 !important; /* Don't let slots shrink */
+}
+
+.rewards-container-large [id^="rewardsBar"] .slot-item img {
+    width: 25px !important; /* Smaller icons */
+    height: 25px !important;
+}
+
+/* Also override for specific modal types */
+.knock-knock-results-modal .rewards-container-large,
+.pun-results-modal .rewards-container-large,
+.factoid-results-modal .rewards-container-large,
+.quiz-results-modal .rewards-container-large {
+    background: rgba(0, 0, 0, 0.3) !important;
+}
+
 /* Rewards Bar Container */
 .rewards-bar-container {
     margin: 40px auto;
@@ -22,10 +66,13 @@
 .rewards-bar {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 14px; /* Just a touch closer */
     min-height: 100px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap; /* Prevent wrapping */
     align-items: flex-start;
+    padding: 10px; /* Add padding to prevent edge clipping */
+    position: relative;
+    z-index: 20 !important; /* Ensure rewards bar is on top */
 }
 
 /* Size variations */
@@ -80,20 +127,84 @@
 /* Individual Reward Slot */
 .reward-slot {
     position: relative;
-    width: 80px;
-    height: 80px;
-    overflow: hidden;
+    width: 60px;
+    height: 75px;
+    overflow: visible !important; /* Allow value text to show below */
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(30, 40, 50, 0.5); /* 50% transparent dark blue-gray */
     border: 2px solid rgba(255, 255, 255, 0.2);
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, opacity 0.3s ease;
+    margin: 0;
+    padding: 2px 0; /* Minimal padding */
+    gap: 2px; /* Minimal gap */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0; /* Prevent shrinking */
+    backdrop-filter: blur(5px); /* Subtle blur for that glassy effect */
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 10 !important; /* Ensure slots are on top */
+}
+
+/* Slot window for spinning icons */
+.slot-window {
+    width: 100%; /* Full width of parent */
+    height: 40px; /* Reduced height */
+    overflow: hidden !important; /* Clip spinning content to window */
+    position: relative;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    align-items: flex-start; /* Align to top */
+    justify-content: center;
+    margin-top: 5px; /* Small top margin to lift icons up */
+    /* Debug: border: 1px solid red; */
+}
+
+/* Removed .slot-value-row - no longer needed */
+
+/* Style for unearned rewards - More specific */
+.rewards-bar .reward-slot.unearned {
+    opacity: 0.15 !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.rewards-bar .reward-slot.unearned .slot-window {
+    opacity: 0.15 !important;
+}
+
+.rewards-bar .reward-slot.unearned img {
+    opacity: 0.15 !important;
+    filter: grayscale(100%) brightness(0.3) !important;
+}
+
+.rewards-bar .reward-slot.unearned .reward-value {
+    opacity: 0.15 !important; /* Match the icon opacity */
 }
 
 .reward-slot.celebrate {
     animation: celebratePulse 0.6s ease-out;
+}
+
+/* Earned reward appearance animation */
+.reward-slot.earned-appear {
+    animation: earnedFadeIn 0.5s ease-out forwards;
+}
+
+@keyframes earnedFadeIn {
+    0% {
+        opacity: 0.12;
+        transform: scale(0.8);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 @keyframes celebratePulse {
@@ -111,59 +222,82 @@
     }
 }
 
-/* Slot Reel Container */
-.slot-reel {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+/* Slot Reel Container - More specific to override flashcard-modal.css */
+.rewards-bar .slot-reel {
+    position: absolute !important; /* Back to absolute for proper spinning */
+    top: 5px !important; /* Positive value to start in view */
+    left: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
 }
 
-/* Spinning animation */
+/* Spinning animation - faster for realistic slot machine effect */
 .slot-reel.spinning {
-    animation: slotSpin 0.3s linear infinite;
+    animation: slotSpin 0.15s linear infinite;
 }
 
 /* Final position when stopped */
 .slot-reel.stopped {
-    transform: translateY(-160px); /* Show the middle (3rd) item */
+    transform: translateY(-120px); /* Show the middle (3rd) item - 60px * 2 */
 }
 
-/* Individual slot items */
-.slot-item {
-    width: 80px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+/* Individual slot items - More specific to override conflicts */
+.rewards-bar .slot-item {
+    width: 100% !important; /* Full width to center properly */
+    height: 35px !important; /* Reduced to move icons up */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    overflow: visible !important;
 }
 
-.slot-item img {
-    width: 40px;
-    height: 40px;
-    filter: brightness(0) invert(1); /* Make icons white by default */
-    transition: transform 0.2s ease;
+.rewards-bar .slot-item img {
+    width: 30px !important; /* Slightly smaller */
+    height: 30px !important;
+    transition: transform 0.2s ease !important;
+    filter: none !important; /* Ensure no filters are applied */
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important; /* Ensure no inline spacing */
+}
+
+/* Final positioned item after spin */
+.slot-item.final-item {
+    position: relative;
+    animation: bounceIn 0.3s ease-out;
+}
+
+@keyframes bounceIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 /* Reward value display */
-.reward-value {
-    position: absolute;
-    bottom: -30px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 20px;
+.reward-slot .reward-value {
+    font-size: 14px;
     font-weight: 700;
     opacity: 0;
     transition: opacity 0.3s ease;
     white-space: nowrap;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    position: relative; /* Override any absolute positioning */
+    color: #a0a0a0 !important; /* Consistent light grey for all values */
+    text-align: center;
+    width: 100%;
 }
 
-.reward-value.show {
+.reward-slot .reward-value.show {
     opacity: 1;
 }
 
@@ -182,10 +316,37 @@
     white-space: nowrap;
 }
 
-/* Slot spin animation */
+/* Slot spin animation - faster spin for more realistic effect */
 @keyframes slotSpin {
     0% { transform: translateY(0); }
-    100% { transform: translateY(-400px); }
+    100% { transform: translateY(-175px); } /* 35px * 5 items */
+}
+
+/* Deceleration animation for stopping */
+@keyframes slotDecelerate {
+    0% { 
+        transform: translateY(0);
+        animation-timing-function: linear;
+    }
+    70% {
+        transform: translateY(-140px);
+        animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    90% {
+        transform: translateY(-10px);
+        animation-timing-function: ease-out;
+    }
+    95% {
+        transform: translateY(5px);
+    }
+    100% { 
+        transform: translateY(0); /* End at starting position */
+    }
+}
+
+/* Slot stopping state with deceleration */
+.slot-reel.stopping {
+    animation: slotDecelerate 0.8s ease-out forwards;
 }
 
 /* Quick Reward Notification Styles */
